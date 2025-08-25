@@ -1,0 +1,541 @@
+---
+title: "PI curves - trial"
+author: "Jill Ashey"
+date: "2025-07-07"
+output: html_document
+---
+
+Trying out PI curve code 
+
+NOTICED on Jan 2025 trip: Noticed that the Barott Lab computer time is fast by 3 min. Not sure if this affects data analysis or the files but something to note for downstream analysis 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("devtools")
+#devtools::install_github("colin-olito/LoLinR")
+
+library(tidyverse)
+library(nls.multstart)
+library(broom)
+library(LoLinR)
+library(readr)
+library(lubridate)
+library(fuzzyjoin)
+library(stringr)
+library(purrr)
+library(future)
+library(furrr)
+library(minpack.lm)
+library(lme4)
+library(lmerTest)
+```
+
+```{r}
+getwd()
+# 1️⃣ Load the metadata ----
+pi_curve_run_metadata <- read_csv("../data/pi_curves/pi_curve_metadata_run.csv")
+
+run_meta <- read_csv("../data/pi_curves/pi_curve_metadata_run.csv") %>%
+  mutate(
+    Start = as_datetime(Date) + hours(hour(Start.time)) + minutes(minute(Start.time)),
+    Stop  = as_datetime(Date) + hours(hour(Stop.time)) + minutes(minute(Stop.time)))
+sample_meta <- read_csv("../data/pi_curves/pi_curve_metadata_sample.csv")
+
+# Make sure Chamber well # is numeric
+sample_meta <- sample_meta %>%
+  mutate(`Chamber` = as.numeric(`Chamber`))
+
+
+# 2️⃣ List all raw data files ----
+
+files <- list.files(path = "../data/pi_curves/raw_data/Oct2024/", pattern = "*.csv", full.names = TRUE)
+
+
+# 3️⃣ Read, process & join each file ----
+
+all_data <- map_dfr(files, function(f) {
+  # Extract channel number from filename, e.g. Ch1 → 1
+  channel <- str_extract(f, "Ch\\d+") %>% str_remove("Ch") %>% as.numeric()
+
+  # Read the file
+  raw <- read_csv(f) %>%
+    mutate(
+      # Parse datetime (adjust format if needed)
+      DateTime = dmy_hms(Date),
+      Channel = channel
+    )
+
+  # Join to run metadata by fuzzy time match
+  raw_joined <- fuzzy_left_join(
+    raw,
+    run_meta,
+    by = c("DateTime" = "Start", "DateTime" = "Stop"),
+    match_fun = list(`>=`, `<=`)
+  )
+
+  # Join to sample metadata by Date, Run #, and Channel
+  raw_joined <- raw_joined %>%
+    left_join(
+      sample_meta,
+      by = c(
+        "Date.y" = "Date",
+        "Run" = "Run",
+        "Channel" = "Chamber"
+      )
+    )
+
+  return(raw_joined)
+})
+
+
+# 4️⃣ Inspect and save ----
+
+all_data %>% count(is.na(`Colony_ID`))
+all_data %>% count(is.na(Run))
+
+#write_csv(all_data, "all_joined_data.csv")
+
+ggplot(all_data, aes(x = DateTime, y = Oxygen)) +
+  geom_point() + 
+  facet_wrap(~Colony_ID)
+```
+
+Fit local linear regressions by sample (write this in a loop ASAP)
+
+### 205, Run 5 
+Example with one sample 
+```{r}
+# Filter for sample AND removing Light = 0
+one_sample <- all_data %>%
+  filter(Colony_ID == "42", Run == 5) # , Light_Value > 0
+
+ggplot(one_sample, aes(x = DateTime, y = Oxygen)) +
+  geom_point() 
+  
+# Split by light interval 
+intervals <- one_sample %>%
+  group_by(Light_Value) %>%
+  group_split()
+length(intervals)  # how many intervals
+map(intervals, ~ unique(.x$Light_Value))
+
+# Define function 
+fit_reg <- function(df) {
+  rankLocReg(
+    xall = as.numeric(df$`Delta T [min]`),
+    yall = df$Oxygen,
+    alpha = 0.2,
+    method = "pc",
+    verbose = TRUE
+  )
+}
+
+# Fit regression for each interval 
+fits <- map(intervals, fit_reg)
+plot(fits[[1]])  # plot the first light interval
+plot(fits[[6]])  
+plot(fits[[4]])
+
+# Extract slopes
+micromol.L.s <- map_dbl(fits, ~ pluck(., "allRegs", "b1", 1))
+light_levels <- map_dbl(intervals, ~ unique(.x$Light_Value))
+
+one_sample_results <- tibble(
+  Colony_ID = "42",
+  Run = 5,
+  Light_Value = light_levels,
+  micromol.L.s = micromol.L.s
+);one_sample_results
+
+# Plot data by light level
+ggplot(one_sample_results, aes(x = Light_Value, y = micromol.L.s)) +
+  geom_point() +
+  geom_line() +
+  labs(
+    x = "Light Level (PAR)",
+    y = "Mean O₂ (μmol/L)",
+    title = "PI Curve") +
+  theme_minimal()
+```
+
+Hooray!! This is super computationally intense so I may have to run it as a background job on my computer OR run on the server 
+
+Fit Platt model 
+```{r}
+pi_data <- one_sample_results %>%
+  rename(I = Light_Value, P = micromol.L.s)
+
+# Fit the model with Rd as an extra parameter
+jp_model_Rd <- nlsLM(
+  P ~ Pmax * tanh(alpha * I / Pmax) + Rd,
+  data = pi_data,
+  start = list(Pmax = max(pi_data$P), alpha = 0.01, Rd = -0.1)
+)
+summary(jp_model_Rd)
+
+# Extract parameters
+pars <- coef(jp_model_Rd)
+Pmax <- pars[["Pmax"]]  # Am
+alpha <- pars[["alpha"]]  # AQY
+Rd <- pars[["Rd"]]  # dark respiration
+Ik <- Pmax / alpha
+Pgross <- Pmax + Rd
+cat("Pmax (Am):", Pmax, "\n")
+cat("Alpha (AQY):", alpha, "\n")
+cat("Rd:", Rd, "\n")
+cat("Ik:", Ik, "\n")
+cat("Pgross:", Pgross, "\n")
+
+# Plot
+pi_data <- pi_data %>%
+  mutate(P_fit = predict(jp_model_Rd))
+ggplot(pi_data, aes(x = I, y = P)) +
+  geom_point() +
+  geom_line(aes(y = P_fit), color = "blue") +
+  labs(x = "PAR (µmol photons m⁻² s⁻¹)",
+       y = "Oxygen evolution (µmol L⁻¹ s⁻¹)") +
+  annotate("text", x = max(pi_data$I)*0.7, y = max(pi_data$P)*0.7,
+           label = paste0("Pmax = ", round(Pmax, 3), "\n",
+                          #"Pgross = ", round(Pgross, 3), "\n",
+                          "AQY = ", round(alpha, 4), "\n",
+                          "Ik = ", round(Ik, 4), "\n",
+                          "Rd = ", round(Rd, 4)))
+```
+
+Pgross is higher than Pmax because the Rd value is negative--how to deal with this?
+
+```{r}
+test <- read.csv("../output/all_joined_data_Oct2024.csv")
+blah <- read.csv("../output/photosynthesis_fit_results_all_runs_blank_corrected_Oct2024.csv")
+blah
+```
+
+Merge with sample info 
+```{r}
+merge <- blah %>%
+  #filter(!Colony_ID == "blank") %>%
+  full_join(sample_meta, by = "Colony_ID") %>%
+  filter(!Colony_ID == "blank") %>%
+  filter(!Colony_ID == "HOBO") 
+
+merge_filtered <- merge %>%
+  filter(!is.na(Pmax), Pmax <= 20)
+
+summary_df <- merge_filtered %>%
+  group_by(Species, Phenotype) %>%
+  summarise(
+    mean_Pmax = mean(Pmax, na.rm = TRUE),
+    sd_Pmax = sd(Pmax, na.rm = TRUE),
+    n = n(),
+    se_Pmax = sd_Pmax / sqrt(n)
+  )
+
+ggplot(summary_df, aes(x = Species, y = mean_Pmax, fill = Phenotype)) +
+  geom_col(position = position_dodge(width = 0.8), color = "black") +
+  geom_errorbar(aes(ymin = mean_Pmax - se_Pmax, ymax = mean_Pmax + se_Pmax),
+                position = position_dodge(width = 0.8), width = 0.2) +
+  labs(x = "Phenotype", y = expression(P[max]~"(mean ± SE)")) +
+  theme_classic() +
+  scale_fill_brewer(palette = "Set1")
+
+# Fit model: Pmax ~ Species * Phenotype + (1 | Colony_ID)
+mod <- aov(Pmax ~ Species * Phenotype, data = merge_filtered)
+summary(mod)
+
+pam.lme <- lme(
+  Fv_Fm ~ Species * Phenotype * Date,
+  random = ~1 | Colony_ID,  # random intercept for each colony
+  data = pam_long,
+  na.action = na.exclude
+)
+summary(pam.lme)
+car::Anova(pam.lme, type = 3)
+```
+
+
+```{r}
+test <- read.csv("../output/intervals_202_run4.csv")
+ggplot(test, aes(x = Light_Value, y = Slope)) +
+  geom_point() +
+  geom_line() +
+  labs(
+    x = "Light Level (PAR)",
+    y = "Mean O2 (μmol/L)",
+    title = "PI Curve") +
+  theme_minimal()
+test$Colony_ID <- as.character(test$Colony_ID)
+
+# filter sample metadata
+oct_2024 <- sample_meta %>%
+  filter(grepl("^2024-10", Date))
+oct_2024$Surface_Area_cm2 <- as.numeric(oct_2024$Surface_Area_cm2)
+
+# merge with sample data info 
+test_202 <- test %>%
+  inner_join(oct_2024, by = "Colony_ID")
+
+# normalize 
+test_202 <- test_202 %>%
+  mutate(
+    Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
+    Slope_norm = (Slope * Chamber_Volume_L / Surface_Area_cm2) * 60
+  )
+ggplot(test_202, aes(x = Light_Value, y = Slope_norm)) +
+  geom_point() +
+  geom_line() +
+  labs(
+    x = "Light Level (PAR)",
+    y = "μmol O₂ cm−2 h−1",
+    title = "PI Curve") +
+  theme_minimal()
+
+# Fit model 
+data <- test_202 %>%
+  rename(I = Light_Value, P = Slope_norm)
+
+# Fit the model with Rd as an extra parameter
+jp_model_Rd <- nlsLM(
+  P ~ Pmax * tanh(alpha * I / Pmax) + Rd,
+  data = data,
+  start = list(Pmax = max(data$P), alpha = 0.01, Rd = -0.1)
+)
+summary(jp_model_Rd)
+
+# Extract parameters
+pars <- coef(jp_model_Rd)
+Pmax <- pars[["Pmax"]]  # Am
+alpha <- pars[["alpha"]]  # AQY
+Rd <- pars[["Rd"]]  # dark respiration
+Ik <- Pmax / alpha
+Pgross <- Pmax + Rd
+cat("Pmax (Am):", Pmax, "\n")
+cat("Alpha (AQY):", alpha, "\n")
+cat("Rd:", Rd, "\n")
+cat("Ik:", Ik, "\n")
+cat("Pgross:", Pgross, "\n")
+
+```
+
+```{r}
+all_int <- read.csv("../output/all_interval_summaries.csv")
+ggplot(all_int, aes(x = Light_Value, y = Slope)) +
+  geom_point() +
+  geom_line() +
+  labs(
+    x = "Light Level (PAR)",
+    y = "Mean O2 (μmol/L)",
+    title = "PI Curve") +
+  theme_minimal()
+all_int$Colony_ID <- as.character(all_int$Colony_ID)
+
+# filter sample metadata
+oct_2024 <- sample_meta %>%
+  filter(grepl("^2024-10", Date))
+oct_2024$Surface_Area_cm2 <- as.numeric(oct_2024$Surface_Area_cm2)
+
+# merge with sample data info 
+all_int <- all_int %>%
+  inner_join(oct_2024, by = "Colony_ID") %>%
+  filter(!is.na(Phenotype))
+length(unique(all_int$Colony_ID))
+
+# normalize 
+all_int <- all_int %>%
+  mutate(
+    Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
+    Slope_norm = (Slope * Chamber_Volume_L / Surface_Area_cm2) * 60
+  )
+write.csv(all_int, "../output/pi_curves/Oct2024/all_interval_summaries_normalized_Oct2024.csv")
+```
+
+```{r}
+# Nest by Colony
+pi_nested <- all_int %>%
+  select(Colony_ID, Light_Value, Slope_norm) %>%  # or whatever your P column is
+  rename(I = Light_Value, P = Slope_norm) %>%
+  group_by(Colony_ID) %>%
+  nest()
+
+# Define a function to fit the model
+fit_pi_model <- function(df) {
+  tryCatch({
+    fit <- nlsLM(P ~ Pmax * tanh(alpha * I / Pmax) + Rd,
+                 data = df,
+                 start = list(Pmax = max(df$P), alpha = 0.01, Rd = -0.1))
+    pars <- coef(fit)
+    tibble(Pmax = pars["Pmax"],
+           alpha = pars["alpha"],
+           Rd = pars["Rd"],
+           Ik = pars["Pmax"]/pars["alpha"],
+           Pgross = pars["Pmax"] + pars["Rd"])
+  }, error = function(e) tibble(Pmax = NA, alpha = NA, Rd = NA, Ik = NA, Pgross = NA))
+}
+
+# Apply the model to each colony
+pi_results <- pi_nested %>%
+  mutate(params = map(data, fit_pi_model)) %>%
+  select(-data) %>%
+  unnest(cols = params)
+
+# merge with sample data info 
+pi_results <- pi_results %>%
+  inner_join(oct_2024, by = "Colony_ID")
+write.csv(pi_results, "../output/pi_curves/Oct2024/pi_curve_metrics_Oct2024.csv")
+
+# Pivot parameters into long format
+pi_long <- pi_results %>%
+  pivot_longer(cols = c(Pmax, alpha, Rd, Ik, Pgross),
+               names_to = "Parameter",
+               values_to = "Value")
+
+# Boxplot
+ggplot(pi_long, aes(x = Phenotype, y = Value, fill = Phenotype)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_jitter(width = 0.2, size = 1.5, alpha = 0.8) +
+  facet_grid(Parameter ~ Species, scales = "free_y") +
+  scale_fill_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_bw(base_size = 14) +
+  labs(x = "Phenotype", y = "Value") +
+  theme(legend.position = "none")
+```
+
+Stats
+```{r}
+pmax.lme <- lme(
+  Pgross ~ Species * Phenotype,
+  random = ~1 | Colony_ID,  # random intercept for each colony
+  data = pi_results,
+  na.action = na.exclude
+)
+summary(pmax.lme)
+car::Anova(pmax.lme, type = 3)
+em_date <- emmeans(pmax.lme, pairwise ~ Phenotype, adjust = "tukey")
+summary(em_date)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# 1. Raw data plot
+ggplot(all_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
+  geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
+  geom_point() +
+  geom_line(aes(group = Colony_ID)) + 
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  facet_wrap(~Species, scales = "fixed") +
+  theme_classic(base_size = 14) +
+  labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype")
+
+# 2. Summarize by mean ± SEM
+summary_df <- all_int %>%
+  group_by(Species, Phenotype, Light_Value) %>%
+  summarise(
+    mean_slope = mean(Slope_norm, na.rm = TRUE),
+    sem_slope = sd(Slope_norm, na.rm = TRUE)/sqrt(n()),
+    .groups = "drop"
+  )
+
+# Plot mean ± SEM
+ggplot(summary_df, aes(x = Light_Value, y = mean_slope, color = Phenotype)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = mean_slope - sem_slope, ymax = mean_slope + sem_slope, fill = Phenotype),
+              alpha = 0.2, color = NA) +
+  facet_wrap(~Species, scales = "free") +
+  theme_classic(base_size = 14) +
+  labs(x = "Light (µmol photons m⁻² s⁻¹)", y = "Slope_norm (mean ± SEM)", color = "Phenotype", fill = "Phenotype")
+
+ggplot() +
+  # Raw data points and lines per colony
+  geom_point(data = all_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype), alpha = 0.5) +
+  geom_line(data = all_int, aes(x = Light_Value, y = Slope_norm, group = Colony_ID, color = Phenotype), alpha = 0.3) +
+  # Mean ± SEM ribbons and lines
+  geom_ribbon(data = summary_df, aes(x = Light_Value, ymin = mean_slope - sem_slope, ymax = mean_slope + sem_slope, fill = Phenotype), alpha = 0.2) +
+  geom_line(data = summary_df, aes(x = Light_Value, y = mean_slope, color = Phenotype), size = 1.2) +
+  facet_wrap(~Species, scales = "free") +
+  theme_bw(base_size = 14) +
+  labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype", fill = "Phenotype") +
+  theme(legend.position = "top")
+```
+
+
+
+
+
+
+
+
+
+## Try with Jan 2025 
+
+```{r}
+getwd()
+# Load the metadata ----
+pi_curve_run_metadata <- read_csv("../data/pi_curves/pi_curve_metadata_run.csv")
+
+run_meta <- read_csv("../data/pi_curves/pi_curve_metadata_run.csv") %>%
+  mutate(
+    Start = as_datetime(Date) + hours(hour(Start.time)) + minutes(minute(Start.time)),
+    Stop  = as_datetime(Date) + hours(hour(Stop.time)) + minutes(minute(Stop.time)))
+sample_meta <- read_csv("../data/pi_curves/pi_curve_metadata_sample.csv")
+
+# Make sure Chamber well # is numeric
+sample_meta <- sample_meta %>%
+  mutate(`Chamber` = as.numeric(`Chamber`))
+
+# List all raw data files ----
+
+files <- list.files(path = "../data/pi_curves/raw_data/Jan2025/", pattern = "*.csv", full.names = TRUE)
+
+
+# Read, process & join each file ----
+
+all_data <- map_dfr(files, function(f) {
+  # Extract channel number from filename, e.g. Ch1 → 1
+  channel <- str_extract(f, "Ch\\d+") %>% str_remove("Ch") %>% as.numeric()
+
+  # Read the file
+  raw <- read_csv(f) %>%
+    mutate(
+      # Parse datetime (adjust format if needed)
+      DateTime = dmy_hms(Date),
+      Channel = channel
+    )
+
+  # Join to run metadata by fuzzy time match
+  raw_joined <- fuzzy_left_join(
+    raw,
+    run_meta,
+    by = c("DateTime" = "Start", "DateTime" = "Stop"),
+    match_fun = list(`>=`, `<=`)
+  )
+
+  # Join to sample metadata by Date, Run #, and Channel
+  raw_joined <- raw_joined %>%
+    left_join(
+      sample_meta,
+      by = c(
+        "Date.y" = "Date",
+        "Run" = "Run",
+        "Channel" = "Chamber"
+      )
+    )
+
+  return(raw_joined)
+})
+
+
+# 4️⃣ Inspect and save ----
+
+all_data %>% count(is.na(`Colony_ID`))
+all_data %>% count(is.na(Run))
+
+#write_csv(all_data, "all_joined_data.csv")
+
+ggplot(all_data, aes(x = DateTime, y = Oxygen)) +
+  geom_point() + 
+  facet_wrap(~Colony_ID)
+```

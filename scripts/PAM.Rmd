@@ -1,0 +1,193 @@
+---
+title: "PAM"
+author: "Jill Ashey"
+date: "2025-08-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(nlme)
+library(car)
+library(emmeans)
+```
+
+Read in PAM data 
+```{r}
+pam <- read_csv("../data/Master_datasheet_pam.csv")
+colnames(pam)[1] <- "Colony_ID" 
+```
+
+Pivot longer 
+```{r}
+pam_long <- pam %>%
+  pivot_longer(
+    cols = starts_with("Fv/Fm_"),  # all the Fv/Fm_* columns
+    names_to = "Date",
+    values_to = "Fv_Fm"
+  ) %>%
+  mutate(
+    Date = sub("Fv/Fm_", "", Date)  # remove the Fv/Fm_ prefix
+  )
+```
+
+Change Sept2024 to Oct2024 
+```{r}
+#pam_long$Date <- gsub("Sept2024", "Oct2024", pam_long$Date)
+```
+
+Maybe change other dates too so the entire month is spelled out...
+
+Calculate mean and sem 
+```{r}
+pam_summary <- pam_long %>%
+  group_by(Date, Phenotype, Species) %>%
+  summarise(
+    mean_FvFm = mean(Fv_Fm, na.rm = TRUE),
+    sd_FvFm = sd(Fv_Fm, na.rm = TRUE),
+    sem_FvFm = sd(Fv_Fm, na.rm = TRUE) / sqrt(sum(!is.na(Fv_Fm))),
+    .groups = "drop"
+  )
+```
+
+Plot! 
+```{r}
+# Set levels 
+pam_summary$Date <- factor(pam_summary$Date, levels = c("Sept23", "Jan24", "May24", "Oct24", "Jan25", "May25"))
+
+# Set spp names 
+species_labels <- c("Mcap" = "Montipora capitata", "Pcomp" = "Porites compressa")
+
+ggplot(pam_summary, aes(x = Date, y = mean_FvFm, color = Phenotype, group = Phenotype)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_FvFm - sd_FvFm, ymax = mean_FvFm + sd_FvFm, color = Phenotype),
+                width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species, 
+             labeller = labeller(Species = species_labels)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")
+  ) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = expression(F[v]/F[m]),
+    color = "Phenotype"
+  ) +
+theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16)
+  )
+
+## save 
+```
+
+Look at normality 
+```{r}
+hist(pam_long$Fv_Fm)
+
+# Q-Q Plot
+qqnorm(pam_long$Fv_Fm)
+qqline(pam_long$Fv_Fm, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(pam_long$Fv_Fm)
+```
+
+Data is normal. 
+
+Stats
+```{r}
+pam.lme <- lme(
+  Fv_Fm ~ Species * Phenotype * Date,
+  random = ~1 | Colony_ID,  # random intercept for each colony
+  data = pam_long,
+  na.action = na.exclude
+)
+summary(pam.lme)
+car::Anova(pam.lme, type = 3)
+em_date <- emmeans(pam.lme, pairwise ~ Date, adjust = "tukey")
+summary(em_date)
+```
+
+### Mcap 
+
+Subset Mcap data 
+```{r}
+pam_long_mcap <- pam_long %>%
+  filter(Species == "Mcap")
+```
+
+Look at normality 
+```{r}
+hist(pam_long_mcap$Fv_Fm)
+
+# Q-Q Plot
+qqnorm(pam_long_mcap$Fv_Fm)
+qqline(pam_long_mcap$Fv_Fm, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(pam_long_mcap$Fv_Fm)
+```
+
+NEED TO NORMALIZE
+
+Stats
+```{r}
+mcap.pam.lme <- lme(
+  Fv_Fm ~ Phenotype * Date,
+  random = ~1 | Colony_ID,  # random intercept for each colony
+  data = pam_long_mcap,
+  na.action = na.exclude
+)
+summary(mcap.pam.lme)
+car::Anova(mcap.pam.lme, type = 3)
+em_date <- emmeans(mcap.pam.lme, pairwise ~ Date, adjust = "tukey")
+summary(em_date)
+```
+
+### Pcomp 
+
+Subset Mcap data 
+```{r}
+pam_long_pcomp <- pam_long %>%
+  filter(Species == "Pcomp")
+```
+
+Look at normality 
+```{r}
+hist(pam_long_pcomp$Fv_Fm)
+
+# Q-Q Plot
+qqnorm(pam_long_pcomp$Fv_Fm)
+qqline(pam_long_pcomp$Fv_Fm, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(pam_long_pcomp$Fv_Fm)
+```
+
+Stats
+```{r}
+pcomp.pam.lme <- lme(
+  Fv_Fm ~ Phenotype * Date,
+  random = ~1 | Colony_ID,  # random intercept for each colony
+  data = pam_long_pcomp,
+  na.action = na.exclude
+)
+summary(pcomp.pam.lme)
+car::Anova(pcomp.pam.lme, type = 3)
+em_date <- emmeans(pcomp.pam.lme, pairwise ~ Date, adjust = "tukey")
+summary(em_date)
+```
+
