@@ -1,0 +1,614 @@
+---
+title: "Temperature"
+author: "Jill Ashey"
+date: "2025-08-14"
+output: html_document
+---
+
+Plot temperature from Patch Reef 13 in KBay
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(readr)
+library(tidyverse)
+library(lubridate)
+library(purrr)
+```
+
+Read in data from 2013-2023 (data obtained from Brown et al. 2023 - https://www.bco-dmo.org/dataset/905047)
+```{r}
+temps <- read.csv("../data/environmental/905047_v1_infield_temp.csv", header = T)
+```
+
+```{r}
+# Make sure your datetime column is actually a POSIXct time object
+temps$ISO_DateTime_UTC <- as.POSIXct(temps$ISO_DateTime_UTC,
+                                          format = "%Y-%m-%dT%H:%MZ",
+                                          tz = "UTC")
+
+# Plot
+ggplot(temps, aes(x = ISO_DateTime_UTC, y = Temperature, color = Site)) +
+  geom_point() +
+  labs(x = "Time (UTC)",y = "Temperature (°C)") +
+  theme_minimal()
+```
+
+Read in data from hobo loggers from NSF career project. These are all in different formats so they need to be read in and processed differently. 
+```{r}
+# Sept 2022 - April 2023 
+df1 <- read.csv("../data/environmental/2022-Sept_2023-April_Reef13_1m_21152005.csv", header = T)
+df2 <- read.csv("../data/environmental/2022-Sept_2023-April_Reef13_1m_21152007.csv", header = T)
+df3 <- read.csv("../data/environmental/2022-Sept_2023-April_Reef13_3m_21152009.csv", header = T)
+
+# April 2024 - Sept 2024 
+df4 <- read.csv("../data/environmental/2024-09-30_Reef13_21152005.csv", skip = 1, header = T)
+df5 <- read.csv("../data/environmental/2024-09-30_Reef13_21152007.csv", skip = 1, header = T)
+df6 <- read.csv("../data/environmental/2024-09-30_Reef13_21152009.csv", skip = 1, header = T)
+
+# Jan 2025 - May 2025
+df7 <- read.csv("../data/environmental/21152005.csv", header = T)
+df8 <- read.csv("../data/environmental/21152007.csv", header = T)
+df9 <- read.csv("../data/environmental/21152009.csv", header = T)
+
+# Sept 2023 - Jan 2024 
+df10 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_21152005_3m.csv", skip = 1, header = FALSE)
+df11 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_21152007_1m.csv", skip = 1, header = FALSE)
+df12 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_21152009_1m.csv", skip = 1, header = FALSE)
+```
+
+```{r}
+## --- Group 1: like df1 (separate Date + Time) ---
+df_group1 <- list(df1, df2, df3)
+
+df_group1_clean <- map2(df_group1, paste0("df", 1:3), ~
+  .x %>%
+    mutate(
+      DateTime = dmy_hms(paste(Date, Time..GMT.10.00)),
+      Temp_C = Temp...C,
+      Source = .y
+    ) %>%
+    select(DateTime, Temp_C, Source)
+)
+
+## --- Group 2: like df4 (combined DateTime, long header) ---
+df_group2 <- list(df4, df5, df6)
+
+df_group2_clean <- map2(df_group2, paste0("df", 4:6), ~
+  .x %>%
+    mutate(
+      DateTime = mdy_hms(Date.Time..GMT.10.00),
+      Temp_C = as.numeric(
+        .x[[grep("Temp", names(.x), value = TRUE)[1]]]
+      ),
+      Source = .y
+    ) %>%
+    select(DateTime, Temp_C, Source)
+)
+
+## --- Group 3: like df7 (separate Date + Time again, but US format) ---
+df_group3 <- list(df7, df8, df9)
+
+df_group3_clean <- map2(df_group3, paste0("df", 7:9), ~
+  .x %>%
+    mutate(
+      DateTime = mdy_hms(paste(Date, Time..GMT.10.00)),
+      Temp_C = Temp...C,
+      Source = .y
+    ) %>%
+    select(DateTime, Temp_C, Source)
+)
+
+## --- Group 4: df10–df12 (Date, Time, Temp_C) --- 
+df_group4 <- list(df10, df11, df12)
+
+df_group4_clean <- map2(df_group4, paste0("df", 10:12), ~
+  .x %>%
+    mutate(
+      DateTime = dmy_hms(paste(V1, V2)),   # Date in dmy format (19-09-23)
+      Temp_C   = as.numeric(V3),
+      Source   = .y
+    ) %>%
+    select(DateTime, Temp_C, Source)
+)
+
+## --- Combine all ---
+all_data <- bind_rows(df_group1_clean, df_group2_clean, df_group3_clean, df_group4_clean)
+
+head(all_data)
+
+ggplot(all_data, aes(x = DateTime, y = Temp_C)) +
+  geom_point() +
+  scale_x_datetime( date_breaks = "1 month", date_labels = "%b") + 
+
+  theme_minimal() +
+  labs(y = "Temperature (°C)", x = "Time")
+```
+
+Combine data 
+```{r}
+# Clean temps
+temps_clean <- temps %>%
+  mutate(
+    DateTime = ymd_hms(ISO_DateTime_UTC, tz = "UTC"),  # handles yyyy-mm-ddTHH:MMZ
+    Temp_C   = Temperature,
+    Source   = Site
+  ) %>%
+  select(DateTime, Temp_C, Source)
+
+# Make sure all_data has the same structure
+all_data_clean <- all_data %>%
+  select(DateTime, Temp_C, Source)
+
+# Combine
+combined_data <- bind_rows(all_data_clean, temps_clean)
+```
+
+```{r}
+ggplot(combined_data, aes(x = DateTime, y = Temp_C)) + 
+  geom_point() + 
+  geom_hline(yintercept = 28, color = "grey", size = 1, linetype = "dashed") +
+  geom_hline(yintercept = 29, color = "grey", size = 1, linetype = "solid") +
+  theme_classic() + 
+  labs(y = "Temperature (°C)", x = "") + 
+  scale_x_datetime( date_breaks = "1 year", date_labels = "%Y") + 
+  geom_vline(xintercept = as.POSIXct("2014-10-01 01:17:00"), color = "red", size = 1, linetype = "dashed") +
+  geom_vline(xintercept = as.POSIXct("2015-10-01 00:00:00"), color = "red", size = 1, linetype = "dashed") +
+  geom_vline(xintercept = as.POSIXct("2019-10-01 00:00:00"), color = "red", size = 1, linetype = "dashed") +
+  geom_vline(xintercept = as.POSIXct("2023-09-14 00:00:00"), color = "blue", size = 1, linetype = "dotdash") +
+  geom_vline(xintercept = as.POSIXct("2024-01-20 00:00:00"), color = "blue", size = 1, linetype = "dotdash") + 
+  geom_vline(xintercept = as.POSIXct("2024-05-09 00:00:00"), color = "blue", size = 1, linetype = "dotdash") +
+  geom_vline(xintercept = as.POSIXct("2024-10-01 00:00:00"), color = "blue", size = 1, linetype = "dotdash") +
+  geom_vline(xintercept = as.POSIXct("2025-01-09 00:00:00"), color = "blue", size = 1, linetype = "dotdash") +
+  geom_vline(xintercept = as.POSIXct("2025-05-08 00:00:00"), color = "blue", size = 1, linetype = "dotdash") +
+  theme(axis.text.x = element_text(size = 30,
+                                   color = "black")) +
+  theme(axis.text.y = element_text(size = 30,
+                                   color = "black"),
+        axis.title.y = element_text(size = 35,
+                                    face = "bold",
+                                    margin = margin(t = 0, r = 20, b = 0, l = 0)))
+
+
+```
+
+
+Summarize 
+```{r}
+daily_summary <- combined_data %>%
+  mutate(Date = as.Date(DateTime)) %>%
+  group_by(Date, Source) %>%   # keep Source if you want separate curves per Source
+  summarise(
+    mean_temp = mean(Temp_C, na.rm = TRUE),
+    sd_temp   = sd(Temp_C, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(
+    lower = mean_temp - sd_temp,
+    upper = mean_temp + sd_temp)
+```
+
+
+
+Plot
+```{r}
+ggplot(daily_summary, aes(x = Date, y = mean_temp, colour = Source)) +
+  geom_ribbon(
+    aes(ymin = lower, ymax = upper, fill = Source),
+    alpha = 0.3, colour = NA, show.legend = FALSE
+  ) +
+  geom_smooth(
+    method = "loess", span = 0.1, se = FALSE,
+    aes(colour = Source), alpha = 1, show.legend = TRUE
+  ) +
+  theme_minimal() +
+  labs(y = "Daily Mean Temperature (°C)", x = "Time") +
+  scale_x_date(
+    date_breaks = "1 year", 
+    date_labels = "%Y"
+  ) +
+  geom_vline(xintercept = as.Date("2014-10-01"), color = "red", linetype = "dashed") +
+  geom_vline(xintercept = as.Date("2015-10-01"), color = "red", linetype = "dashed") +
+  geom_vline(xintercept = as.Date("2019-10-01"), color = "red", linetype = "dashed")
+```
+
+Other plot options 
+
+Option 1
+```{r}
+daily_summary <- combined_data %>%
+  mutate(Date = as.Date(DateTime)) %>%
+  group_by(Date) %>%
+  summarise(mean_temp = mean(Temp_C, na.rm = TRUE),
+            sd_temp   = sd(Temp_C, na.rm = TRUE)) %>%
+  mutate(lower = mean_temp - sd_temp,
+         upper = mean_temp + sd_temp)
+
+ggplot(daily_summary, aes(x = Date, y = mean_temp)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "lightblue", alpha = 0.3) +
+  geom_line(color = "blue") +
+  theme_minimal() +
+  labs(y = "Daily Mean Temperature (°C)", x = "Date") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  geom_vline(xintercept = as.Date(c("2014-10-01", "2015-10-01", "2019-10-01")),
+             color = "red", linetype = "dashed")
+
+```
+
+Option 2
+```{r}
+ggplot(combined_data, aes(x = DateTime, y = Temp_C)) +
+  geom_point(alpha = 0.05, size = 0.5, color = "blue") +
+  theme_minimal() +
+  labs(y = "Temperature (°C)", x = "Time") +
+  scale_x_datetime(date_breaks = "1 year", date_labels = "%Y") +
+  geom_vline(xintercept = as.POSIXct(c("2014-10-01 01:17:00",
+                                       "2015-10-01 00:00:00",
+                                       "2019-10-01 00:00:00")),
+             color = "red", linetype = "dashed")
+
+```
+
+Option 3
+```{r}
+ggplot(combined_data, aes(x = DateTime, y = Temp_C)) +
+  geom_point(alpha = 0.5, size = 0.5, color = "black") +
+  geom_smooth(method = "loess", span = 0.05, se = FALSE, color = "black") +
+  theme_minimal() +
+  labs(y = "Temperature (°C)", x = "Time") +
+  scale_x_datetime(date_breaks = "1 year", date_labels = "%Y") +
+  geom_vline(xintercept = as.POSIXct(c("2014-10-01 01:17:00",
+                                       "2015-10-01 00:00:00",
+                                       "2019-10-01 00:00:00")),
+             color = "red", linetype = "dashed")
+
+```
+
+
+Calculate MMM
+```{r}
+library(dplyr)
+library(lubridate)
+library(zoo)
+
+# Add year and month columns
+combined_data <- combined_data %>%
+  mutate(Year = year(DateTime), Month = month(DateTime))
+
+# Calculate mean temperature for each month of each year
+monthly_means <- combined_data %>%
+  group_by(Year, Month) %>%
+  summarise(mean_temp = mean(Temp_C, na.rm = TRUE), .groups = 'drop')
+
+# Find the maximum monthly mean for each year
+annual_max_monthly_means <- monthly_means %>%
+  group_by(Year) %>%
+  summarise(max_monthly_mean = max(mean_temp), .groups = 'drop')
+
+# Calculate MMM (mean of the annual maxima)
+MMM_value <- mean(annual_max_monthly_means$max_monthly_mean, na.rm = TRUE)
+
+# 1. Set your MMM
+MMM_value <- MMM_value # change this to your known MMM
+
+# 2. Calculate anomaly (DHW anomaly)
+combined_data <- combined_data %>%
+  mutate(anomaly = pmax(0, Temp_C - (MMM_value + 1)))
+
+# 3. Convert half-hourly anomalies to degree-weeks (sum over 12-week rolling window)
+# Compute how many measurements in a week:
+samples_per_week <- 7 * 24 * 2 # 2 samples per hour
+
+# 4. Create a rolling sum window (12 weeks = 12 * samples_per_week)
+window_length <- 12 * samples_per_week
+
+combined_data <- combined_data %>%
+  arrange(DateTime) %>%
+  mutate(
+    DHW = rollapply(
+      anomaly,
+      width = window_length,
+      FUN = function(x) sum(x) / samples_per_week, # degree-weeks
+      align = "right",
+      fill = NA
+    )
+  )
+```
+
+```{r}
+library(ggplot2)
+library(scales)
+
+# Ensure your DHW is numeric
+combined_data$DHW <- as.numeric(combined_data$DHW)
+
+ggplot(combined_data, aes(x = DateTime)) +
+  geom_line(aes(y = Temp_C, color = "Temperature (°C)")) +
+  geom_line(aes(y = DHW, color = "DHW")) +
+  scale_y_continuous(
+    name = "Temperature (°C)",
+    sec.axis = sec_axis(~ ., name = "Degree Heating Weeks (DHW)")
+  ) +
+  scale_color_manual(
+    values = c("Temperature (°C)" = "steelblue", "DHW" = "firebrick")
+  ) +
+  labs(
+    x = "Date",
+    color = "",
+    title = "Sea Temperature and Degree Heating Weeks Time Series"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title.y.left = element_text(color = "steelblue"),
+    axis.title.y.right = element_text(color = "firebrick"),
+    legend.position = "top"
+  )
+
+## scale right y axis: 
+scale_factor <- max(combined_data$Temp_C, na.rm=TRUE) / max(combined_data$DHW, na.rm=TRUE)
+ggplot(combined_data, aes(x = DateTime)) +
+  geom_line(aes(y = Temp_C, color = "Temperature (°C)")) +
+  geom_line(aes(y = DHW * scale_factor, color = "DHW (scaled)")) + # scale DHW for display
+  scale_y_continuous(
+    name = "Temperature (°C)",
+    sec.axis = sec_axis(~ . / scale_factor, name = "Degree Heating Weeks (DHW)")
+  ) +
+  scale_color_manual(
+    values = c("Temperature (°C)" = "steelblue", "DHW (scaled)" = "firebrick")
+  ) +
+  labs(
+    x = "Date",
+    color = "",
+    title = "Sea Temperature and Degree Heating Weeks Time Series"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title.y.left = element_text(color = "steelblue"),
+    axis.title.y.right = element_text(color = "firebrick"),
+    legend.position = "top"
+  )
+```
+
+other code to calculate DHW
+```{r}
+library(dplyr)
+library(lubridate)
+library(zoo)
+
+# 1. Daily mean temps
+daily_data <- combined_data %>%
+  mutate(Date = as.Date(DateTime)) %>%
+  group_by(Date) %>%
+  summarise(Temp_C = mean(Temp_C, na.rm = TRUE)) %>%
+  ungroup()
+
+# 2. Estimate Maximum Monthly Mean (MMM)
+# If you don’t have climatology, take the mean of the warmest month in your dataset
+daily_data <- daily_data %>%
+  mutate(Month = month(Date)) 
+
+mmm <- daily_data %>%
+  group_by(Month) %>%
+  summarise(MonthlyMean = mean(Temp_C, na.rm = TRUE)) %>%
+  arrange(desc(MonthlyMean)) %>%
+  slice(1) %>%
+  pull(MonthlyMean)
+
+cat("MMM =", mmm, "\n")
+
+# 3. Calculate HotSpot (only values >1°C above MMM)
+daily_data <- daily_data %>%
+  mutate(HotSpot = ifelse(Temp_C > (mmm + 1), Temp_C - mmm, 0))
+
+# 4. Calculate Degree Heating Weeks (DHW)
+# 84-day (12-week) rolling sum of HotSpots, converted to °C-weeks
+daily_data <- daily_data %>%
+  mutate(DHW = rollapply(HotSpot, width = 84, FUN = sum, align = "right", fill = NA) / 7)
+
+head(daily_data)
+
+```
+
+Read in data 
+```{r}
+dhw <- read.csv("../data/environmental/Reef13 temp hotspot through 2023.csv")
+mean(dhw$DHW)
+max(dhw$DHW)
+
+```
+
+Compare brown v NOAA
+```{r}
+library(dplyr)
+library(zoo)
+
+# --- Parameters ---
+MMM <- 27.3                # climatological MMM (Heron Reef, Weeks et al. 2008)
+threshold <- MMM + 1       # bleaching threshold = 28.3 °C
+
+# --- Daily data already computed ---
+# daily_data has columns: Date, Temp_C
+
+daily_data <- daily_data %>%
+  arrange(Date) %>%
+  mutate(
+    # NOAA CRW method -------------------------
+    HS_NOAA = ifelse(Temp_C > threshold, Temp_C - threshold, 0),
+    DHW_NOAA = rollapply(HS_NOAA, width = 84, FUN = sum,
+                         align = "right", fill = NA) / 7,
+
+    # Brown et al. (2023) method --------------
+    HS_Brown = ifelse(Temp_C >= threshold, Temp_C - MMM, 0),
+    DHW_Brown = rollapply(HS_Brown, width = 90, FUN = sum,
+                          align = "right", fill = NA) / 7
+  )
+
+# Preview
+daily_data %>%
+  select(Date, Temp_C, HS_NOAA, DHW_NOAA, HS_Brown, DHW_Brown) %>%
+  head(20)
+
+library(ggplot2)
+
+ggplot(daily_data, aes(x = Date)) +
+  # Temp on left axis
+  geom_line(aes(y = Temp_C), color = "steelblue") +
+  geom_hline(yintercept = 28.3, linetype = "dashed", color = "red") +  # threshold
+  
+  # Brown DHW on right axis
+  geom_line(aes(y = DHW_Brown * 3), color = "darkorange") +  
+  # multiply by ~3 so scales are similar (tweak to match your data range)
+  
+  scale_y_continuous(
+    name = "Daily Mean Temp (°C)",
+    sec.axis = sec_axis(~./3, name = "Brown DHW (°C-weeks)")  # inverse of *3
+  ) +
+  theme_minimal() +
+  labs(title = "Temperature & DHW (Brown et al. 2023)", x = "Date")
+
+ggplot(daily_data, aes(x = Date)) +
+  # DHW bars (Brown)
+  geom_col(aes(y = DHW_Brown), fill = "firebrick", alpha = 0.6) +
+  
+  # Temperature line
+  geom_line(aes(y = Temp_C), color = "steelblue") +
+  geom_hline(yintercept = 28.3, linetype = "dashed", color = "red") +
+  
+  scale_y_continuous(
+    name = "Temp (°C) / DHW (°C-weeks)"   # shared axis label
+  ) +
+  theme_minimal() +
+  labs(title = "Temperature (line) & DHW (bars)", x = "Date")
+
+# Define scaling factor to map DHW (0-10) onto temperature axis (20-30)
+scale_factor <- 10 / (30 - 20)  # 10/10 = 1, but let's keep the example general
+
+ggplot(daily_data, aes(x = Date)) +
+  geom_col(aes(y = DHW_Brown / scale_factor), fill = "firebrick", alpha = 0.6) +  # Scale DHW down for plotting
+  geom_line(aes(y = Temp_C), color = "steelblue") +
+  geom_hline(yintercept = 28.3, linetype = "dashed", color = "red") +
+  scale_y_continuous(
+    name = "Temp (°C)",
+    limits = c(20, 30),
+    sec.axis = sec_axis(~ . * scale_factor, name = "DHW (°C-weeks)")  # Right axis scales back up
+  ) +
+  theme_minimal() +
+  labs(title = "Temperature (line) & DHW (bars)", x = "Date")
+
+```
+
+
+```{r}
+# Transformation functions
+# From DHW to temperature scale for plotting
+transform_dhw_to_temp <- function(x) 20 + (x / 10) * 10
+
+# Inverse transformation for secondary axis labels
+transform_temp_to_dhw <- function(x) (x - 20) / 10 * 10
+
+ggplot(daily_data, aes(x = Date)) +
+  geom_col(aes(y = transform_dhw_to_temp(DHW_Brown)), fill = "firebrick", alpha = 0.6) +
+  geom_line(aes(y = Temp_C), color = "steelblue") +
+  geom_hline(yintercept = 28.3, linetype = "dashed", color = "red") +
+  scale_y_continuous(
+    name = "Temp (°C)",
+    limits = c(20, 30),
+    sec.axis = sec_axis(~ transform_temp_to_dhw(.), name = "DHW (°C-weeks)")
+  ) +
+  theme_minimal() +
+  labs(title = "Temperature (line) & DHW (bars)", x = "Date")
+
+
+```
+
+```{r}
+transform_dhw_to_temp <- function(x) 20 + (x / 10) * 10
+transform_temp_to_dhw <- function(x) (x - 20) / 10 * 10
+
+ggplot(daily_data, aes(x = Date)) +
+  geom_col(aes(y = transform_dhw_to_temp(DHW_Brown)), fill = "firebrick", alpha = 0.6) +
+  geom_line(aes(y = Temp_C), color = "steelblue") +
+  geom_hline(yintercept = 28.3, linetype = "dashed", color = "red") +
+  scale_y_continuous(
+    name = "Temp (°C)",
+    sec.axis = sec_axis(~ transform_temp_to_dhw(.), name = "DHW (°C-weeks)")
+  ) +
+  coord_cartesian(ylim = c(20, 30)) +  # Zoom y-axis without dropping data
+  theme_minimal() +
+  labs(title = "Temperature (line) & DHW (bars)", x = "Date")
+
+
+
+####
+# Adjust DHW y values relative to baseline at 20
+dhw_offset <- function(x) (x / 10) * 10  # scale DHW from 0-10 to 0-10 (height only)
+
+ggplot(daily_data, aes(x = Date)) +
+  geom_col(aes(y = dhw_offset(DHW_Brown)), fill = "firebrick", alpha = 0.6) +
+  geom_line(aes(y = Temp_C - 20), color = "steelblue") +  # shift Temp for sync with DHW offset
+  geom_hline(yintercept = 8.3, linetype = "dashed", color = "red") +  # 28.3 - 20 = 8.3 adjusted
+  scale_y_continuous(
+    name = "DHW (°C-weeks)",
+    limits = c(0, 10),
+    sec.axis = sec_axis(~ . + 20, name = "Temp (°C)")
+  ) +
+  theme_minimal() +
+  labs(title = "Temperature (line) & DHW (bars)", x = "Date")
+
+
+#####
+scale_factor <- 10 / (30 - 20)  # scale DHW range (0-10) to temp range (20-30)
+
+ggplot(daily_data, aes(x = Date)) +
+  geom_line(aes(y = Temp_C), color = "steelblue") +
+  geom_line(aes(y = DHW_Brown / scale_factor), color = "firebrick", alpha = 0.6) +
+  geom_hline(yintercept = 28.3, linetype = "dashed", color = "red") +
+  scale_y_continuous(
+    name = "Temp (°C)",
+    limits = c(20, 30),
+    sec.axis = sec_axis(~ . * scale_factor, name = "DHW (°C-weeks)")
+  ) +
+  theme_minimal() +
+  labs(title = "Temperature & DHW (lines)", x = "Date")
+
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Calculate scaling factor
+scale_factor <- 10 / (30 - 20)  # 10 / 10 = 1
+
+# Prepare your data for geom_rect: 
+# For bars we need xmin, xmax, ymin, ymax
+# Approximate bar width from Date diff:
+bar_width <- diff(range(daily_data$Date)) / nrow(daily_data) * 0.9
+
+daily_data <- daily_data %>%
+  mutate(
+    xmin = Date - bar_width / 2,
+    xmax = Date + bar_width / 2,
+    ymin = 20,  # baseline temperature
+    ymax = 20 + DHW_Brown / scale_factor  # scaled DHW on temp scale
+  )
+
+ggplot() +
+  geom_rect(
+    data = daily_data_filtered,
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+    fill = "firebrick", alpha = 0.6
+  ) +
+  geom_line(data = daily_data, aes(x = Date, y = Temp_C), color = "steelblue") +
+  geom_hline(yintercept = 28.3, linetype = "dashed", color = "red") +
+  scale_y_continuous(
+    name = "Temp (°C)",
+    limits = c(20, 30),
+    sec.axis = sec_axis(~ . - 20, name = "DHW (°C-weeks)")
+  ) +
+  theme_minimal() +
+  labs(title = "Temperature (line) & DHW (bars)", x = "Date")
+```
+
+Discuss w/ Katie. 
+
