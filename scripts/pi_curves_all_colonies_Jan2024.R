@@ -115,46 +115,50 @@ avg_blank_slopes <- blank_summary %>%
   group_by(Light_Value) %>%
   summarise(Avg_Blank_Slope = mean(Blank_Slope, na.rm = TRUE), .groups = "drop")
 
-
-
-
-
-
-# Function: blank correction + slope extraction + save/return interval summary
+# Main function with detailed interval summary and avg blank correction
 fit_colony_intervals_avgblank <- function(colony_id, run_num) {
-  # Sample data for this colony/run
+  # Subset sample data
   sample_data <- all_data %>%
     filter(Colony_ID == colony_id, Run == run_num)
   if (nrow(sample_data) == 0) return(NULL)
   
-  # Split into intervals by light step
+  # Split data by light step
   intervals <- sample_data %>%
     group_by(Light_Value) %>%
     group_split()
   
-  # Fit local regression for each light step
   fits <- map(intervals, fit_reg)
   micromol.L.s <- map_dbl(fits, ~ pluck(., "allRegs", "b1", 1))
-  light_levels <- map_dbl(intervals, ~ unique(.x$Light_Value))
   
-  # Build interval summary table
-  interval_df <- tibble(
-    Colony_ID   = colony_id,
-    Run         = run_num,
-    Light_Value = light_levels,
-    Raw_Slope   = micromol.L.s
+  # Build detailed interval summary
+  interval_df <- map2_dfr(
+    intervals,
+    seq_along(intervals),
+    ~ tibble(
+      Colony_ID   = colony_id,
+      Run         = run_num,
+      Interval    = .y,
+      Light_Value = unique(.x$Light_Value),
+      N_points    = nrow(.x),
+      O2_start    = head(.x$Oxygen, 1),
+      O2_end      = tail(.x$Oxygen, 1),
+      DeltaT_min  = min(.x$`Delta T [min]`),
+      DeltaT_max  = max(.x$`Delta T [min]`),
+      O2_min      = min(.x$Oxygen, na.rm = TRUE),
+      O2_max      = max(.x$Oxygen, na.rm = TRUE),
+      Slope       = micromol.L.s[.y]
+    )
   ) %>%
     left_join(avg_blank_slopes, by = "Light_Value") %>%
-    mutate(Blank_Corrected_Slope = Raw_Slope - Avg_Blank_Slope)
+    mutate(Blank_Corrected_Slope = Slope - Avg_Blank_Slope)
   
-  # Save per colony/run (optional)
   fn <- paste0("output/pi_curves/Jan2024/intervals_", colony_id, "_run", run_num, "_Jan2024.csv")
   write_csv(interval_df, fn)
   
-  return(interval_df)
+  interval_df
 }
 
-# Process all samples and save combined output
+# Run for all samples and save big CSV
 plan(multisession)
 
 all_interval_summaries <- future_pmap_dfr(
@@ -163,5 +167,3 @@ all_interval_summaries <- future_pmap_dfr(
 )
 
 write_csv(all_interval_summaries, "output/pi_curves/Jan2024/all_interval_summaries_Jan2024.csv")
-
-
