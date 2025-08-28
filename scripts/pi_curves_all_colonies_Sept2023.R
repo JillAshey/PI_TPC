@@ -75,6 +75,16 @@ all_data %>% count(is.na(Run))
 
 write_csv(all_data, "output/pi_curves/Sept2023/all_joined_data_Sept2023.csv")
 
+ggplot(all_data, aes(x = DateTime, y = Oxygen)) +
+  geom_line() +
+  facet_wrap(~Colony_ID) +
+  labs(
+    x = "Time",
+    y = paste0("Oxygen (", unique(all_data$`Oxygen Unit`), ")"),
+    color = "Colony"
+  ) +
+  theme_minimal()  
+
 # Make list of all Colony_ID / Run combinations (including blanks)
 colony_runs <- all_data %>%
   filter(!is.na(Colony_ID)) %>%
