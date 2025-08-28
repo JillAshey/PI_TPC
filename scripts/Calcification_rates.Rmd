@@ -1,0 +1,72 @@
+---
+title: "Net calcification"
+author: "Jill Ashey"
+date: "2025-08-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+Read in data 
+```{r}
+calc <- read.csv("../data/Calcification_data.csv", header = T)
+
+# Remove first two rows - these are placeholders for April and Sept 2023 
+calc <- calc %>% slice(-1, -2)
+```
+
+Calculate incubation time 
+```{r}
+calc <- calc %>%
+  mutate(
+    start = hm(Time_start),
+    end   = hm(Time_end),
+    elapsed_mins  = as.numeric(end - start, units = "mins"),
+    elapsed_hours = elapsed_mins / 60)
+```
+
+Calculate delta alkalinity 
+```{r}
+calc <- calc %>%
+  mutate(Delta_TA_raw = Starting_alk_value - Alk_avg)
+```
+
+Calculate blanks 
+```{r}
+blank_delta_ta <- calc %>%
+  filter(ColonyID == "blank" | Notes == "blank") %>%
+  group_by(Date) %>%
+  summarise(mean_blank_delta_ta = mean(Delta_TA_raw, na.rm = TRUE))# %>%
+  #pull(mean_blank_delta_ta)
+```
+
+Subtract blank and calculate net calcification
+```{r}
+# Correct Delta_TA by subtracting blank
+calc <- calc %>%
+  left_join(blank_delta_ta, by = "Date") 
+
+calc <- calc %>%
+  mutate(
+    Delta_TA_corr = Delta_TA_raw - mean_blank_delta_ta,
+    # Assuming seawater density 1.028 g/mL and volume in mL to L, and no coral weight (thus calc mg/L/hr)
+    Net_Calcification = (Delta_TA_corr / 2) * (Sample_Volume_mL / 1000) * 1.028 / elapsed_hours
+  )
+```
+
+Read in sample metadata for surface area 
+```{r}
+sample_meta <- read_csv("../data/pi_curves/pi_curve_metadata_sample.csv")
+
+# Make sure Chamber well # is numeric
+sample_meta <- sample_meta %>%
+  mutate(`Chamber` = as.numeric(`Chamber`))
+
+# Subset SA
+```
+
+
