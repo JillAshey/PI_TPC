@@ -33,6 +33,16 @@ library(emmeans)
 
 NEED TO DO 
 
+Filter sample metadata for May 2024
+```{r}
+sept_2023 <- sample_meta %>%
+  filter(grepl("^2023-09", Date))
+sept_2023$Surface_Area_cm2 <- as.numeric(sept_2023$Surface_Area_cm2)
+
+sept_2023_run <- run_meta %>%
+  filter(grepl("^2023-09", Date))
+
+```
 
 
 

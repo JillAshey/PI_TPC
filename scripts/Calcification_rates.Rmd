@@ -54,8 +54,16 @@ calc <- calc %>%
   mutate(
     Delta_TA_corr = Delta_TA_raw - mean_blank_delta_ta,
     # Assuming seawater density 1.028 g/mL and volume in mL to L, and no coral weight (thus calc mg/L/hr)
-    Net_Calcification = (Delta_TA_corr / 2) * (Sample_Volume_mL / 1000) * 1.028 / elapsed_hours
-  )
+    Net_Calcification = (Delta_TA_corr / 2) * (Sample_Volume_mL / 1000) * 1.028 / elapsed_hours)
+```
+
+Sub out names for timepoints 
+```{r}
+calc$Timepoint <- gsub("January_2024", "Jan24", calc$Timepoint)
+calc$Timepoint <- gsub("May_2024", "May24", calc$Timepoint)
+calc$Timepoint <- gsub("October_2024", "Oct24", calc$Timepoint)
+calc$Timepoint <- gsub("January_2025", "Jan25", calc$Timepoint)
+calc$Timepoint <- gsub("May_2025", "May25", calc$Timepoint)
 ```
 
 Read in sample metadata for surface area 
@@ -65,8 +73,101 @@ sample_meta <- read_csv("../data/pi_curves/pi_curve_metadata_sample.csv")
 # Make sure Chamber well # is numeric
 sample_meta <- sample_meta %>%
   mutate(`Chamber` = as.numeric(`Chamber`))
+```
 
-# Subset SA
+Add timepoint col
+```{r}
+sample_meta <- sample_meta %>%
+  mutate(Timepoint = case_when(
+    grepl("2023-09", Date) ~ "Sept23",
+    grepl("2024-01", Date) ~ "Jan24",
+    grepl("2024-05", Date) ~ "May24",
+    grepl("2024-10", Date) ~ "Oct24",
+    grepl("2025-01", Date) ~ "Jan25",
+    grepl("2025-05", Date) ~ "May25",
+    TRUE ~ NA_character_))
+```
+
+Subset specific cols 
+```{r}
+sample_meta_sub <- sample_meta %>%
+  select(Colony_ID, Species, Phenotype, Surface_Area_cm2, Timepoint)
+```
+
+Join dfs 
+```{r}
+# Make sure the join columns match
+calc2 <- calc %>%
+  rename(Colony_ID = ColonyID)
+
+# Join on Colony_ID and Timepoint
+joined <- calc2 %>%
+  left_join(sample_meta_sub, by = c("Colony_ID", "Timepoint"))
+```
+
+Normalize by SA
+```{r}
+joined <- joined %>%
+  mutate(Net_Calcification_cm2 = Net_Calcification / Surface_Area_cm2)
+```
+
+Calculate mean, sem, and sd 
+```{r}
+joined_summary <- joined %>%
+  group_by(Timepoint, Phenotype, Species, Light) %>%
+  summarise(
+    mean_calc = mean(Net_Calcification_cm2, na.rm = TRUE),
+    sd_calc = sd(Net_Calcification_cm2, na.rm = T),
+    se_calc = sd(Net_Calcification_cm2, na.rm = T) / sqrt(length(Net_Calcification_cm2)),
+    .groups = "drop") %>%
+  drop_na() %>%
+  filter(!Timepoint == "Jan25")
+```
+
+Plot! 
+```{r}
+# Set levels 
+joined_summary$Timepoint <- factor(joined_summary$Timepoint, levels = c("Jan24", 
+                                                                        "May24", 
+                                                                        "Oct24", 
+                                                                        #"Jan25", 
+                                                                        "May25"))
+
+ggplot(joined_summary, aes(x = Timepoint, y = mean_calc, color = Phenotype, group = Phenotype)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_calc - se_calc, ymax = mean_calc + se_calc, color = Phenotype),
+                width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species + Light) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")
+  ) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Net calcification +/- SEM",
+    color = "Phenotype"
+  ) +
+theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16)
+  )
 ```
 
 
+
+
+
+
+
+Data looks weird because of the Jan25 surface area 
