@@ -75,15 +75,15 @@ all_data %>% count(is.na(Run))
 
 write_csv(all_data, "output/pi_curves/Sept2023/all_joined_data_Sept2023.csv")
 
-ggplot(all_data, aes(x = DateTime, y = Oxygen)) +
-  geom_line() +
-  facet_wrap(~Colony_ID) +
-  labs(
-    x = "Time",
-    y = paste0("Oxygen (", unique(all_data$`Oxygen Unit`), ")"),
-    color = "Colony"
-  ) +
-  theme_minimal()  
+# ggplot(blank_data, aes(x = `Delta T [min]`, y = Oxygen)) +
+#   geom_line() +
+#   #facet_wrap(~DateTime) +
+#   labs(
+#     x = "Time",
+#     y = paste0("Oxygen (", unique(all_data$`Oxygen Unit`), ")"),
+#     color = "Colony"
+#   ) +
+#   theme_minimal()  
 
 # Make list of all Colony_ID / Run combinations (including blanks)
 colony_runs <- all_data %>%
@@ -96,6 +96,7 @@ blank_data <- all_data %>%
 
 blank_intervals <- blank_data %>%
   group_by(Run, Light_Value) %>%
+  filter(!is.na(Colony_ID)) %>%
   group_split()
 
 # Fit regressions and extract slopes for each blank interval
@@ -103,7 +104,7 @@ fit_reg <- function(df) {
   rankLocReg(
     xall = as.numeric(df$`Delta T [min]`),
     yall = df$Oxygen,
-    alpha = 0.2,
+    alpha = 0.1,
     method = "pc",
     verbose = FALSE
   )
@@ -160,7 +161,7 @@ fit_colony_intervals_avgblank <- function(colony_id, run_num) {
     )
   ) %>%
     left_join(avg_blank_slopes, by = "Light_Value") %>%
-    mutate(Blank_Corrected_Slope = Slope - Avg_Blank_Slope)
+    #mutate(Blank_Corrected_Slope = Slope - Avg_Blank_Slope)
   
   fn <- paste0("output/pi_curves/Sept2023/intervals_", colony_id, "_run", run_num, "_Sept2023.csv")
   write_csv(interval_df, fn)
@@ -177,3 +178,35 @@ all_interval_summaries <- future_pmap_dfr(
 )
 
 write_csv(all_interval_summaries, "output/pi_curves/Sept2023/all_interval_summaries_Sept2023.csv")
+
+
+
+
+
+###### troubleshooting since the blanks wont run 
+print(length(blank_intervals))
+print(lapply(blank_intervals, dim))
+
+blank_data <- all_data %>% filter(Colony_ID == "blank")
+blank_intervals <- blank_data %>% group_by(Run, Light_Value) %>% group_split()
+result <- lapply(blank_intervals, fit_reg)  # Try sequentially, NOT parallel -- started running at 1:18pm
+
+## the result df did not get produced -- I ended it with no output and no errors after running for 20 mins 
+test2 <- fit_reg(blank_intervals[[2]])
+print(summary(blank_intervals[[2]]$Oxygen))
+print(summary(blank_intervals[[2]]$`Delta T [min]`))
+
+test5 <- fit_reg(blank_intervals[[5]])
+print(summary(blank_intervals[[5]]$Oxygen))
+print(summary(blank_intervals[[5]]$`Delta T [min]`))
+
+test1 <- fit_reg(blank_intervals[[1]]) # does not run 
+print(summary(blank_intervals[[1]]$Oxygen))
+print(summary(blank_intervals[[1]]$`Delta T [min]`))
+
+test8 <- fit_reg(blank_intervals[[9]])
+print(summary(blank_intervals[[9]]$Oxygen))
+print(summary(blank_intervals[[9]]$`Delta T [min]`))
+
+## It may be an issue of too many data points in some of the intervals of the blanks. maybe thin the data... There is clearly something weird going on with the blanks. 
+
