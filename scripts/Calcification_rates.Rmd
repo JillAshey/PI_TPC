@@ -14,9 +14,6 @@ library(tidyverse)
 Read in data 
 ```{r}
 calc <- read.csv("../data/Calcification_data.csv", header = T)
-
-# Remove first two rows - these are placeholders for April and Sept 2023 
-calc <- calc %>% slice(-1, -2)
 ```
 
 Calculate incubation time 
@@ -39,26 +36,47 @@ Calculate blanks
 ```{r}
 blank_delta_ta <- calc %>%
   filter(ColonyID == "blank" | Notes == "blank") %>%
-  group_by(Date) %>%
+  group_by(Timepoint) %>%
   summarise(mean_blank_delta_ta = mean(Delta_TA_raw, na.rm = TRUE))# %>%
   #pull(mean_blank_delta_ta)
+
+# Add manual substitutions for missing timepoints
+blank_subs <- tibble(
+  Timepoint = c("April_2023", "September_2023"),
+  mean_blank_delta_ta = c(
+    blank_delta_ta$mean_blank_delta_ta[blank_delta_ta$Timepoint == "May_2024"],
+    blank_delta_ta$mean_blank_delta_ta[blank_delta_ta$Timepoint == "October_2024"]
+  )
+)
+
+# Bind the substitutions into the blank dataset
+blank_delta_ta <- bind_rows(blank_delta_ta, blank_subs)
 ```
+
+Some of the timepoints (April and Sept 2023) do not have alk data for the blanks. Instead, use the May and Oct 2024 blanks instead. 
+
+
 
 Subtract blank and calculate net calcification
 ```{r}
 # Correct Delta_TA by subtracting blank
 calc <- calc %>%
-  left_join(blank_delta_ta, by = "Date") 
+  left_join(blank_delta_ta, by = "Timepoint") 
 
 calc <- calc %>%
   mutate(
     Delta_TA_corr = Delta_TA_raw - mean_blank_delta_ta,
     # Assuming seawater density 1.028 g/mL and volume in mL to L, and no coral weight (thus calc mg/L/hr)
-    Net_Calcification = (Delta_TA_corr / 2) * (Sample_Volume_mL / 1000) * 1.028 / elapsed_hours)
+    Net_Calcification = (Delta_TA_corr / 2) * (Sample_Volume_mL / 1000) * 1.028 / elapsed_hours) %>%
+  filter(!is.na(Net_Calcification) & !is.nan(Net_Calcification))
+
 ```
 
 Sub out names for timepoints 
 ```{r}
+unique(calc$Timepoint)
+calc$Timepoint <- gsub("April_2023", "Apr23", calc$Timepoint)
+calc$Timepoint <- gsub("September_2023", "Sept23", calc$Timepoint)
 calc$Timepoint <- gsub("January_2024", "Jan24", calc$Timepoint)
 calc$Timepoint <- gsub("May_2024", "May24", calc$Timepoint)
 calc$Timepoint <- gsub("October_2024", "Oct24", calc$Timepoint)
@@ -111,6 +129,17 @@ joined <- joined %>%
   mutate(Net_Calcification_cm2 = Net_Calcification / Surface_Area_cm2)
 ```
 
+Save as csv 
+```{r}
+write.csv(joined, "../output/calcification/Calcification_data_normalized.csv")
+```
+
+Remove Apr23 for now 
+```{r}
+joined_sub <- joined %>%
+  filter(!Timepoint == "Apr23")
+```
+
 Calculate mean, sem, and sd 
 ```{r}
 joined_summary <- joined %>%
@@ -127,7 +156,8 @@ joined_summary <- joined %>%
 Plot! 
 ```{r}
 # Set levels 
-joined_summary$Timepoint <- factor(joined_summary$Timepoint, levels = c("Jan24", 
+joined_summary$Timepoint <- factor(joined_summary$Timepoint, levels = c("Sept23",
+                                                                        "Jan24", 
                                                                         "May24", 
                                                                         "Oct24", 
                                                                         #"Jan25", 
@@ -164,10 +194,8 @@ theme(
   )
 ```
 
+Decide what to do about the missing SAs for April 2023 and the weird ones for Jan 2025. Possible options: 
 
-
-
-
-
-
-Data looks weird because of the Jan25 surface area 
+- Average SAs across timepoint for species + phenotype 
+- Sub specific SAs (ie substitute SAs from May 2024 for April 2023)
+- Wax dip--this will take the longest 

@@ -206,6 +206,10 @@ df9 <- read.csv("../data/environmental/21152009.csv", header = T)
 df10 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_21152005_3m.csv", skip = 1, header = FALSE)
 df11 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_21152007_1m.csv", skip = 1, header = FALSE)
 df12 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_21152009_1m.csv", skip = 1, header = FALSE)
+
+# May 2023 - Sept 2023
+df13 <- read.csv("../data/environmental/2023-04-14_to_2023-09-19_21152007_Reef13_3m.csv", header = T)
+#df14 <- read.csv("../data/environmental/2023-04-14_to_2023-09-19_21152007_Reef13_1m.csv", header = F)
 ```
 
 Process data 
@@ -264,8 +268,21 @@ df_group4_clean <- map2(df_group4, paste0("df", 10:12), ~
     select(DateTime, Temp_C, Source)
 )
 
+## --- Group 5: like df13 (separate Date + Time again, but US format) ---
+df_group5 <- list(df13)
+
+df_group5_clean <- map2(df_group5, paste0("df", 13), ~
+  .x %>%
+    mutate(
+      DateTime = ymd_hms(paste(Date, Time..GMT.10.00)),
+      Temp_C = Temp...C,
+      Source = .y
+    ) %>%
+    select(DateTime, Temp_C, Source)
+)
+
 ## --- Combine all ---
-all_data <- bind_rows(df_group1_clean, df_group2_clean, df_group3_clean, df_group4_clean)
+all_data <- bind_rows(df_group1_clean, df_group2_clean, df_group3_clean, df_group4_clean, df_group5_clean)
 
 head(all_data)
 
@@ -556,7 +573,7 @@ ggplot() +
   # Horizontal lines for MMM and Bleaching Threshold
   geom_hline(yintercept = MMM, linetype = "dashed", color = "black", size = 2.5) +
   geom_hline(yintercept = threshold, linetype = "solid", color = "black", size = 2.5) +
-  geom_point(data = sample_dates, aes(x = datetime, y = 29), shape = 23, fill = "skyblue", color = "black", size = 9) +   # add stars at y = 29°C on the temperature axis
+  geom_point(data = sample_dates, aes(x = datetime, y = 29), shape = 23, fill = "skyblue", color = "black", size = 10) +   # add stars at y = 29°C on the temperature axis
 
   # Primary y-axis limits and secondary axis that maps 20-30 temp to 0-10 DHW
   scale_y_continuous(
@@ -593,6 +610,7 @@ threshold <- MMM + 1
 # Prepare daily_mean with date
 daily_mean_nsf <- daily_mean_nsf %>% 
   mutate(date = as.Date(paste(year, month, day, sep = "-"))) %>%
+  filter(date >= as.Date("2022-09-02")) %>%
   mutate(datetime = as.POSIXct(date, format = "%Y-%m-%d", tz = "UTC"))
 
 # Prepare hourly temps with POSIXct datetime
@@ -617,7 +635,7 @@ ggplot() +
   # Horizontal lines for MMM and Bleaching Threshold
   geom_hline(yintercept = MMM, linetype = "dashed", color = "black", size = 2.5) +
   geom_hline(yintercept = threshold, linetype = "solid", color = "black", size = 2.5) +
-  geom_point(data = sample_dates, aes(x = datetime, y = 29), shape = 23, fill = "skyblue", color = "black", size = 9) +   # add stars at y = 29°C on the temperature axis
+  geom_point(data = sample_dates, aes(x = datetime, y = 29), shape = 23, fill = "skyblue", color = "black", size = 10) +   # add stars at y = 29°C on the temperature axis
   scale_x_datetime(date_breaks = "3 months", date_labels = "%b %Y") +
   xlab("") +
   scale_y_continuous(name = "Temperature (°C)", limits = c(20, 30)) +
