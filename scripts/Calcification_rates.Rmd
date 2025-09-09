@@ -86,17 +86,14 @@ calc$Timepoint <- gsub("May_2025", "May25", calc$Timepoint)
 
 Read in sample metadata for surface area 
 ```{r}
-sample_meta <- read_csv("../data/pi_curves/pi_curve_metadata_sample.csv")
-
-# Make sure Chamber well # is numeric
-sample_meta <- sample_meta %>%
-  mutate(`Chamber` = as.numeric(`Chamber`))
+sample_meta <- read_csv("../data/NSF_Career_SurfaceArea.csv")
 ```
 
 Add timepoint col
 ```{r}
 sample_meta <- sample_meta %>%
   mutate(Timepoint = case_when(
+    grepl("2023-04", Date) ~ "Apr23",
     grepl("2023-09", Date) ~ "Sept23",
     grepl("2024-01", Date) ~ "Jan24",
     grepl("2024-05", Date) ~ "May24",
@@ -134,12 +131,6 @@ Save as csv
 write.csv(joined, "../output/calcification/Calcification_data_normalized.csv")
 ```
 
-Remove Apr23 for now 
-```{r}
-joined_sub <- joined %>%
-  filter(!Timepoint == "Apr23")
-```
-
 Calculate mean, sem, and sd 
 ```{r}
 joined_summary <- joined %>%
@@ -156,7 +147,8 @@ joined_summary <- joined %>%
 Plot! 
 ```{r}
 # Set levels 
-joined_summary$Timepoint <- factor(joined_summary$Timepoint, levels = c("Sept23",
+joined_summary$Timepoint <- factor(joined_summary$Timepoint, levels = c("Apr23",
+                                                                        "Sept23",
                                                                         "Jan24", 
                                                                         "May24", 
                                                                         "Oct24", 
