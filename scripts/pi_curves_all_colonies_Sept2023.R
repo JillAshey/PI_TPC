@@ -1,10 +1,11 @@
+## https://docs.unity.rc.umass.edu/documentation/tools/r/#submit-an-r-script-as-a-batch-job 
+
 ## Run as background job in R
 
 library(dplyr)
 library(purrr)
 library(minpack.lm)  # for nlsLM
 library(tidyverse)
-library(nls.multstart)
 library(broom)
 library(LoLinR)
 library(readr)
@@ -184,29 +185,29 @@ write_csv(all_interval_summaries, "output/pi_curves/Sept2023/all_interval_summar
 
 
 ###### troubleshooting since the blanks wont run 
-print(length(blank_intervals))
-print(lapply(blank_intervals, dim))
-
-blank_data <- all_data %>% filter(Colony_ID == "blank")
-blank_intervals <- blank_data %>% group_by(Run, Light_Value) %>% group_split()
-result <- lapply(blank_intervals, fit_reg)  # Try sequentially, NOT parallel -- started running at 1:18pm
-
-## the result df did not get produced -- I ended it with no output and no errors after running for 20 mins 
-test2 <- fit_reg(blank_intervals[[2]])
-print(summary(blank_intervals[[2]]$Oxygen))
-print(summary(blank_intervals[[2]]$`Delta T [min]`))
-
-test5 <- fit_reg(blank_intervals[[5]])
-print(summary(blank_intervals[[5]]$Oxygen))
-print(summary(blank_intervals[[5]]$`Delta T [min]`))
-
-test1 <- fit_reg(blank_intervals[[1]]) # does not run 
-print(summary(blank_intervals[[1]]$Oxygen))
-print(summary(blank_intervals[[1]]$`Delta T [min]`))
-
-test8 <- fit_reg(blank_intervals[[9]])
-print(summary(blank_intervals[[9]]$Oxygen))
-print(summary(blank_intervals[[9]]$`Delta T [min]`))
-
-## It may be an issue of too many data points in some of the intervals of the blanks. maybe thin the data... There is clearly something weird going on with the blanks. 
-
+# print(length(blank_intervals))
+# print(lapply(blank_intervals, dim))
+# 
+# blank_data <- all_data %>% filter(Colony_ID == "blank")
+# blank_intervals <- blank_data %>% group_by(Run, Light_Value) %>% group_split()
+# result <- lapply(blank_intervals, fit_reg)  # Try sequentially, NOT parallel -- started running at 1:18pm
+# 
+# ## the result df did not get produced -- I ended it with no output and no errors after running for 20 mins 
+# test2 <- fit_reg(blank_intervals[[2]])
+# print(summary(blank_intervals[[2]]$Oxygen))
+# print(summary(blank_intervals[[2]]$`Delta T [min]`))
+# 
+# test5 <- fit_reg(blank_intervals[[5]])
+# print(summary(blank_intervals[[5]]$Oxygen))
+# print(summary(blank_intervals[[5]]$`Delta T [min]`))
+# 
+# test1 <- fit_reg(blank_intervals[[1]]) # does not run 
+# print(summary(blank_intervals[[1]]$Oxygen))
+# print(summary(blank_intervals[[1]]$`Delta T [min]`))
+# 
+# test8 <- fit_reg(blank_intervals[[9]])
+# print(summary(blank_intervals[[9]]$Oxygen))
+# print(summary(blank_intervals[[9]]$`Delta T [min]`))
+# 
+# ## It may be an issue of too many data points in some of the intervals of the blanks. maybe thin the data... There is clearly something weird going on with the blanks. 
+# 

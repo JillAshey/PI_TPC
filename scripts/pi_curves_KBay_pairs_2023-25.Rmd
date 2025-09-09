@@ -31,25 +31,308 @@ library(emmeans)
 
 ## Sept 2023 
 
-NEED TO DO 
+### Prepare data 
 
-Filter sample metadata for May 2024
+Load run metadata 
+```{r}
+run_meta <- read_csv("../data/pi_curves/pi_curve_metadata_run.csv") %>%
+  mutate(
+    Start = as_datetime(Date) + hours(hour(Start.time)) + minutes(minute(Start.time)),
+    Stop  = as_datetime(Date) + hours(hour(Stop.time)) + minutes(minute(Stop.time)))
+```
+
+Load sample metadata
+```{r}
+sample_meta <- read_csv("../data/pi_curves/pi_curve_metadata_sample.csv")
+
+# Make sure Chamber well # is numeric
+sample_meta <- sample_meta %>%
+  mutate(`Chamber` = as.numeric(`Chamber`))
+```
+
+List all raw files for Sept 2023 
+```{r}
+files <- list.files(path = "../data/pi_curves/raw_data/Sept2023/", pattern = "*.csv", full.names = TRUE)
+```
+
+Join O2 data with metadata files based on start and stop times 
+```{r}
+all_data <- map_dfr(files, function(f) {
+  # Extract channel number from filename, e.g. Ch1 → 1
+  channel <- str_extract(f, "channel\\d+") %>% str_remove("channel") %>% as.numeric()
+  
+  # Read the file
+  raw <- read_csv(f) %>%
+    mutate(
+      # Parse datetime (adjust format if needed)
+      DateTime = dmy_hms(Date),
+      Channel = channel
+    )
+  
+  # Join to run metadata by fuzzy time match
+  raw_joined <- fuzzy_left_join(
+    raw,
+    run_meta,
+    by = c("DateTime" = "Start", "DateTime" = "Stop"),
+    match_fun = list(`>=`, `<=`)
+  )
+  
+  # Join to sample metadata by Date, Run #, and Channel
+  raw_joined <- raw_joined %>%
+    left_join(
+      sample_meta,
+      by = c(
+        "Date.y" = "Date",
+        "Run" = "Run",
+        "Channel" = "Chamber"
+      )
+    )
+  
+  return(raw_joined)
+})
+```
+
+Look at joined data and save
+```{r}
+all_data %>% count(is.na(`Colony_ID`))
+all_data %>% count(is.na(Run))
+
+write_csv(all_data, "../output/pi_curves/Sept2023/all_joined_data_Sept2023.csv")
+```
+
+### Run localized linear regressions 
+
+The interval fitting code will take about an hour to run and is computationally intense. If needed, run as a background job or on a remote server.
+
+Make list of all Colony_ID / Run combinations (including blanks)
+```{r}
+colony_runs <- all_data %>%
+  filter(!is.na(Colony_ID)) %>%
+  distinct(Colony_ID, Run)
+```
+
+For this timepoint, only two out of the five runs had blanks. Therefore, I am going to calculate the blank intervals, average them, and then apply them to the regression for each colony. 
+
+Calculate interval slopes for the blanks
+```{r}
+blank_data <- all_data %>%
+  filter(Colony_ID == "blank")
+
+blank_intervals <- blank_data %>%
+  group_by(Run, Light_Value) %>%
+  filter(!is.na(Colony_ID)) %>%
+  group_split()
+```
+
+Fit regressions and extract slopes for each blank interval
+```{r}
+fit_reg <- function(df) {
+  rankLocReg(
+    xall = as.numeric(df$`Delta T [min]`),
+    yall = df$Oxygen,
+    alpha = 0.2,
+    method = "pc",
+    verbose = FALSE
+  )
+}
+
+blank_fits <- map(blank_intervals, fit_reg)
+blank_slopes <- map_dbl(blank_fits, ~ pluck(., "allRegs", "b1", 1))
+blank_summary <- map2_dfr(
+  blank_intervals,
+  blank_slopes,
+  ~ tibble(
+    Light_Value = unique(.x$Light_Value),
+    Blank_Slope = .y
+  )
+)
+```
+
+Average blank slopes per light value, across all blanks/runs
+```{r}
+avg_blank_slopes <- blank_summary %>%
+  group_by(Light_Value) %>%
+  summarise(Avg_Blank_Slope = mean(Blank_Slope, na.rm = TRUE), .groups = "drop")
+```
+
+Run interval fittings with blank correction
+```{r}
+# Function: blank correction + slope extraction + save/return interval summary
+fit_colony_intervals_avgblank <- function(colony_id, run_num) {
+  # Subset sample data
+  sample_data <- all_data %>%
+    filter(Colony_ID == colony_id, Run == run_num)
+  if (nrow(sample_data) == 0) return(NULL)
+  
+  # Split data by light step
+  intervals <- sample_data %>%
+    group_by(Light_Value) %>%
+    group_split()
+  
+  # Fit regressions for each interval
+  fits <- map(intervals, fit_reg)
+  micromol.L.s <- map_dbl(fits, ~ pluck(., "allRegs", "b1", 1))
+  
+  # Detailed interval summary
+  interval_df <- map2_dfr(
+    intervals,
+    seq_along(intervals),
+    ~ tibble(
+      Colony_ID   = colony_id,
+      Run         = run_num,
+      Interval    = .y,
+      Light_Value = unique(.x$Light_Value),
+      N_points    = nrow(.x),
+      O2_start    = head(.x$Oxygen, 1),
+      O2_end      = tail(.x$Oxygen, 1),
+      DeltaT_min  = min(.x$`Delta T [min]`),
+      DeltaT_max  = max(.x$`Delta T [min]`),
+      O2_min      = min(.x$Oxygen, na.rm = TRUE),
+      O2_max      = max(.x$Oxygen, na.rm = TRUE),
+      Slope       = micromol.L.s[.y]
+    )
+  ) %>%
+    left_join(avg_blank_slopes, by = "Light_Value") %>%
+    mutate(
+      Blank_Corrected_Slope = Slope - Avg_Blank_Slope
+    )
+  
+  # Write file (outside of the pipeline!)
+  fn <- paste0("...output/pi_curves/Sept2023/intervals_", colony_id, "_run", run_num, "_Sept2023.csv")
+  write_csv(interval_df, fn)
+  
+  interval_df
+}
+
+# Run for all samples and save big CSV
+plan(multisession)
+
+all_interval_summaries <- future_pmap_dfr(
+  list(colony_runs$Colony_ID, colony_runs$Run),
+  fit_colony_intervals_avgblank
+)
+
+write_csv(all_interval_summaries, "../output/pi_curves/Sept2023/all_interval_summaries_Sept2023.csv")
+```
+
+Read in interval data again so the above chunk does not need to be run
+```{r}
+all_int <- read.csv("../output/pi_curves/Sept2023/all_interval_summaries_Sept2023.csv")
+all_int$Colony_ID <- as.character(all_int$Colony_ID)
+```
+
+Filter sample metadata for Sept 2023
 ```{r}
 sept_2023 <- sample_meta %>%
   filter(grepl("^2023-09", Date))
 sept_2023$Surface_Area_cm2 <- as.numeric(sept_2023$Surface_Area_cm2)
-
-sept_2023_run <- run_meta %>%
-  filter(grepl("^2023-09", Date))
-
 ```
 
+Merge sample metadata with interval data 
+```{r}
+all_int <- all_int %>%
+  inner_join(sept_2023, by = "Colony_ID") %>%
+  filter(!is.na(Phenotype))
+length(unique(all_int$Colony_ID))
+```
 
+Normalize interval data by chamber volume and surface area and save
+```{r}
+# normalize 
+all_int <- all_int %>%
+  mutate(
+    Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
+    Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / Surface_Area_cm2) * 60) # units are umol O2 cm-2 h-1
+write.csv(all_int, "../output/pi_curves/Sept2023/all_interval_summaries_normalized_Sept2023.csv")
+```
 
+Plot PI curves across light values 
+```{r}
+ggplot(all_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
+  geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
+  geom_point() +
+  geom_line(aes(group = Colony_ID)) + 
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  facet_wrap(~Species, scales = "fixed") +
+  theme_classic(base_size = 14) +
+  labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype")
+```
 
+Something is off with 237 at the 150 light level. The slope is -19. Remove for further analysis 
+```{r}
+all_int_sub <- all_int %>%
+  filter(!Colony_ID == 237)
+```
 
+### Fit Platt model to determine PI curve metrics 
 
+- Pmax 
+- alpha 
+- Ik 
+- LEDR
+- Pgross 
 
+Nest by colony 
+```{r}
+pi_nested <- all_int %>%
+  select(Colony_ID, Light_Value, Slope_norm) %>%  # or whatever your P column is
+  rename(I = Light_Value, P = Slope_norm) %>%
+  group_by(Colony_ID) %>%
+  nest()
+```
+
+Define the Platt model and fit for each colony 
+```{r}
+# Define a function to fit the model
+fit_pi_model <- function(df) {
+  tryCatch({
+    fit <- nlsLM(P ~ Pmax * tanh(alpha * I / Pmax) + Rd,
+                 data = df,
+                 start = list(Pmax = max(df$P), alpha = 0.01, Rd = -0.1))
+    pars <- coef(fit)
+    tibble(Pmax = pars["Pmax"],
+           alpha = pars["alpha"],
+           Rd = pars["Rd"],
+           Ik = pars["Pmax"]/pars["alpha"],
+           Pgross = pars["Pmax"] + pars["Rd"])
+  }, error = function(e) tibble(Pmax = NA, alpha = NA, Rd = NA, Ik = NA, Pgross = NA))
+}
+
+# Apply the model to each colony
+pi_results <- pi_nested %>%
+  mutate(params = map(data, fit_pi_model)) %>%
+  select(-data) %>%
+  unnest(cols = params)
+```
+
+Merge pi curve metric data with sample metadata and save 
+```{r}
+pi_results <- pi_results %>%
+  inner_join(sept_2023, by = "Colony_ID")
+write.csv(pi_results, "../output/pi_curves/Sept2023/pi_curve_metrics_Sept2023.csv")
+```
+
+Pivot pi data to long format for plotting 
+```{r}
+pi_long <- pi_results %>%
+  pivot_longer(cols = c(Pmax, alpha, Rd, Ik, Pgross),
+               names_to = "Parameter",
+               values_to = "Value")
+```
+
+Plot metrics 
+```{r}
+ggplot(pi_long, aes(x = Phenotype, y = Value, fill = Phenotype)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_jitter(width = 0.2, size = 1.5, alpha = 0.8) +
+  facet_grid(Parameter ~ Species, scales = "free_y") +
+  scale_fill_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_bw(base_size = 14) +
+  labs(x = "Phenotype", y = "Value") +
+  theme(legend.position = "none")
+```
 
 ## Jan 2024 
 
@@ -1513,6 +1796,11 @@ ggplot(pi_long, aes(x = Phenotype, y = Value, fill = Phenotype)) +
 
 Read in normalized interval data 
 ```{r}
+int_sept2023 <- read.csv("../output/pi_curves/Sept2023/all_interval_summaries_normalized_Sept2023.csv")
+int_sept2023$Timepoint <- "Sept23"
+int_sept2023 <- int_sept2023 %>%
+  select(Colony_ID, Run.x, Light_Value, Date, Species, Phenotype, Slope_norm, Timepoint)
+
 int_jan2024 <- read.csv("../output/pi_curves/Jan2024/all_interval_summaries_normalized_Jan2024.csv")
 int_jan2024$Timepoint <- "Jan24"
 int_jan2024 <- int_jan2024 %>%
@@ -1541,13 +1829,13 @@ int_may2025 <- int_may2025 %>%
 
 Bind data together 
 ```{r}
-all_time_int <- rbind(int_jan2024, int_may2024, int_oct2024, int_jan2025, int_may2025)
+all_time_int <- rbind(int_sept2023, int_jan2024, int_may2024, int_oct2024, int_jan2025, int_may2025)
 ```
 
 Plot PI curves across light values 
 ```{r}
 # Set levels 
-all_time_int$Timepoint <- factor(all_time_int$Timepoint, levels = c("Jan24", "May24", "Oct24", "Jan25", "May25"))
+all_time_int$Timepoint <- factor(all_time_int$Timepoint, levels = c("Sept23", "Jan24", "May24", "Oct24", "Jan25", "May25"))
 
 ggplot(all_time_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
   geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
@@ -1574,15 +1862,16 @@ ggplot(all_time_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
   labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype", fill = "Phenotype")
 ```
 
-Remove Colony 214 from Jan24 and Colony 28 from May25
-
-
+NEED TO DO: Remove Colony 237 from Sept23, Colony 214 from Jan24 and Colony 28 from May25
 
 ### PI curve metrics 
 
 Read in calculated pi curve metrics 
 ```{r}
-pi_metrics_jan2024 <- read.csv("../output/pi_curves/Jan2024/old/pi_curve_metrics_Jan2024.csv")
+pi_metrics_sept2023 <- read.csv("../output/pi_curves/Sept2023/pi_curve_metrics_Sept2023.csv")
+pi_metrics_sept2023$Timepoint <- "Sept23"
+
+pi_metrics_jan2024 <- read.csv("../output/pi_curves/Jan2024/pi_curve_metrics_Jan2024.csv")
 pi_metrics_jan2024$Timepoint <- "Jan24"
 
 pi_metrics_may2024 <- read.csv("../output/pi_curves/May2024/pi_curve_metrics_May2024.csv")
@@ -1600,7 +1889,7 @@ pi_metrics_may2025$Timepoint <- "May25"
 
 Bind data together 
 ```{r}
-all_time_pi_metrics <- rbind(pi_metrics_jan2024, pi_metrics_may2024, pi_metrics_oct2024, pi_metrics_jan2025, pi_metrics_may2025)
+all_time_pi_metrics <- rbind(pi_metrics_sept2023, pi_metrics_jan2024, pi_metrics_may2024, pi_metrics_oct2024, pi_metrics_jan2025, pi_metrics_may2025)
 ```
 
 #### Stats 
@@ -1943,7 +2232,7 @@ pi_metrics_summary <- all_time_pi_metrics %>%
 Plot! 
 ```{r}
 # Set levels 
-pi_metrics_summary$Timepoint <- factor(pi_metrics_summary$Timepoint, levels = c("Jan24", "May24", "Oct24", "Jan25", "May25"))
+pi_metrics_summary$Timepoint <- factor(pi_metrics_summary$Timepoint, levels = c("Sept23", "Jan24", "May24", "Oct24", "Jan25", "May25"))
 
 # Pmax
 ggplot(pi_metrics_summary, aes(x = Timepoint, y = mean_Pmax, color = Phenotype, group = Phenotype)) +
