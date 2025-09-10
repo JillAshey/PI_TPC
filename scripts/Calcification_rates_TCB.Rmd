@@ -1,0 +1,153 @@
+---
+title: "Net calcification - TCB"
+author: "Jill Ashey"
+date: "2025-09-09"
+output: html_document
+---
+
+This script will calculate net calcification from the TCB corals (Sept 2023) and compare to the field corals from Sept 2023. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+Read in field calcification data to get information for blanks. This data did not have the raw alkalinity or blank values (Kristen might have them).
+Read in data 
+```{r}
+calc <- read.csv("../data/Calcification_data_field.csv", header = T)
+```
+
+Add Timepoint as a column
+```{r}
+calc <- calc %>%
+  mutate(Timepoint = case_when(
+    grepl("2023-04", Date) ~ "Apr23",
+    grepl("2023-09", Date) ~ "Sept23",
+    grepl("2024-01", Date) ~ "Jan24",
+    grepl("2024-05", Date) ~ "May24",
+    grepl("2024-10", Date) ~ "Oct24",
+    grepl("2025-01", Date) ~ "Jan25",
+    grepl("2025-05", Date) ~ "May25",
+    TRUE ~ NA_character_))
+```
+
+Calculate delta alkalinity 
+```{r}
+calc <- calc %>%
+  mutate(Delta_TA_raw = Starting_alk_value - Alk_avg)
+```
+
+Calculate blanks 
+```{r}
+blank_delta_ta <- calc %>%
+  filter(ColonyID == "blank" | Notes == "blank") %>%
+  group_by(Timepoint) %>%
+  summarise(mean_blank_delta_ta = mean(Delta_TA_raw, na.rm = TRUE))# %>%
+  #pull(mean_blank_delta_ta)
+print(blank_delta_ta)
+```
+
+Use the Oct24 blank as a substitute for the TCB blank. Oct24 blank is -5.3. 
+
+Read in TCB data 
+```{r}
+calc_tcb <- read.csv("../data/Calcification_data_TCB.csv", header = T)
+```
+
+Calculate incubation time 
+```{r}
+calc_tcb <- calc_tcb %>%
+  mutate(
+    start = hm(Time_start),
+    end   = hm(Time_end),
+    elapsed_mins  = as.numeric(end - start, units = "mins"),
+    elapsed_hours = elapsed_mins / 60)
+```
+
+Calculate delta alkalinity 
+```{r}
+calc_tcb <- calc_tcb %>%
+  mutate(Delta_TA_raw = Starting_alk_value - Alk_avg)
+```
+
+Subtract blank and calculate net calcification
+```{r}
+calc_tcb <- calc_tcb %>%
+  mutate(
+    Delta_TA_corr = Delta_TA_raw - (-5.3),
+    # Assuming seawater density 1.028 g/mL and volume in mL to L, and no coral weight (thus calc mg/L/hr)
+    Net_Calcification = (Delta_TA_corr / 2) * (Sample_Volume_mL / 1000) * 1.028 / elapsed_hours) %>%
+  filter(!is.na(Net_Calcification) & !is.nan(Net_Calcification))
+```
+
+Read in surface area information to normalize 
+```{r}
+sa_meta <- read_csv("../data/NSF_Career_SurfaceArea.csv") %>%
+  filter(Project == "TCB")
+```
+
+Join calc and sa dfs
+```{r}
+# Make sure the join columns match
+calc_tcb <- calc_tcb %>%
+  rename(Colony_ID = ColonyID)
+
+joined_tcb <- calc_tcb %>%
+  left_join(sa_meta, by = c("Colony_ID"))
+```
+
+Normalize by SA
+```{r}
+joined_tcb <- joined_tcb %>%
+  mutate(Net_Calcification_cm2 = Net_Calcification / Surface_Area_cm2)
+```
+
+Save as csv 
+```{r}
+write.csv(joined_tcb, "../output/calcification/Calcification_data_normalized_TCB.csv")
+```
+
+Read in field calc data from Sept23
+```{r}
+field <- read.csv("../output/calcification/Calcification_data_normalized.csv") %>%
+  filter(Timepoint == "Sept23")
+```
+
+Subset specific cols 
+```{r}
+field_sub <- field %>%
+  select(Date, Project, Colony_ID, Light, Species, Phenotype, Net_Calcification_cm2)
+
+joined_tcb_sub <- joined_tcb %>%
+  select(Date.x, Project.x, Colony_ID, Light, Species, Phenotype, Net_Calcification_cm2) %>%
+  rename(Date = Date.x, Project = Project.x)
+```
+
+Bind dfs together 
+```{r}
+sept_calc <- rbind(field_sub, joined_tcb_sub)
+```
+
+Calculate mean, sem, and sd 
+```{r}
+sept_calc_summary <- sept_calc %>%
+  group_by(Project, Phenotype, Species, Light) %>%
+  summarise(
+    mean_calc = mean(Net_Calcification_cm2, na.rm = TRUE),
+    sd_calc = sd(Net_Calcification_cm2, na.rm = T),
+    se_calc = sd(Net_Calcification_cm2, na.rm = T) / sqrt(length(Net_Calcification_cm2)),
+    .groups = "drop") %>%
+  drop_na()
+```
+
+Plot
+```{r}
+ggplot(sept_calc, aes(x = Project, y = Net_Calcification_cm2)) +
+  geom_boxplot() +
+  facet_grid(Species ~ Light) +
+  theme_bw() +
+  labs(x = "Project", y = "Net Calcification (cm2)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```

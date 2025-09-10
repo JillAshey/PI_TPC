@@ -9,11 +9,29 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(emmeans)
+library(lme4)
+library(lmerTest)
+library(lsmeans)
 ```
 
 Read in data 
 ```{r}
-calc <- read.csv("../data/Calcification_data.csv", header = T)
+calc <- read.csv("../data/Calcification_data_field.csv", header = T)
+```
+
+Add Timepoint as a column
+```{r}
+calc <- calc %>%
+  mutate(Timepoint = case_when(
+    grepl("2023-04", Date) ~ "Apr23",
+    grepl("2023-09", Date) ~ "Sept23",
+    grepl("2024-01", Date) ~ "Jan24",
+    grepl("2024-05", Date) ~ "May24",
+    grepl("2024-10", Date) ~ "Oct24",
+    grepl("2025-01", Date) ~ "Jan25",
+    grepl("2025-05", Date) ~ "May25",
+    TRUE ~ NA_character_))
 ```
 
 Calculate incubation time 
@@ -42,10 +60,10 @@ blank_delta_ta <- calc %>%
 
 # Add manual substitutions for missing timepoints
 blank_subs <- tibble(
-  Timepoint = c("April_2023", "September_2023"),
+  Timepoint = c("Apr23", "Sept23"),
   mean_blank_delta_ta = c(
-    blank_delta_ta$mean_blank_delta_ta[blank_delta_ta$Timepoint == "May_2024"],
-    blank_delta_ta$mean_blank_delta_ta[blank_delta_ta$Timepoint == "October_2024"]
+    blank_delta_ta$mean_blank_delta_ta[blank_delta_ta$Timepoint == "May24"],
+    blank_delta_ta$mean_blank_delta_ta[blank_delta_ta$Timepoint == "Oct24"]
   )
 )
 
@@ -54,8 +72,6 @@ blank_delta_ta <- bind_rows(blank_delta_ta, blank_subs)
 ```
 
 Some of the timepoints (April and Sept 2023) do not have alk data for the blanks. Instead, use the May and Oct 2024 blanks instead. 
-
-
 
 Subtract blank and calculate net calcification
 ```{r}
@@ -69,19 +85,6 @@ calc <- calc %>%
     # Assuming seawater density 1.028 g/mL and volume in mL to L, and no coral weight (thus calc mg/L/hr)
     Net_Calcification = (Delta_TA_corr / 2) * (Sample_Volume_mL / 1000) * 1.028 / elapsed_hours) %>%
   filter(!is.na(Net_Calcification) & !is.nan(Net_Calcification))
-
-```
-
-Sub out names for timepoints 
-```{r}
-unique(calc$Timepoint)
-calc$Timepoint <- gsub("April_2023", "Apr23", calc$Timepoint)
-calc$Timepoint <- gsub("September_2023", "Sept23", calc$Timepoint)
-calc$Timepoint <- gsub("January_2024", "Jan24", calc$Timepoint)
-calc$Timepoint <- gsub("May_2024", "May24", calc$Timepoint)
-calc$Timepoint <- gsub("October_2024", "Oct24", calc$Timepoint)
-calc$Timepoint <- gsub("January_2025", "Jan25", calc$Timepoint)
-calc$Timepoint <- gsub("May_2025", "May25", calc$Timepoint)
 ```
 
 Read in sample metadata for surface area 
@@ -141,7 +144,7 @@ joined_summary <- joined %>%
     se_calc = sd(Net_Calcification_cm2, na.rm = T) / sqrt(length(Net_Calcification_cm2)),
     .groups = "drop") %>%
   drop_na() %>%
-  filter(!Timepoint == "Jan25")
+  filter(!Timepoint == "Jan25") # remove Jan25 for now 
 ```
 
 Plot! 
@@ -161,7 +164,8 @@ ggplot(joined_summary, aes(x = Timepoint, y = mean_calc, color = Phenotype, grou
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = mean_calc - se_calc, ymax = mean_calc + se_calc, color = Phenotype),
                 width = 0.3, linewidth = 0.8) +  # color matches points/lines
-  facet_wrap(~ Species + Light) +
+  #facet_wrap(~ Species + Light) +
+  facet_grid(rows = vars(Species), cols = vars(Light)) +
   scale_color_manual(
     values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")
   ) +
@@ -175,7 +179,8 @@ theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
     strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
     strip.text = element_text(face = "italic", size = 16),
-    legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
     legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
     legend.key = element_blank(),    
     legend.title = element_text(size = 14),
@@ -186,8 +191,244 @@ theme(
   )
 ```
 
-Decide what to do about the missing SAs for April 2023 and the weird ones for Jan 2025. Possible options: 
+## Stats! 
 
-- Average SAs across timepoint for species + phenotype 
-- Sub specific SAs (ie substitute SAs from May 2024 for April 2023)
-- Wax dip--this will take the longest 
+### Light
+
+Subset by light 
+```{r}
+joined_light <- joined %>%
+  filter(Light == "Light") %>%
+  filter(!Timepoint == "Jan25") # remove Jan25 for now 
+```
+
+Look at normality 
+```{r}
+hist(joined_light$Net_Calcification_cm2)
+
+# Q-Q Plot
+qqnorm(joined_light$Net_Calcification_cm2)
+qqline(joined_light$Net_Calcification_cm2, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(joined_light$Net_Calcification_cm2)
+```
+
+Data is not normal, perform data transformation
+```{r}
+# Log10
+joined_light$calc_log <- log10(joined_light$Net_Calcification_cm2 +1) # add 1 to avoid log10(0)
+hist(joined_light$calc_log)
+qqnorm(joined_light$calc_log)
+qqline(joined_light$calc_log, col = "red")
+shapiro.test(joined_light$calc_log)
+
+# Sqrt
+joined_light$calc_sqrt <- sqrt(joined_light$Net_Calcification_cm2)
+hist(joined_light$calc_sqrt)
+qqnorm(joined_light$calc_sqrt)
+qqline(joined_light$calc_sqrt, col = "red")
+shapiro.test(joined_light$calc_sqrt)
+
+# Inverse 
+joined_light$calc_inv <- 1 / (joined_light$Net_Calcification_cm2 +1) # add 1 to avoid division by zero
+hist(joined_light$calc_inv)
+qqnorm(joined_light$calc_inv)
+qqline(joined_light$calc_inv, col = "red")
+shapiro.test(joined_light$calc_inv)
+```
+
+Sqrt and inv produced normality. Proceed with sqrt. 
+```{r}
+mod_calc <- lmer(calc_sqrt ~ Species * Phenotype * Timepoint + (1 | Colony_ID),
+                 data = joined_light,
+                 REML = FALSE)
+car::Anova(mod_calc, type = 3)
+```
+
+Look at posthoc comparisons 
+```{r}
+em_spp <- emmeans(mod_calc, pairwise ~ Species, adjust = "tukey")
+summary(em_spp)
+
+em_time <- emmeans(mod_calc, pairwise ~ Timepoint, adjust = "tukey")
+summary(em_time)
+```
+
+Calculate mean, sem, and sd for light only
+```{r}
+joined_light_summary <- joined_light %>%
+  group_by(Timepoint, Phenotype, Species) %>%
+  summarise(
+    mean_calc = mean(Net_Calcification_cm2, na.rm = TRUE),
+    sd_calc = sd(Net_Calcification_cm2, na.rm = T),
+    se_calc = sd(Net_Calcification_cm2, na.rm = T) / sqrt(length(Net_Calcification_cm2)),
+    .groups = "drop") %>%
+  drop_na() %>%
+  filter(!Timepoint == "Jan25") # remove Jan25 for now 
+```
+
+Plot! 
+```{r}
+# Set levels 
+joined_light_summary$Timepoint <- factor(joined_light_summary$Timepoint, levels = c("Apr23",
+                                                                        "Sept23",
+                                                                        "Jan24", 
+                                                                        "May24", 
+                                                                        "Oct24", 
+                                                                        #"Jan25", 
+                                                                        "May25"))
+
+ggplot(joined_light_summary, aes(x = Timepoint, y = mean_calc, color = Phenotype, group = Phenotype)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_calc - se_calc, ymax = mean_calc + se_calc, color = Phenotype),
+                width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species), cols = vars(Light)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")
+  ) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Net calcification (Light)",
+    color = "Phenotype"
+  ) +
+theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    legend.position = c(0.15, 0.83),  # adjust x, y for placement
+    #legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16)
+  )
+```
+
+### Dark
+
+Subset by Dark 
+```{r}
+joined_dark <- joined %>%
+  filter(Light == "Dark") %>%
+  filter(!Timepoint == "Jan25") # remove Jan25 for now 
+```
+
+Look at normality 
+```{r}
+hist(joined_dark$Net_Calcification_cm2)
+
+# Q-Q Plot
+qqnorm(joined_dark$Net_Calcification_cm2)
+qqline(joined_dark$Net_Calcification_cm2, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(joined_dark$Net_Calcification_cm2)
+```
+
+Data is not normal, perform data transformation
+```{r}
+# Log10
+joined_dark$calc_log <- log10(joined_dark$Net_Calcification_cm2 +1) # add 1 to avoid log10(0)
+hist(joined_dark$calc_log)
+qqnorm(joined_dark$calc_log)
+qqline(joined_dark$calc_log, col = "red")
+shapiro.test(joined_dark$calc_log)
+
+# Sqrt
+joined_dark$calc_sqrt <- sqrt(joined_dark$Net_Calcification_cm2)
+hist(joined_dark$calc_sqrt)
+qqnorm(joined_dark$calc_sqrt)
+qqline(joined_dark$calc_sqrt, col = "red")
+shapiro.test(joined_dark$calc_sqrt)
+
+# Inverse 
+joined_dark$calc_inv <- 1 / (joined_dark$Net_Calcification_cm2 +1) # add 1 to avoid division by zero
+hist(joined_dark$calc_inv)
+qqnorm(joined_dark$calc_inv)
+qqline(joined_dark$calc_inv, col = "red")
+shapiro.test(joined_dark$calc_inv)
+```
+
+Sqrt and inv produced normality. Proceed with sqrt. 
+```{r}
+mod_calc_dark <- lmer(calc_sqrt ~ Species * Phenotype * Timepoint + (1 | Colony_ID),
+                 data = joined_dark,
+                 REML = FALSE)
+car::Anova(mod_calc_dark, type = 3)
+```
+
+Species x Phenotype significant. 
+
+Look at post-hoc results 
+```{r}
+em_sp_ph <- emmeans(mod_calc_dark, ~ Species * Phenotype | Timepoint)
+contrasts_sp_ph <- contrast(em_sp_ph, method = "pairwise", adjust = "tukey")
+summary(contrasts_sp_ph)
+```
+
+Calculate mean, sem, and sd for dark only
+```{r}
+joined_dark_summary <- joined_dark %>%
+  group_by(Timepoint, Phenotype, Species) %>%
+  summarise(
+    mean_calc = mean(Net_Calcification_cm2, na.rm = TRUE),
+    sd_calc = sd(Net_Calcification_cm2, na.rm = T),
+    se_calc = sd(Net_Calcification_cm2, na.rm = T) / sqrt(length(Net_Calcification_cm2)),
+    .groups = "drop") %>%
+  drop_na() %>%
+  filter(!Timepoint == "Jan25") # remove Jan25 for now 
+```
+
+Plot! 
+```{r}
+# Set levels 
+joined_dark_summary$Timepoint <- factor(joined_dark_summary$Timepoint, levels = c("Apr23",
+                                                                        "Sept23",
+                                                                        "Jan24", 
+                                                                        "May24", 
+                                                                        "Oct24", 
+                                                                        #"Jan25", 
+                                                                        "May25"))
+
+ggplot(joined_dark_summary, aes(x = Timepoint, y = mean_calc, color = Phenotype, group = Phenotype)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_calc - se_calc, ymax = mean_calc + se_calc, color = Phenotype),
+                width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species), cols = vars(Light)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")
+  ) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Net calcification (Dark)",
+    color = "Phenotype"
+  ) +
+theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    legend.position = c(0.85, 0.33),  # adjust x, y for placement
+    #legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16)
+  )
+```
+
+

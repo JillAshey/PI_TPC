@@ -1,0 +1,639 @@
+---
+title: "PI curves TCB"
+author: "Jill Ashey"
+date: "2025-09-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("devtools")
+#devtools::install_github("colin-olito/LoLinR")
+
+library(tidyverse)
+library(nls.multstart)
+library(broom)
+library(LoLinR)
+library(readr)
+library(lubridate)
+library(fuzzyjoin)
+library(stringr)
+library(purrr)
+library(future)
+library(furrr)
+library(minpack.lm)
+library(lme4)
+library(lmerTest)
+library(nlme)
+library(emmeans)
+```
+
+## TCB - Sept 2023 
+
+### Prepare data 
+
+Load run metadata 
+```{r}
+run_meta <- read_csv("../data/pi_curves/pi_curve_metadata_TCB_run.csv") %>%
+  mutate(
+    Start = as_datetime(Date) + hours(hour(Start.time)) + minutes(minute(Start.time)),
+    Stop  = as_datetime(Date) + hours(hour(Stop.time)) + minutes(minute(Stop.time)))
+```
+
+Load sample metadata
+```{r}
+sample_meta <- read_csv("../data/pi_curves/pi_curve_metadata_TCB_sample.csv")
+
+# Make sure Chamber well # is numeric
+sample_meta <- sample_meta %>%
+  mutate(`Chamber` = as.numeric(`Chamber`))
+```
+
+List all raw files for Sept 2023 
+```{r}
+files <- list.files(path = "../data/pi_curves/raw_data/Sept2023_TCB/", pattern = "*.csv", full.names = TRUE)
+```
+
+Join O2 data with metadata files based on start and stop times 
+```{r}
+all_data <- map_dfr(files, function(f) {
+  # Extract channel number from filename, e.g. Ch1 → 1
+  channel <- str_extract(f, "channel\\d+") %>% str_remove("channel") %>% as.numeric()
+  
+  # Read the file
+  raw <- read_csv(f) %>%
+    mutate(
+      # Parse datetime (adjust format if needed)
+      DateTime = dmy_hms(Date),
+      Channel = channel
+    )
+  
+  # Join to run metadata by fuzzy time match
+  raw_joined <- fuzzy_left_join(
+    raw,
+    run_meta,
+    by = c("DateTime" = "Start", "DateTime" = "Stop"),
+    match_fun = list(`>=`, `<=`)
+  )
+  
+  # Join to sample metadata by Date, Run #, and Channel
+  raw_joined <- raw_joined %>%
+    left_join(
+      sample_meta,
+      by = c(
+        "Date.y" = "Date",
+        "Run" = "Run",
+        "Channel" = "Chamber"
+      )
+    )
+  
+  return(raw_joined)
+})
+```
+
+Look at joined data and save
+```{r}
+all_data %>% count(is.na(`Colony_ID`))
+all_data %>% count(is.na(Run))
+
+write_csv(all_data, "../output/pi_curves/Sept2023_TCB/all_joined_data_Sept2023_TCB.csv")
+```
+
+### Run localized linear regressions 
+
+The interval fitting code will take about an hour to run and is computationally intense. If needed, run as a background job or on a remote server.
+
+Make list of all Colony_ID / Run combinations (including blanks)
+```{r}
+colony_runs <- all_data %>%
+  filter(!is.na(Colony_ID)) %>%
+  distinct(Colony_ID, Run)
+```
+
+For this timepoint, only two out of the five runs had blanks. Therefore, I am going to calculate the blank intervals, average them, and then apply them to the regression for each colony. 
+
+Calculate interval slopes for the blanks
+```{r}
+blank_data <- all_data %>%
+  filter(Colony_ID == "blank")
+
+blank_intervals <- blank_data %>%
+  group_by(Run, Light_Value) %>%
+  filter(!is.na(Colony_ID)) %>%
+  group_split()
+```
+
+Fit regressions and extract slopes for each blank interval
+```{r}
+fit_reg <- function(df) {
+  rankLocReg(
+    xall = as.numeric(df$`Delta T [min]`),
+    yall = df$Oxygen,
+    alpha = 0.2,
+    method = "pc",
+    verbose = FALSE
+  )
+}
+
+blank_fits <- map(blank_intervals, fit_reg)
+blank_slopes <- map_dbl(blank_fits, ~ pluck(., "allRegs", "b1", 1))
+blank_summary <- map2_dfr(
+  blank_intervals,
+  blank_slopes,
+  ~ tibble(
+    Light_Value = unique(.x$Light_Value),
+    Blank_Slope = .y
+  )
+)
+```
+
+Average blank slopes per light value, across all blanks/runs
+```{r}
+avg_blank_slopes <- blank_summary %>%
+  group_by(Light_Value) %>%
+  summarise(Avg_Blank_Slope = mean(Blank_Slope, na.rm = TRUE), .groups = "drop")
+```
+
+Run interval fittings with blank correction
+```{r}
+# Function: blank correction + slope extraction + save/return interval summary
+fit_colony_intervals_avgblank <- function(colony_id, run_num) {
+  # Subset sample data
+  sample_data <- all_data %>%
+    filter(Colony_ID == colony_id, Run == run_num)
+  if (nrow(sample_data) == 0) return(NULL)
+  
+  # Split data by light step
+  intervals <- sample_data %>%
+    group_by(Light_Value) %>%
+    group_split()
+  
+  # Fit regressions for each interval
+  fits <- map(intervals, fit_reg)
+  micromol.L.s <- map_dbl(fits, ~ pluck(., "allRegs", "b1", 1))
+  
+  # Detailed interval summary
+  interval_df <- map2_dfr(
+    intervals,
+    seq_along(intervals),
+    ~ tibble(
+      Colony_ID   = colony_id,
+      Run         = run_num,
+      Interval    = .y,
+      Light_Value = unique(.x$Light_Value),
+      N_points    = nrow(.x),
+      O2_start    = head(.x$Oxygen, 1),
+      O2_end      = tail(.x$Oxygen, 1),
+      DeltaT_min  = min(.x$`Delta T [min]`),
+      DeltaT_max  = max(.x$`Delta T [min]`),
+      O2_min      = min(.x$Oxygen, na.rm = TRUE),
+      O2_max      = max(.x$Oxygen, na.rm = TRUE),
+      Slope       = micromol.L.s[.y]
+    )
+  ) %>%
+    left_join(avg_blank_slopes, by = "Light_Value") %>%
+    mutate(
+      Blank_Corrected_Slope = Slope - Avg_Blank_Slope
+    )
+  
+  # Write file (outside of the pipeline!)
+  fn <- paste0("../output/pi_curves/Sept2023_TCB/intervals_", colony_id, "_run", run_num, "_Sept2023_TCB.csv")
+  write_csv(interval_df, fn)
+  
+  interval_df
+}
+
+# Run for all samples and save big CSV
+plan(multisession)
+
+all_interval_summaries <- future_pmap_dfr(
+  list(colony_runs$Colony_ID, colony_runs$Run),
+  fit_colony_intervals_avgblank
+)
+
+write_csv(all_interval_summaries, "../output/pi_curves/Sept2023_TCB/all_interval_summaries_Sept2023_TCB.csv")
+```
+
+Read in interval data again so the above chunk does not need to be run
+```{r}
+all_int <- read.csv("../output/pi_curves/Sept2023_TCB/all_interval_summaries_Sept2023_TCB.csv")
+all_int$Colony_ID <- as.character(all_int$Colony_ID)
+```
+
+Make sure surface area data is numeric 
+```{r}
+sample_meta$Surface_Area_cm2 <- as.numeric(sample_meta$Surface_Area_cm2)
+```
+
+Merge sample metadata with interval data 
+```{r}
+all_int <- all_int %>%
+  inner_join(sample_meta, by = "Colony_ID") %>%
+  filter(!is.na(Phenotype))
+length(unique(all_int$Colony_ID))
+```
+
+Normalize interval data by chamber volume and surface area and save
+```{r}
+# normalize 
+all_int <- all_int %>%
+  mutate(
+    Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
+    Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / Surface_Area_cm2) * 60) # units are umol O2 cm-2 h-1
+write.csv(all_int, "../output/pi_curves/Sept2023_TCB/all_interval_summaries_normalized_Sept2023_TCB.csv")
+```
+
+Plot PI curves across light values 
+```{r}
+ggplot(all_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
+  geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
+  geom_point() +
+  geom_line(aes(group = Colony_ID)) + 
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  facet_wrap(~Species, scales = "fixed") +
+  theme_classic(base_size = 14) +
+  labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype")
+```
+
+### Fit Platt model to determine PI curve metrics 
+
+- Pmax 
+- alpha 
+- Ik 
+- LEDR
+- Pgross 
+
+Nest by colony 
+```{r}
+pi_nested <- all_int %>%
+  select(Colony_ID, Light_Value, Slope_norm) %>%  # or whatever your P column is
+  rename(I = Light_Value, P = Slope_norm) %>%
+  group_by(Colony_ID) %>%
+  nest()
+```
+
+Define the Platt model and fit for each colony 
+```{r}
+# Define a function to fit the model
+fit_pi_model <- function(df) {
+  tryCatch({
+    fit <- nlsLM(P ~ Pmax * tanh(alpha * I / Pmax) + Rd,
+                 data = df,
+                 start = list(Pmax = max(df$P), alpha = 0.01, Rd = -0.1))
+    pars <- coef(fit)
+    tibble(Pmax = pars["Pmax"],
+           alpha = pars["alpha"],
+           Rd = pars["Rd"],
+           Ik = pars["Pmax"]/pars["alpha"],
+           Pgross = pars["Pmax"] + pars["Rd"])
+  }, error = function(e) tibble(Pmax = NA, alpha = NA, Rd = NA, Ik = NA, Pgross = NA))
+}
+
+# Apply the model to each colony
+pi_results <- pi_nested %>%
+  mutate(params = map(data, fit_pi_model)) %>%
+  select(-data) %>%
+  unnest(cols = params)
+```
+
+Merge pi curve metric data with sample metadata and save 
+```{r}
+pi_results <- pi_results %>%
+  inner_join(sample_meta, by = "Colony_ID")
+write.csv(pi_results, "../output/pi_curves/Sept2023_TCB/pi_curve_metrics_Sept2023_TCB.csv")
+```
+
+Pivot pi data to long format for plotting 
+```{r}
+pi_long <- pi_results %>%
+  pivot_longer(cols = c(Pmax, alpha, Rd, Ik, Pgross),
+               names_to = "Parameter",
+               values_to = "Value")
+```
+
+Plot metrics 
+```{r}
+ggplot(pi_long, aes(x = Phenotype, y = Value, fill = Phenotype)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+  geom_jitter(width = 0.2, size = 1.5, alpha = 0.8) +
+  facet_grid(Parameter ~ Species, scales = "free_y") +
+  scale_fill_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_bw(base_size = 14) +
+  labs(x = "Phenotype", y = "Value") +
+  theme(legend.position = "none")
+```
+
+## Field vs TCB corals 
+
+Read in normalized interval data for field and TCB corals from Sept 2023
+```{r}
+int_field<- read.csv("../output/pi_curves/Sept2023/all_interval_summaries_normalized_Sept2023.csv")
+int_field$Project <- "Field"
+int_field <- int_field %>%
+  select(Colony_ID, Run.x, Light_Value, Date, Species, Phenotype, Slope_norm, Project)
+
+int_tcb <- read.csv("../output/pi_curves/Sept2023_TCB/all_interval_summaries_normalized_Sept2023_TCB.csv")
+int_tcb <- int_tcb %>%
+  select(Colony_ID, Run.x, Light_Value, Date, Species, Phenotype, Slope_norm, Project)
+```
+
+Bind data together 
+```{r}
+all_int <- rbind(int_field, int_tcb)
+```
+
+Remove 237 from field -- major outlier 
+```{r}
+all_int_filt <- all_int %>%
+  filter(!(Colony_ID == "237" & Project == "Field"))
+```
+
+Plot PI curves across light values 
+```{r}
+ggplot(all_int_filt, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
+  geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
+  geom_point() +
+  geom_line(aes(group = Colony_ID)) + 
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  #facet_wrap(~Species+Timepoint, scales = "fixed") +
+  facet_grid(rows = vars(Species), cols = vars(Project)) +
+  theme_classic(base_size = 14) +
+  labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype")
+
+ggplot(all_int_filt, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
+  geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
+  geom_point(alpha = 0.4, size = 1.5, position = position_jitter(width = 10)) +
+  geom_smooth(aes(fill = Phenotype), method = "loess", se = TRUE, linewidth = 1.2) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  scale_fill_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  #facet_wrap(~Species + Timepoint, scales = "fixed") +
+  facet_grid(rows = vars(Species), cols = vars(Project)) +
+  theme_classic(base_size = 14) +
+  labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype", fill = "Phenotype")
+```
+
+### PI curve metrics 
+
+Read in calculated pi curve metrics 
+```{r}
+pi_metrics_field <- read.csv("../output/pi_curves/Sept2023/pi_curve_metrics_Sept2023.csv")
+
+pi_metrics_tcb <- read.csv("../output/pi_curves/Sept2023_TCB/pi_curve_metrics_Sept2023_TCB.csv")
+```
+
+Bind data together 
+```{r}
+all_pi_metrics <- rbind(pi_metrics_field, pi_metrics_tcb)
+```
+
+#### Stats 
+
+##### Pmax 
+
+Assess normality of data 
+```{r}
+hist(all_pi_metrics$Pmax)
+
+# Q-Q Plot
+qqnorm(all_pi_metrics$Pmax)
+qqline(all_pi_metrics$Pmax, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(all_pi_metrics$Pmax)
+```
+
+Data is normal. 
+
+Perform stats
+```{r}
+mod_pmax <- lmer(Pmax ~ Species * Phenotype * Project + (1 | Colony_ID),
+                 data = all_pi_metrics,
+                 REML = FALSE)
+anova(mod_pmax, type = 3)   # type III sums of squares
+emmeans(mod_pmax, pairwise ~ Species)
+emmeans(mod_pmax, pairwise ~ Project)
+```
+
+Species and Project are significant. 
+
+##### Alpha 
+
+Assess normality of data 
+```{r}
+hist(all_pi_metrics$alpha)
+
+# Q-Q Plot
+qqnorm(all_pi_metrics$alpha)
+qqline(all_pi_metrics$alpha, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(all_pi_metrics$alpha)
+```
+
+Data is not normal, perform data transformation
+```{r}
+# Log10
+all_pi_metrics$alpha_log <- log10(all_pi_metrics$alpha +1) # add 1 to avoid log10(0)
+hist(all_pi_metrics$alpha_log)
+qqnorm(all_pi_metrics$alpha_log)
+qqline(all_pi_metrics$alpha_log, col = "red")
+shapiro.test(all_pi_metrics$alpha_log)
+
+# Sqrt
+all_pi_metrics$alpha_sqrt <- sqrt(all_pi_metrics$alpha)
+hist(all_pi_metrics$alpha_sqrt)
+qqnorm(all_pi_metrics$alpha_sqrt)
+qqline(all_pi_metrics$alpha_sqrt, col = "red")
+shapiro.test(all_pi_metrics$alpha_sqrt)
+
+# Inverse 
+all_pi_metrics$alpha_inv <- 1 / (all_pi_metrics$alpha +1) # add 1 to avoid division by zero
+hist(all_pi_metrics$alpha_inv)
+qqnorm(all_pi_metrics$alpha_inv)
+qqline(all_pi_metrics$alpha_inv, col = "red")
+shapiro.test(all_pi_metrics$alpha_inv)
+```
+
+Only sqrt is normal. Proceed with sqrt 
+
+Perform stats
+```{r}
+mod_alpha <- lmer(alpha_sqrt ~ Species * Phenotype * Project + (1 | Colony_ID),
+                 data = all_pi_metrics,
+                 REML = FALSE)
+anova(mod_alpha, type = 3)   # type III sums of squares
+emmeans(mod_alpha, pairwise ~ Phenotype)
+emmeans(mod_alpha, pairwise ~ Project)
+emmeans(mod_alpha, pairwise ~ Phenotype:Project)
+emmeans(mod_alpha, pairwise ~ Phenotype:Project:Species)
+```
+
+Phenotype, Project, Phenotype:Project, and Species:Phenotype:Project are significant
+
+##### Ik 
+
+Assess normality of data 
+```{r}
+hist(all_pi_metrics$Ik)
+
+# Q-Q Plot
+qqnorm(all_pi_metrics$Ik)
+qqline(all_pi_metrics$Ik, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(all_pi_metrics$Ik)
+```
+
+Data is not normal, perform data transformation
+```{r}
+# Log10
+all_pi_metrics$Ik_log <- log10(all_pi_metrics$Ik +1) # add 1 to avoid log10(0)
+hist(all_pi_metrics$Ik_log)
+qqnorm(all_pi_metrics$Ik_log)
+qqline(all_pi_metrics$Ik_log, col = "red")
+shapiro.test(all_pi_metrics$Ik_log)
+
+# Sqrt
+all_pi_metrics$Ik_sqrt <- sqrt(all_pi_metrics$Ik)
+hist(all_pi_metrics$Ik_sqrt)
+qqnorm(all_pi_metrics$Ik_sqrt)
+qqline(all_pi_metrics$Ik_sqrt, col = "red")
+shapiro.test(all_pi_metrics$Ik_sqrt)
+
+# Inverse 
+all_pi_metrics$Ik_inv <- 1 / (all_pi_metrics$Ik +1) # add 1 to avoid division by zero
+hist(all_pi_metrics$Ik_inv)
+qqnorm(all_pi_metrics$Ik_inv)
+qqline(all_pi_metrics$Ik_inv, col = "red")
+shapiro.test(all_pi_metrics$Ik_inv)
+```
+
+Both log and sqrt are normal. Proceed with log. 
+
+Perform stats 
+```{r}
+mod_ik <- lmer(Ik_log ~ Species * Phenotype * Project + (1 | Colony_ID),
+                 data = all_pi_metrics,
+                 REML = FALSE)
+anova(mod_ik, type = 3)   # type III sums of squares
+emmeans(mod_alpha, pairwise ~ Species)
+emmeans(mod_alpha, pairwise ~ Project)
+```
+
+Species and Project (sort of) are significant. 
+
+##### Rd
+
+Assess normality of data 
+```{r}
+hist(all_pi_metrics$Rd)
+
+# Q-Q Plot
+qqnorm(all_pi_metrics$Rd)
+qqline(all_pi_metrics$Rd, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(all_pi_metrics$Rd)
+```
+
+Data is normal. 
+
+Perform stats 
+```{r}
+mod_rd <- lmer(Rd ~ Species * Phenotype * Project + (1 | Colony_ID),
+                 data = all_pi_metrics,
+                 REML = FALSE)
+anova(mod_rd, type = 3)   # type III sums of squares
+emmeans(mod_rd, pairwise ~ Species)
+emmeans(mod_rd, pairwise ~ Phenotype)
+emmeans(mod_rd, pairwise ~ Species:Phenotype:Project)
+```
+
+Species, Phenotype (sort of), and Species:Phenotype:Project are significant. 
+
+##### Pgross
+
+Assess normality of data 
+```{r}
+hist(all_pi_metrics$Pgross)
+
+# Q-Q Plot
+qqnorm(all_pi_metrics$Pgross)
+qqline(all_pi_metrics$Pgross, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(all_pi_metrics$Pgross)
+```
+
+Data is not normal, perform data transformation
+```{r}
+# Log10
+all_pi_metrics$Pgross_log <- log10(all_pi_metrics$Pgross +1) # add 1 to avoid log10(0)
+hist(all_pi_metrics$Pgross_log)
+qqnorm(all_pi_metrics$Pgross_log)
+qqline(all_pi_metrics$Pgross_log, col = "red")
+shapiro.test(all_pi_metrics$Pgross_log)
+
+# Sqrt
+all_pi_metrics$Pgross_sqrt <- sqrt(all_pi_metrics$Pgross)
+hist(all_pi_metrics$Pgross_sqrt)
+qqnorm(all_pi_metrics$Pgross_sqrt)
+qqline(all_pi_metrics$Pgross_sqrt, col = "red")
+shapiro.test(all_pi_metrics$Pgross_sqrt)
+
+# Inverse 
+all_pi_metrics$Pgross_inv <- 1 / (all_pi_metrics$Pgross +1) # add 1 to avoid division by zero
+hist(all_pi_metrics$Pgross_inv)
+qqnorm(all_pi_metrics$Pgross_inv)
+qqline(all_pi_metrics$Pgross_inv, col = "red")
+shapiro.test(all_pi_metrics$Pgross_inv)
+```
+
+All produced normality. Proceed with log 
+
+Perform stats 
+```{r}
+mod_pgross <- lmer(Pgross_log ~ Species * Phenotype * Project + (1 | Colony_ID),
+                 data = all_pi_metrics,
+                 REML = FALSE)
+anova(mod_pgross, type = 3)   # type III sums of squares
+emmeans(mod_pgross, pairwise ~ Species)
+emmeans(mod_pgross, pairwise ~ Project)
+emmeans(mod_pgross, pairwise ~ Species:Phenotype:Project)
+```
+
+Species and Project are significant. 
+
+### Plot
+```{r}
+# Subset 'CAREER - Phys' to 'Field'
+all_pi_metrics_sub <- all_pi_metrics %>%
+  mutate(Project = ifelse(Project == "CAREER - Phys", "Field", Project))
+
+# Select and reshape the variables for plotting
+plot_data <- all_pi_metrics_sub %>%
+  select(Project, Species, Phenotype, Pmax, alpha, Ik, Rd, Pgross) %>%
+  pivot_longer(cols = c(Pmax, alpha, Ik, Rd, Pgross),
+               names_to = "Metric", values_to = "Value")
+
+# Plot boxplot with jitter, colored by Phenotype
+ggplot(plot_data, aes(x = Project, y = Value, fill = Phenotype)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.6, position = position_dodge(width = 0.8)) +
+  geom_jitter(aes(color = Phenotype), position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8), 
+              size = 1.5, alpha = 0.8, show.legend = FALSE) +
+  facet_grid(Metric ~ Species, scales = "free_y") +
+  scale_fill_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_bw(base_size = 14) +
+  labs(x = "Project", y = "Value") +
+  theme(legend.position = "right",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+

@@ -1,383 +1,431 @@
 Date,Project,Colony_ID,Species,Phenotype,Surface_Area_cm2,Notes
 2023-04-15,CAREER - Phys,1,Montipora capitata,Susceptible,27.57,Wax dipped
+2023-09-14,CAREER - Phys,1,Montipora capitata,Susceptible,20.03687937,
+2024-01-20,CAREER - Phys,1,Montipora capitata,Susceptible,24.16317003,
+2024-05-09,CAREER - Phys,1,Montipora capitata,Susceptible,23.8873267,
+2024-10-01,CAREER - Phys,1,Montipora capitata,Susceptible,15.70630826,
+2025-01-09,CAREER - Phys,1,Montipora capitata,Susceptible,12.93963472,
+2025-05-08,CAREER - Phys,1,Montipora capitata,Susceptible,21.44760345,
 2023-04-15,CAREER - Phys,2,Montipora capitata,Resistant,14.66,Wax dipped
+2023-09-14,CAREER - Phys,2,Montipora capitata,Resistant,20.18991445,
+2024-01-20,CAREER - Phys,2,Montipora capitata,Resistant,24.41382674,
+2024-05-09,CAREER - Phys,2,Montipora capitata,Resistant,17.01745478,Chamber vol for May 2024 from https://docs.google.com/spreadsheets/d/13gIjPfTB01INNaudqHc24-o7gXok3zQx2ttnW5mRKAw/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/13g-BwexGEIjBTK7elHVnbd9stiIZstRwJwRray-T18Y/edit?gid=0#gid=0. SA for May 2024 from NSF_Career_May_Phys_mesh_measure
+2024-10-01,CAREER - Phys,2,Montipora capitata,Resistant,22.72692876,
+2025-01-09,CAREER - Phys,2,Montipora capitata,Resistant,17.54709409,
+2025-05-08,CAREER - Phys,2,Montipora capitata,Resistant,19.84785402,
 2023-04-15,CAREER - Phys,3,Montipora capitata,Susceptible,10.4,Wax dipped
+2023-09-15,CAREER - Phys,3,Montipora capitata,Susceptible,18.19752998,
+2024-01-20,CAREER - Phys,3,Montipora capitata,Susceptible,13.92469729,
+2024-05-09,CAREER - Phys,3,Montipora capitata,Susceptible,10.30313478,
+2024-10-02,CAREER - Phys,3,Montipora capitata,Susceptible,15.54114824,Coral 3 (chamber 5) is a sad nub
+2025-01-09,CAREER - Phys,3,Montipora capitata,Susceptible,6.583136094,Chamber vol for Jan 2025 from https://docs.google.com/spreadsheets/d/1lez5iBINVi3tjcowenmlMVcdq3d2JUWCKHbAvpJcZgU/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/1E3QAKFHJU8Dky9mAnQ6DuLwcaJeigrLag4_3-VOz4zA/edit?gid=0#gid=0. SA for Jan 2025 has not been received from Spencer yet
+2025-05-08,CAREER - Phys,3,Montipora capitata,Susceptible,NA,"Stir bar kept stopping, data probably not usable; No SA values recorded for this frag; avged the Mcap SAs from other frags to get SA for 3"
 2023-04-15,CAREER - Phys,4,Montipora capitata,Resistant,15.14,Wax dipped
+2023-09-15,CAREER - Phys,4,Montipora capitata,Resistant,17.00914233,
+2024-01-21,CAREER - Phys,4,Montipora capitata,Resistant,19.50035567,
+2024-05-09,CAREER - Phys,4,Montipora capitata,Resistant,15.12469012,
+2024-10-02,CAREER - Phys,4,Montipora capitata,Resistant,22.49835562,
+2025-01-09,CAREER - Phys,4,Montipora capitata,Resistant,9.663832697,
+2025-05-08,CAREER - Phys,4,Montipora capitata,Resistant,18.25277406,No SA values recorded for this frag; avged the Mcap SAs from other frags to get SA for 4
 2023-04-15,CAREER - Phys,11,Montipora capitata,Susceptible,12.24,Wax dipped
 2023-04-15,CAREER - Phys,12,Montipora capitata,Resistant,12.8,Wax dipped
+2024-01-21,CAREER - Phys,12,Montipora capitata,Resistant,22.73053391,
+2024-05-09,CAREER - Phys,12,Montipora capitata,Resistant,11.38822611,
+2024-10-02,CAREER - Phys,12,Montipora capitata,Resistant,20.71953384,
+2025-01-09,CAREER - Phys,12,Montipora capitata,Resistant,8.383567763,
+2025-05-08,CAREER - Phys,12,Montipora capitata,Resistant,12.07297033,
 2023-04-15,CAREER - Phys,15,Montipora capitata,Susceptible,12.63,Wax dipped
 2023-04-15,CAREER - Phys,16,Montipora capitata,Resistant,18.03,Wax dipped
 2023-04-15,CAREER - Phys,19,Montipora capitata,Susceptible,26.16,Wax dipped
+2023-09-14,CAREER - Phys,19,Montipora capitata,Susceptible,19.07264971,
+2024-01-20,CAREER - Phys,19,Montipora capitata,Susceptible,19.39694291,
+2024-05-09,CAREER - Phys,19,Montipora capitata,Susceptible,14.86164023,No SA values recorded for this frag; avged the Mcap SAs from other frags to get SA for 213
+2024-10-01,CAREER - Phys,19,Montipora capitata,Susceptible,17.83537582,
+2025-01-09,CAREER - Phys,19,Montipora capitata,Susceptible,19.51943262,
+2025-05-08,CAREER - Phys,19,Montipora capitata,Susceptible,20.54693193,
 2023-04-15,CAREER - Phys,20,Montipora capitata,Resistant,16.62,Wax dipped
+2023-09-14,CAREER - Phys,20,Montipora capitata,Resistant,20.10320527,
+2024-01-20,CAREER - Phys,20,Montipora capitata,Resistant,23.95422348,
+2024-05-09,CAREER - Phys,20,Montipora capitata,Resistant,13.60426395,
+2024-10-01,CAREER - Phys,20,Montipora capitata,Resistant,18.4008163,Weird spike in channel 8 to >350 during run 1 - looks like 1 reading that will have to be removed
+2025-01-09,CAREER - Phys,20,Montipora capitata,Resistant,9.591847972,
+2025-05-08,CAREER - Phys,20,Montipora capitata,Resistant,11.2851565,
 2023-04-15,CAREER - Phys,26,Porites compressa,Resistant,14.17,Wax dipped
+2023-09-15,CAREER - Phys,26,Porites compressa,Susceptible,15.40563432,
+2024-01-20,CAREER - Phys,26,Porites compressa,Susceptible,18.25138944,
+2024-05-10,CAREER - Phys,26,Porites compressa,Susceptible,15.46836427,
+2024-10-02,CAREER - Phys,26,Porites compressa,Susceptible,16.48570331,
+2025-01-09,CAREER - Phys,26,Porites compressa,Susceptible,24.82633366,
+2025-05-08,CAREER - Phys,26,Porites compressa,Susceptible,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 26
 2023-04-15,CAREER - Phys,27,Porites compressa,Susceptible,18.19,Wax dipped
+2023-09-15,CAREER - Phys,27,Porites compressa,Resistant,17.70534214,
+2024-01-20,CAREER - Phys,27,Porites compressa,Resistant,23.38202144,Channel 9 looked funny during 0% light level
+2024-05-10,CAREER - Phys,27,Porites compressa,Resistant,12.12639197,No volume recorded so avged Pcomp data to get volume for 27
+2024-10-02,CAREER - Phys,27,Porites compressa,Resistant,14.92532344,
+2025-01-09,CAREER - Phys,27,Porites compressa,Resistant,25.42651795,
+2025-05-08,CAREER - Phys,27,Porites compressa,Resistant,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 27
 2023-04-15,CAREER - Phys,28,Porites compressa,Resistant,16.7,Wax dipped
+2023-09-15,CAREER - Phys,28,Porites compressa,Susceptible,17.7588614,
+2024-01-20,CAREER - Phys,28,Porites compressa,Susceptible,17.16597635,Alkalinity data says this sample vol was spilled so avged Pcomp data to get volume for 28
+2024-05-09,CAREER - Phys,28,Porites compressa,Susceptible,20.74603859,
+2024-10-02,CAREER - Phys,28,Porites compressa,Susceptible,15.69024154,
+2025-01-09,CAREER - Phys,28,Porites compressa,Susceptible,16.15603182,Spike in 6 and 7 because realized the temp probes were switched. Placed in correct spots. 7 is the blank
+2025-05-08,CAREER - Phys,28,Porites compressa,Susceptible,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 28
 2023-04-15,CAREER - Phys,29,Porites compressa,Susceptible,17.26,Wax dipped
+2023-09-15,CAREER - Phys,29,Porites compressa,Resistant,16.02065751,
+2024-01-21,CAREER - Phys,29,Porites compressa,Resistant,25.67355999,
+2024-05-09,CAREER - Phys,29,Porites compressa,Resistant,18.41687099,
+2024-10-01,CAREER - Phys,29,Porites compressa,Resistant,11.56906683,
+2025-01-09,CAREER - Phys,29,Porites compressa,Resistant,10.22854452,
+2025-05-08,CAREER - Phys,29,Porites compressa,Resistant,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 29
 2023-04-15,CAREER - Phys,41,Porites compressa,Susceptible,13.45,Wax dipped
+2023-09-15,CAREER - Phys,41,Porites compressa,Susceptible,17.8726339,
+2024-01-20,CAREER - Phys,41,Porites compressa,Susceptible,18.58050535,
+2024-05-09,CAREER - Phys,41,Porites compressa,Susceptible,13.6883119,
+2024-10-02,CAREER - Phys,41,Porites compressa,Susceptible,12.04215007,
+2025-05-08,CAREER - Phys,41,Porites compressa,Susceptible,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 41
 2023-04-15,CAREER - Phys,42,Porites compressa,Resistant,9.63,Wax dipped
+2023-09-15,CAREER - Phys,42,Porites compressa,Resistant,14.09270789,
+2024-01-20,CAREER - Phys,42,Porites compressa,Resistant,20.86350227,
+2024-05-09,CAREER - Phys,42,Porites compressa,Resistant,12.67211562,
+2024-10-02,CAREER - Phys,42,Porites compressa,Resistant,22.58229084,
+2025-05-08,CAREER - Phys,42,Porites compressa,Resistant,16.62082926,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 42
 2023-04-15,CAREER - Phys,43,Porites compressa,Susceptible,18.09,Wax dipped
+2023-09-15,CAREER - Phys,43,Porites compressa,Susceptible,19.40321854,
+2024-01-20,CAREER - Phys,43,Porites compressa,Susceptible,21.13585694,
+2024-05-09,CAREER - Phys,43,Porites compressa,Susceptible,25.70665753,
+2024-10-02,CAREER - Phys,43,Porites compressa,Susceptible,18.67272616,
+2025-01-09,CAREER - Phys,43,Porites compressa,Susceptible,18.64981456,
+2025-05-08,CAREER - Phys,43,Porites compressa,Susceptible,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 43
 2023-04-15,CAREER - Phys,44,Porites compressa,Resistant,11.12,Wax dipped
+2023-09-15,CAREER - Phys,44,Porites compressa,Resistant,14.93810056,
+2024-01-20,CAREER - Phys,44,Porites compressa,Resistant,14.05941331,
+2024-05-09,CAREER - Phys,44,Porites compressa,Resistant,16.3326135,
+2024-10-01,CAREER - Phys,44,Porites compressa,Resistant,14.00518542,
+2025-01-09,CAREER - Phys,44,Porites compressa,Resistant,10.77992369,
+2025-05-08,CAREER - Phys,44,Porites compressa,Resistant,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 44
 2023-04-15,CAREER - Phys,45,Porites compressa,Susceptible,18.11,Wax dipped
+2023-09-15,CAREER - Phys,45,Porites compressa,Susceptible,16.52711027,
+2024-01-21,CAREER - Phys,45,Porites compressa,Susceptible,16.81304653,
 2023-04-15,CAREER - Phys,46,Porites compressa,Resistant,13.95,Wax dipped
+2023-09-15,CAREER - Phys,46,Porites compressa,Resistant,19.41592567,
+2024-01-21,CAREER - Phys,46,Porites compressa,Resistant,28.47249303,
 2023-04-15,CAREER - Phys,201,Montipora capitata,Susceptible,15.39,Wax dipped
+2023-09-15,CAREER - Phys,201,Montipora capitata,Susceptible,18.06108049,
+2024-01-20,CAREER - Phys,201,Montipora capitata,Susceptible,25.88782546,
+2024-05-09,CAREER - Phys,201,Montipora capitata,Susceptible,14.80356317,
+2024-10-02,CAREER - Phys,201,Montipora capitata,Susceptible,14.49304936,
+2025-01-09,CAREER - Phys,201,Montipora capitata,Susceptible,20.32709837,
+2025-05-08,CAREER - Phys,201,Montipora capitata,Susceptible,11.25776496,
 2023-04-15,CAREER - Phys,202,Montipora capitata,Resistant,13.61,Wax dipped
+2023-09-15,CAREER - Phys,202,Montipora capitata,Resistant,19.49749671,
+2024-01-21,CAREER - Phys,202,Montipora capitata,Resistant,38.02202589,
+2024-05-09,CAREER - Phys,202,Montipora capitata,Resistant,20.99775316,
+2024-10-02,CAREER - Phys,202,Montipora capitata,Resistant,19.52862146,
+2025-01-09,CAREER - Phys,202,Montipora capitata,Resistant,10.87738545,
+2025-05-08,CAREER - Phys,202,Montipora capitata,Resistant,20.63938771,
 2023-04-15,CAREER - Phys,203,Montipora capitata,Susceptible,16.61,Wax dipped
+2023-09-15,CAREER - Phys,203,Montipora capitata,Susceptible,21.90329564,
+2024-01-21,CAREER - Phys,203,Montipora capitata,Susceptible,17.06858134,
+2024-05-10,CAREER - Phys,203,Montipora capitata,Susceptible,20.67721028,
+2024-10-01,CAREER - Phys,203,Montipora capitata,Susceptible,12.64374774,
+2025-01-09,CAREER - Phys,203,Montipora capitata,Susceptible,14.66955651,
+2025-05-08,CAREER - Phys,203,Montipora capitata,Susceptible,6.689773558,
 2023-04-15,CAREER - Phys,204,Montipora capitata,Resistant,12.2,Wax dipped
+2023-09-15,CAREER - Phys,204,Montipora capitata,Resistant,19.58648586,
+2024-01-20,CAREER - Phys,204,Montipora capitata,Resistant,18.82415589,
+2024-05-10,CAREER - Phys,204,Montipora capitata,Resistant,15.3952052,
+2024-10-02,CAREER - Phys,204,Montipora capitata,Resistant,18.1310987,
+2025-01-09,CAREER - Phys,204,Montipora capitata,Resistant,4.471058452,
+2025-05-08,CAREER - Phys,204,Montipora capitata,Resistant,21.83959592,
+2023-09-15,CAREER - Phys,205,Montipora capitata,Susceptible,15.61989935,
+2024-01-20,CAREER - Phys,205,Montipora capitata,Susceptible,14.12422623,Chamber vol for Jan 2024 from https://docs.google.com/spreadsheets/d/1tjkoaUArNFC3PiGT3smRiLyQ7VJbQL7_AO2v9Z_5uqg/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/115YI12L3dGhRy9tNkagiD-8E3X8a-X0MBHTqjxPKh6o/edit?gid=0#gid=0. SA for Jan 2024 from Jan_Phys_T0_mesh_measure
+2024-05-10,CAREER - Phys,205,Montipora capitata,Susceptible,17.06653679,
+2024-10-02,CAREER - Phys,205,Montipora capitata,Susceptible,21.09619635,
+2025-01-09,CAREER - Phys,205,Montipora capitata,Susceptible,2.612351816,12:56pm Bubble on probe 5
+2025-05-08,CAREER - Phys,205,Montipora capitata,Susceptible,26.7455347,
 2023-04-15,CAREER - Phys,206,Montipora capitata,Resistant,16.77,Wax dipped
+2023-09-15,CAREER - Phys,206,Montipora capitata,Resistant,14.22479098,
+2024-01-20,CAREER - Phys,206,Montipora capitata,Resistant,15.4556613,
+2024-05-10,CAREER - Phys,206,Montipora capitata,Resistant,17.37311968,
+2024-10-02,CAREER - Phys,206,Montipora capitata,Resistant,35.72815658,
+2025-01-09,CAREER - Phys,206,Montipora capitata,Resistant,2.85733959,
+2025-05-08,CAREER - Phys,206,Montipora capitata,Resistant,19.71425138,
 2023-04-15,CAREER - Phys,207,Montipora capitata,Susceptible,14.37,Wax dipped
 2023-04-15,CAREER - Phys,208,Montipora capitata,Resistant,16.47,Wax dipped
 2023-04-15,CAREER - Phys,209,Montipora capitata,Susceptible,15.42,Wax dipped
+2023-09-15,CAREER - Phys,209,Montipora capitata,Susceptible,21.48497365,
+2024-01-20,CAREER - Phys,209,Montipora capitata,Susceptible,25.30017054,
+2024-05-09,CAREER - Phys,209,Montipora capitata,Susceptible,14.40480292,
+2024-10-02,CAREER - Phys,209,Montipora capitata,Susceptible,21.80519223,
+2025-01-09,CAREER - Phys,209,Montipora capitata,Susceptible,1.966670678,
+2025-05-08,CAREER - Phys,209,Montipora capitata,Susceptible,29.05540257,
 2023-04-15,CAREER - Phys,210,Montipora capitata,Resistant,14.23,Wax dipped
+2023-09-15,CAREER - Phys,210,Montipora capitata,Resistant,22.84494431,
+2024-01-21,CAREER - Phys,210,Montipora capitata,Resistant,21.25520366,
+2024-05-09,CAREER - Phys,210,Montipora capitata,Resistant,23.43746972,
+2024-10-01,CAREER - Phys,210,Montipora capitata,Resistant,32.95859532,
+2025-01-09,CAREER - Phys,210,Montipora capitata,Resistant,2.146571642,
+2025-05-08,CAREER - Phys,210,Montipora capitata,Resistant,16.89215684,
 2023-04-15,CAREER - Phys,211,Montipora capitata,Susceptible,14.15,Wax dipped
+2023-09-14,CAREER - Phys,211,Montipora capitata,Susceptible,15.44132248,
+2024-01-21,CAREER - Phys,211,Montipora capitata,Susceptible,25.49841239,
+2024-05-09,CAREER - Phys,211,Montipora capitata,Susceptible,30.93802277,
+2024-10-01,CAREER - Phys,211,Montipora capitata,Susceptible,30.60379201,
+2025-01-09,CAREER - Phys,211,Montipora capitata,Susceptible,3.039359453,
+2025-05-08,CAREER - Phys,211,Montipora capitata,Susceptible,12.92747515,
 2023-04-15,CAREER - Phys,212,Montipora capitata,Resistant,14.88,Wax dipped
+2023-09-14,CAREER - Phys,212,Montipora capitata,Resistant,13.92379016,
+2024-01-20,CAREER - Phys,212,Montipora capitata,Resistant,12.95589027,
 2023-04-15,CAREER - Phys,213,Montipora capitata,Susceptible,12.49,Wax dipped
+2023-09-14,CAREER - Phys,213,Montipora capitata,Susceptible,17.98726514,No SA values recorded for this frag; avged the Mcap SAs from other frags to get SA for 213
+2024-01-21,CAREER - Phys,213,Montipora capitata,Susceptible,19.12683178,
+2024-05-09,CAREER - Phys,213,Montipora capitata,Susceptible,14.5135692,
+2024-10-02,CAREER - Phys,213,Montipora capitata,Susceptible,12.40056307,
+2025-01-09,CAREER - Phys,213,Montipora capitata,Susceptible,3.971200048,
+2025-05-08,CAREER - Phys,213,Montipora capitata,Susceptible,24.97326333,
 2023-04-15,CAREER - Phys,214,Montipora capitata,Resistant,12.46,Wax dipped
+2023-09-14,CAREER - Phys,214,Montipora capitata,Resistant,16.11632924,
+2024-01-20,CAREER - Phys,214,Montipora capitata,Resistant,10.36015277,"Lid came off during run (at 60% light level); Channel 8 (colony #214) lid got loose during 60% light level, and the data is probably unusable from 60% onwards. While we were getting the bubble off, the stir bars kind of stopped only for a few measurements. "
+2024-05-09,CAREER - Phys,214,Montipora capitata,Resistant,16.89921559,
+2024-10-02,CAREER - Phys,214,Montipora capitata,Resistant,15.08071422,
+2025-01-09,CAREER - Phys,214,Montipora capitata,Resistant,2.453920728,
+2025-05-08,CAREER - Phys,214,Montipora capitata,Resistant,16.84629821,Chamber vol for May 2025 from https://docs.google.com/spreadsheets/d/1ynUEL58zBLLtYkHcnG4ZssgsjUJf6HJE8lvM_JxutIM/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/1FRW4BGAmn3yW8qYeTmIi_E8RQmw-t8Nx4o4o9Cgf9BA/edit?gid=0#gid=0. SA for May 2025 has not been received from Spencer yet
 2023-04-15,CAREER - Phys,217,Montipora capitata,Susceptible,14.77,Wax dipped
 2023-04-15,CAREER - Phys,218,Montipora capitata,Resistant,11.52,Wax dipped
 2023-04-15,CAREER - Phys,219,Montipora capitata,Susceptible,10.94,Wax dipped
+2023-09-14,CAREER - Phys,219,Montipora capitata,Susceptible,14.68375978,
+2024-01-20,CAREER - Phys,219,Montipora capitata,Susceptible,24.17025675,
+2024-05-09,CAREER - Phys,219,Montipora capitata,Susceptible,14.12551911,
+2024-10-02,CAREER - Phys,219,Montipora capitata,Susceptible,28.12657827,
+2025-01-09,CAREER - Phys,219,Montipora capitata,Susceptible,2.40672041,
+2025-05-08,CAREER - Phys,219,Montipora capitata,Susceptible,12.97586276,
 2023-04-15,CAREER - Phys,220,Montipora capitata,Resistant,12.02,Wax dipped
+2023-09-14,CAREER - Phys,220,Montipora capitata,Resistant,16.3527826,Chamber vol for Sept 2023 from https://docs.google.com/spreadsheets/d/1ER5cb2uHWlQ6L5Ifs1Rq18BrPqLYbu8kD4qvk5cz5Ts/edit?gid=0#gid=0; SA for Sept 2023 from Phys_T0_frags_20230914_mesh_measure
+2024-01-21,CAREER - Phys,220,Montipora capitata,Resistant,19.41339906,
+2024-05-09,CAREER - Phys,220,Montipora capitata,Resistant,13.2102446,
+2024-10-02,CAREER - Phys,220,Montipora capitata,Resistant,19.59918146,
+2025-01-09,CAREER - Phys,220,Montipora capitata,Resistant,2.246373042,
+2025-05-08,CAREER - Phys,220,Montipora capitata,Resistant,24.46794204,
 2023-04-15,CAREER - Phys,221,Montipora capitata,Susceptible,11.32,Wax dipped
+2023-09-14,CAREER - Phys,221,Montipora capitata,Susceptible,15.39503037,
+2024-01-21,CAREER - Phys,221,Montipora capitata,Susceptible,21.29399255,
+2024-05-09,CAREER - Phys,221,Montipora capitata,Susceptible,15.34615645,
+2024-10-01,CAREER - Phys,221,Montipora capitata,Susceptible,32.11543505,
+2025-01-09,CAREER - Phys,221,Montipora capitata,Susceptible,1.901368408,"100% light level - 3 not showing a huge range, may not be usable. Will have space to rerun in later runs → maybe ok in the end, not putting into last run"
+2025-05-08,CAREER - Phys,221,Montipora capitata,Susceptible,16.57748179,
 2023-04-15,CAREER - Phys,222,Montipora capitata,Resistant,10.53,Wax dipped
 2023-04-15,CAREER - Phys,225,Porites compressa,Susceptible,12.77,Wax dipped
-2023-04-15,CAREER - Phys,226,Porites compressa,Resistant,11.35,Wax dipped
-2023-04-15,CAREER - Phys,233,Porites compressa,Susceptible,15.66,Wax dipped
-2023-04-15,CAREER - Phys,234,Porites compressa,Resistant,13.98,Wax dipped
-2023-04-15,CAREER - Phys,235,Porites compressa,Susceptible,23.89,Wax dipped
-2023-04-15,CAREER - Phys,236,Porites compressa,Resistant,12.91,Wax dipped
-2023-04-15,CAREER - Phys,237,Porites compressa,Susceptible,12.17,Wax dipped
-2023-04-15,CAREER - Phys,238,Porites compressa,Resistant,12.11,Wax dipped
-2023-04-15,CAREER - Phys,240,Porites compressa,Resistant,19.17,Wax dipped
-2023-04-15,CAREER - Phys,241,Porites compressa,Susceptible,10.82,Wax dipped
-2023-04-15,CAREER - Phys,242,Porites compressa,Resistant,12.55,Wax dipped
-2023-04-15,CAREER - Phys,243,Porites compressa,Susceptible,7.75,Wax dipped
-2023-04-15,CAREER - Phys,248,Porites compressa,Resistant,18.64,Wax dipped
-2023-09-14,CAREER - Phys,220,Montipora capitata,Resistant,16.3527826,Chamber vol for Sept 2023 from https://docs.google.com/spreadsheets/d/1ER5cb2uHWlQ6L5Ifs1Rq18BrPqLYbu8kD4qvk5cz5Ts/edit?gid=0#gid=0; SA for Sept 2023 from Phys_T0_frags_20230914_mesh_measure
-2023-09-14,CAREER - Phys,248,Porites compressa,Resistant,16.07244613,
-2023-09-14,CAREER - Phys,221,Montipora capitata,Susceptible,15.39503037,
-2023-09-14,CAREER - Phys,247,Porites compressa,Susceptible,16.78110869,
-2023-09-14,CAREER - Phys,219,Montipora capitata,Susceptible,14.68375978,
-2023-09-14,CAREER - Phys,235,Porites compressa,Susceptible,13.25828415,
-2023-09-14,CAREER - Phys,213,Montipora capitata,Susceptible,17.98726514,No SA values recorded for this frag; avged the Mcap SAs from other frags to get SA for 213
-2023-09-14,CAREER - Phys,236,Porites compressa,Resistant,16.30973371,
-2023-09-14,CAREER - Phys,214,Montipora capitata,Resistant,16.11632924,
-2023-09-14,CAREER - Phys,blank,NA,NA,NA,
-2023-09-14,CAREER - Phys,HOBO,NA,NA,NA,
-2023-09-14,CAREER - Phys,19,Montipora capitata,Susceptible,19.07264971,
-2023-09-14,CAREER - Phys,244,Porites compressa,Resistant,16.63741579,
-2023-09-14,CAREER - Phys,1,Montipora capitata,Susceptible,20.03687937,
-2023-09-14,CAREER - Phys,238,Porites compressa,Susceptible,17.00661431,
-2023-09-14,CAREER - Phys,20,Montipora capitata,Resistant,20.10320527,
-2023-09-14,CAREER - Phys,237,Porites compressa,Susceptible,18.20289831,
-2023-09-14,CAREER - Phys,2,Montipora capitata,Resistant,20.18991445,
-2023-09-14,CAREER - Phys,211,Montipora capitata,Susceptible,15.44132248,
-2023-09-14,CAREER - Phys,243,Porites compressa,Resistant,15.69865511,
-2023-09-14,CAREER - Phys,212,Montipora capitata,Resistant,13.92379016,
-2023-09-14,CAREER - Phys,HOBO,NA,NA,NA,
-2023-09-15,CAREER - Phys,226,Porites compressa,Resistant,18.51332616,
-2023-09-15,CAREER - Phys,209,Montipora capitata,Susceptible,21.48497365,
-2023-09-15,CAREER - Phys,26,Porites compressa,Susceptible,15.40563432,
-2023-09-15,CAREER - Phys,4,Montipora capitata,Resistant,17.00914233,
-2023-09-15,CAREER - Phys,210,Montipora capitata,Resistant,22.84494431,
-2023-09-15,CAREER - Phys,27,Porites compressa,Resistant,17.70534214,
-2023-09-15,CAREER - Phys,3,Montipora capitata,Susceptible,18.19752998,
-2023-09-15,CAREER - Phys,46,Porites compressa,Resistant,19.41592567,
-2023-09-15,CAREER - Phys,29,Porites compressa,Resistant,16.02065751,
-2023-09-15,CAREER - Phys,blank,NA,NA,NA,
-2023-09-15,CAREER - Phys,HOBO,NA,NA,NA,
-2023-09-15,CAREER - Phys,241,Porites compressa,Susceptible,16.51704508,
-2023-09-15,CAREER - Phys,42,Porites compressa,Resistant,14.09270789,
-2023-09-15,CAREER - Phys,28,Porites compressa,Susceptible,17.7588614,
-2023-09-15,CAREER - Phys,240,Porites compressa,Resistant,18.72882124,
-2023-09-15,CAREER - Phys,206,Montipora capitata,Resistant,14.22479098,
-2023-09-15,CAREER - Phys,242,Porites compressa,Resistant,15.24890162,
-2023-09-15,CAREER - Phys,234,Porites compressa,Resistant,17.66764385,
-2023-09-15,CAREER - Phys,205,Montipora capitata,Susceptible,15.61989935,
-2023-09-15,CAREER - Phys,233,Porites compressa,Susceptible,15.22419622,
-2023-09-15,CAREER - Phys,239,Porites compressa,Susceptible,16.25144609,
-2023-09-15,CAREER - Phys,HOBO,NA,NA,NA,
-2023-09-15,CAREER - Phys,203,Montipora capitata,Susceptible,21.90329564,
-2023-09-15,CAREER - Phys,43,Porites compressa,Susceptible,19.40321854,
-2023-09-15,CAREER - Phys,202,Montipora capitata,Resistant,19.49749671,
-2023-09-15,CAREER - Phys,41,Porites compressa,Susceptible,17.8726339,
-2023-09-15,CAREER - Phys,204,Montipora capitata,Resistant,19.58648586,
-2023-09-15,CAREER - Phys,44,Porites compressa,Resistant,14.93810056,
-2023-09-15,CAREER - Phys,45,Porites compressa,Susceptible,16.52711027,
 2023-09-15,CAREER - Phys,225,Porites compressa,Susceptible,14.89756981,
-2023-09-15,CAREER - Phys,201,Montipora capitata,Susceptible,18.06108049,
-2023-09-15,CAREER - Phys,blank,NA,NA,NA,
-2023-09-15,CAREER - Phys,HOBO,NA,NA,NA,
-2024-01-20,CAREER - Phys,205,Montipora capitata,Susceptible,14.12422623,Chamber vol for Jan 2024 from https://docs.google.com/spreadsheets/d/1tjkoaUArNFC3PiGT3smRiLyQ7VJbQL7_AO2v9Z_5uqg/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/115YI12L3dGhRy9tNkagiD-8E3X8a-X0MBHTqjxPKh6o/edit?gid=0#gid=0. SA for Jan 2024 from Jan_Phys_T0_mesh_measure
-2024-01-20,CAREER - Phys,26,Porites compressa,Susceptible,18.25138944,
-2024-01-20,CAREER - Phys,204,Montipora capitata,Resistant,18.82415589,
-2024-01-20,CAREER - Phys,237,Porites compressa,Susceptible,18.95672166,
-2024-01-20,CAREER - Phys,1,Montipora capitata,Susceptible,24.16317003,
 2024-01-20,CAREER - Phys,225,Porites compressa,Susceptible,34.29266037,
-2024-01-20,CAREER - Phys,212,Montipora capitata,Resistant,12.95589027,
-2024-01-20,CAREER - Phys,41,Porites compressa,Susceptible,18.58050535,
-2024-01-20,CAREER - Phys,19,Montipora capitata,Susceptible,19.39694291,
-2024-01-20,CAREER - Phys,243,Porites compressa,Susceptible,22.46313393,
-2024-01-20,CAREER - Phys,HOBO,NA,NA,NA,
-2024-01-20,CAREER - Phys,244,Porites compressa,Resistant,21.92403319,
-2024-01-20,CAREER - Phys,20,Montipora capitata,Resistant,23.95422348,
-2024-01-20,CAREER - Phys,238,Porites compressa,Resistant,14.89105046,
-2024-01-20,CAREER - Phys,2,Montipora capitata,Resistant,24.41382674,
-2024-01-20,CAREER - Phys,226,Porites compressa,Resistant,31.72903393,
-2024-01-20,CAREER - Phys,206,Montipora capitata,Resistant,15.4556613,
-2024-01-20,CAREER - Phys,42,Porites compressa,Resistant,20.86350227,
-2024-01-20,CAREER - Phys,214,Montipora capitata,Resistant,10.36015277,"Lid came off during run (at 60% light level); Channel 8 (colony #214) lid got loose during 60% light level, and the data is probably unusable from 60% onwards. While we were getting the bubble off, the stir bars kind of stopped only for a few measurements. "
-2024-01-20,CAREER - Phys,27,Porites compressa,Resistant,23.38202144,Channel 9 looked funny during 0% light level
-2024-01-20,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
-2024-01-20,CAREER - Phys,HOBO,NA,NA,NA,
-2024-01-20,CAREER - Phys,43,Porites compressa,Susceptible,21.13585694,
-2024-01-20,CAREER - Phys,3,Montipora capitata,Susceptible,13.92469729,
-2024-01-20,CAREER - Phys,44,Porites compressa,Resistant,14.05941331,
-2024-01-20,CAREER - Phys,28,Porites compressa,Susceptible,17.16597635,Alkalinity data says this sample vol was spilled so avged Pcomp data to get volume for 28
-2024-01-20,CAREER - Phys,201,Montipora capitata,Susceptible,25.88782546,
-2024-01-20,CAREER - Phys,233,Porites compressa,Susceptible,22.96669098,
-2024-01-20,CAREER - Phys,209,Montipora capitata,Susceptible,25.30017054,
-2024-01-20,CAREER - Phys,239,Porites compressa,Susceptible,19.02971119,
-2024-01-20,CAREER - Phys,219,Montipora capitata,Susceptible,24.17025675,
-2024-01-20,CAREER - Phys,247,Porites compressa,Susceptible,24.34787308,
-2024-01-20,CAREER - Phys,HOBO,NA,NA,NA,
-2024-01-21,CAREER - Phys,29,Porites compressa,Resistant,25.67355999,
-2024-01-21,CAREER - Phys,210,Montipora capitata,Resistant,21.25520366,
-2024-01-21,CAREER - Phys,45,Porites compressa,Susceptible,16.81304653,
-2024-01-21,CAREER - Phys,202,Montipora capitata,Resistant,38.02202589,
-2024-01-21,CAREER - Phys,235,Porites compressa,Susceptible,28.93156248,
-2024-01-21,CAREER - Phys,211,Montipora capitata,Susceptible,25.49841239,
-2024-01-21,CAREER - Phys,240,Porites compressa,Resistant,13.99913436,
-2024-01-21,CAREER - Phys,221,Montipora capitata,Susceptible,21.29399255,
-2024-01-21,CAREER - Phys,241,Porites compressa,Susceptible,28.11625177,
-2024-01-21,CAREER - Phys,4,Montipora capitata,Resistant,19.50035567,
-2024-01-21,CAREER - Phys,HOBO,NA,NA,NA,
-2024-01-21,CAREER - Phys,12,Montipora capitata,Resistant,22.73053391,
-2024-01-21,CAREER - Phys,236,Porites compressa,Resistant,22.4353766,
-2024-01-21,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
-2024-01-21,CAREER - Phys,213,Montipora capitata,Susceptible,19.12683178,
-2024-01-21,CAREER - Phys,248,Porites compressa,Resistant,19.57250727,
-2024-01-21,CAREER - Phys,203,Montipora capitata,Susceptible,17.06858134,
-2024-01-21,CAREER - Phys,242,Porites compressa,Resistant,21.465022,
-2024-01-21,CAREER - Phys,220,Montipora capitata,Resistant,19.41339906,
-2024-01-21,CAREER - Phys,234,Porites compressa,Resistant,21.38402958,
-2024-01-21,CAREER - Phys,46,Porites compressa,Resistant,28.47249303,
-2024-01-21,CAREER - Phys,HOBO,NA,NA,NA,
-2024-05-09,CAREER - Phys,2,Montipora capitata,Resistant,17.01745478,Chamber vol for May 2024 from https://docs.google.com/spreadsheets/d/13gIjPfTB01INNaudqHc24-o7gXok3zQx2ttnW5mRKAw/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/13g-BwexGEIjBTK7elHVnbd9stiIZstRwJwRray-T18Y/edit?gid=0#gid=0. SA for May 2024 from NSF_Career_May_Phys_mesh_measure
-2024-05-09,CAREER - Phys,226,Porites compressa,Resistant,10.29816918,
-2024-05-09,CAREER - Phys,210,Montipora capitata,Resistant,23.43746972,
 2024-05-09,CAREER - Phys,225,Porites compressa,Susceptible,11.15342628,
-2024-05-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-05-09,CAREER - Phys,1,Montipora capitata,Susceptible,23.8873267,
-2024-05-09,CAREER - Phys,209,Montipora capitata,Susceptible,14.40480292,
-2024-05-09,CAREER - Phys,211,Montipora capitata,Susceptible,30.93802277,
-2024-05-09,CAREER - Phys,243,Porites compressa,Susceptible,13.25647411,
-2024-05-09,CAREER - Phys,244,Porites compressa,Resistant,11.06936777,
-2024-05-09,CAREER - Phys,HOBO,NA,NA,NA,
-2024-05-09,CAREER - Phys,241,Porites compressa,Susceptible,17.98665129,
-2024-05-09,CAREER - Phys,221,Montipora capitata,Susceptible,15.34615645,
-2024-05-09,CAREER - Phys,242,Porites compressa,Resistant,18.86977768,
-2024-05-09,CAREER - Phys,4,Montipora capitata,Resistant,15.12469012,
-2024-05-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-05-09,CAREER - Phys,237,Porites compressa,Susceptible,13.75445841,
-2024-05-09,CAREER - Phys,12,Montipora capitata,Resistant,11.38822611,
-2024-05-09,CAREER - Phys,3,Montipora capitata,Susceptible,10.30313478,
-2024-05-09,CAREER - Phys,43,Porites compressa,Susceptible,25.70665753,
-2024-05-09,CAREER - Phys,44,Porites compressa,Resistant,16.3326135,
-2024-05-09,CAREER - Phys,HOBO,NA,NA,NA,
-2024-05-09,CAREER - Phys,240,Porites compressa,Resistant,17.9693712,
-2024-05-09,CAREER - Phys,19,Montipora capitata,Susceptible,17.02567425,No SA values recorded for this frag; avged the Mcap SAs from other frags to get SA for 213
-2024-05-09,CAREER - Phys,239,Porites compressa,Susceptible,12.59344577,
-2024-05-09,CAREER - Phys,20,Montipora capitata,Resistant,13.60426395,
-2024-05-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-05-09,CAREER - Phys,41,Porites compressa,Susceptible,13.6883119,
-2024-05-09,CAREER - Phys,213,Montipora capitata,Susceptible,14.5135692,
-2024-05-09,CAREER - Phys,42,Porites compressa,Resistant,12.67211562,
-2024-05-09,CAREER - Phys,214,Montipora capitata,Resistant,16.89921559,
-2024-05-09,CAREER - Phys,238,Porites compressa,Resistant,15.68677224,
-2024-05-09,CAREER - Phys,HOBO,NA,NA,NA,
-2024-05-09,CAREER - Phys,233,Porites compressa,Susceptible,17.54015736,
-2024-05-09,CAREER - Phys,201,Montipora capitata,Susceptible,14.80356317,
-2024-05-09,CAREER - Phys,28,Porites compressa,Susceptible,20.74603859,
-2024-05-09,CAREER - Phys,202,Montipora capitata,Resistant,20.99775316,
-2024-05-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-05-09,CAREER - Phys,236,Porites compressa,Resistant,9.368837674,
-2024-05-09,CAREER - Phys,29,Porites compressa,Resistant,18.41687099,
-2024-05-09,CAREER - Phys,220,Montipora capitata,Resistant,13.2102446,
-2024-05-09,CAREER - Phys,235,Porites compressa,Susceptible,14.9971933,
-2024-05-09,CAREER - Phys,219,Montipora capitata,Susceptible,14.12551911,
-2024-05-09,CAREER - Phys,HOBO,NA,NA,NA,
-2024-05-10,CAREER - Phys,247,Porites compressa,Susceptible,17.44069787,
-2024-05-10,CAREER - Phys,205,Montipora capitata,Susceptible,17.06653679,
-2024-05-10,CAREER - Phys,27,Porites compressa,Resistant,12.12639197,No volume recorded so avged Pcomp data to get volume for 27
-2024-05-10,CAREER - Phys,206,Montipora capitata,Resistant,17.37311968,
-2024-05-10,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-05-10,CAREER - Phys,26,Porites compressa,Susceptible,15.46836427,
-2024-05-10,CAREER - Phys,203,Montipora capitata,Susceptible,20.67721028,
-2024-05-10,CAREER - Phys,234,Porites compressa,Resistant,12.9367376,
-2024-05-10,CAREER - Phys,204,Montipora capitata,Resistant,15.3952052,
-2024-05-10,CAREER - Phys,248,Porites compressa,Resistant,13.87499244,
-2024-05-10,CAREER - Phys,HOBO,NA,NA,NA,
 2024-10-01,CAREER - Phys,225,Porites compressa,Susceptible,15.21781843,Chamber vol for Oct 2024 from https://docs.google.com/spreadsheets/d/1R0-TyAcboxFTtLoDb6nWnYPre-5XvpxwE3oYr60r_tY/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/1DUCUtOtR5XBqLom39beU_QuXFvvkWVFyXAmRK-CAvsY/edit?gid=0#gid=0. SA for Oct 2024 from 2024_10_Phys_Frags_mesh_measure
-2024-10-01,CAREER - Phys,210,Montipora capitata,Resistant,32.95859532,
-2024-10-01,CAREER - Phys,221,Montipora capitata,Susceptible,32.11543505,
-2024-10-01,CAREER - Phys,236,Porites compressa,Resistant,15.27020073,
-2024-10-01,CAREER - Phys,243,Porites compressa,Susceptible,25.95685695,
-2024-10-01,CAREER - Phys,248,Porites compressa,Resistant,26.9466151,
-2024-10-01,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-10-01,CAREER - Phys,20,Montipora capitata,Resistant,18.4008163,Weird spike in channel 8 to >350 during run 1 - looks like 1 reading that will have to be removed
-2024-10-01,CAREER - Phys,1,Montipora capitata,Susceptible,15.70630826,
-2024-10-01,CAREER - Phys,29,Porites compressa,Resistant,11.56906683,
-2024-10-01,CAREER - Phys,HOBO,NA,NA,NA,
-2024-10-01,CAREER - Phys,247,Porites compressa,Susceptible,13.70596193,
-2024-10-01,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-10-01,CAREER - Phys,241,Porites compressa,Susceptible,16.27613884,
-2024-10-01,CAREER - Phys,226,Porites compressa,Resistant,27.21767863,
-2024-10-01,CAREER - Phys,19,Montipora capitata,Susceptible,17.83537582,
-2024-10-01,CAREER - Phys,211,Montipora capitata,Susceptible,30.60379201,
-2024-10-01,CAREER - Phys,235,Porites compressa,Susceptible,21.26253706,
-2024-10-01,CAREER - Phys,2,Montipora capitata,Resistant,22.72692876,
-2024-10-01,CAREER - Phys,44,Porites compressa,Resistant,14.00518542,
-2024-10-01,CAREER - Phys,203,Montipora capitata,Susceptible,12.64374774,
-2024-10-01,CAREER - Phys,HOBO,NA,NA,NA,
-2024-10-02,CAREER - Phys,201,Montipora capitata,Susceptible,14.49304936,
-2024-10-02,CAREER - Phys,26,Porites compressa,Susceptible,16.48570331,
-2024-10-02,CAREER - Phys,4,Montipora capitata,Resistant,22.49835562,
-2024-10-02,CAREER - Phys,244,Porites compressa,Resistant,30.34749347,
-2024-10-02,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-10-02,CAREER - Phys,239,Porites compressa,Susceptible,24.0200572,
-2024-10-02,CAREER - Phys,219,Montipora capitata,Susceptible,28.12657827,
-2024-10-02,CAREER - Phys,234,Porites compressa,Resistant,14.39613008,
-2024-10-02,CAREER - Phys,204,Montipora capitata,Resistant,18.1310987,
-2024-10-02,CAREER - Phys,41,Porites compressa,Susceptible,12.04215007,
-2024-10-02,CAREER - Phys,HOBO,NA,NA,NA,
-2024-10-02,CAREER - Phys,213,Montipora capitata,Susceptible,12.40056307,
-2024-10-02,CAREER - Phys,242,Porites compressa,Resistant,13.52751801,
-2024-10-02,CAREER - Phys,12,Montipora capitata,Resistant,20.71953384,
-2024-10-02,CAREER - Phys,240,Porites compressa,Resistant,20.30379454,
-2024-10-02,CAREER - Phys,238,Porites compressa,Resistant,16.96565616,
-2024-10-02,CAREER - Phys,blank,NA,NA,NA,Blank (ch. 6) possibly wasn't flushed and O2 dropped signficantly across the run (~10 umol). Perhaps use an average of earlier blank runs to standardize the data. Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-10-02,CAREER - Phys,220,Montipora capitata,Resistant,19.59918146,
-2024-10-02,CAREER - Phys,202,Montipora capitata,Resistant,19.52862146,
-2024-10-02,CAREER - Phys,27,Porites compressa,Resistant,14.92532344,
-2024-10-02,CAREER - Phys,214,Montipora capitata,Resistant,15.08071422,
-2024-10-02,CAREER - Phys,HOBO,NA,NA,NA,
-2024-10-02,CAREER - Phys,28,Porites compressa,Susceptible,15.69024154,
-2024-10-02,CAREER - Phys,205,Montipora capitata,Susceptible,21.09619635,
-2024-10-02,CAREER - Phys,209,Montipora capitata,Susceptible,21.80519223,
-2024-10-02,CAREER - Phys,43,Porites compressa,Susceptible,18.67272616,
-2024-10-02,CAREER - Phys,3,Montipora capitata,Susceptible,15.54114824,Coral 3 (chamber 5) is a sad nub
-2024-10-02,CAREER - Phys,237,Porites compressa,Susceptible,15.17385271,
-2024-10-02,CAREER - Phys,206,Montipora capitata,Resistant,35.72815658,
-2024-10-02,CAREER - Phys,blank,NA,NA,NA,Blank going down a bit. Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
-2024-10-02,CAREER - Phys,233,Porites compressa,Susceptible,17.24946632,
-2024-10-02,CAREER - Phys,42,Porites compressa,Resistant,22.58229084,
-2024-10-02,CAREER - Phys,HOBO,NA,NA,NA,
-2025-01-09,CAREER - Phys,3,Montipora capitata,Susceptible,6.583136094,Chamber vol for Jan 2025 from https://docs.google.com/spreadsheets/d/1lez5iBINVi3tjcowenmlMVcdq3d2JUWCKHbAvpJcZgU/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/1E3QAKFHJU8Dky9mAnQ6DuLwcaJeigrLag4_3-VOz4zA/edit?gid=0#gid=0. SA for Jan 2025 has not been received from Spencer yet
-2025-01-09,CAREER - Phys,20,Montipora capitata,Resistant,9.591847972,
-2025-01-09,CAREER - Phys,238,Porites compressa,Resistant,4.180827585,
-2025-01-09,CAREER - Phys,220,Montipora capitata,Resistant,2.246373042,
-2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
-2025-01-09,CAREER - Phys,28,Porites compressa,Susceptible,16.15603182,Spike in 6 and 7 because realized the temp probes were switched. Placed in correct spots. 7 is the blank
 2025-01-09,CAREER - Phys,225,Porites compressa,Susceptible,3.806781994,Spike in 6 and 7 because realized the temp probes were switched. Placed in correct spots. 7 is the blank
-2025-01-09,CAREER - Phys,12,Montipora capitata,Resistant,8.383567763,
-2025-01-09,CAREER - Phys,241,Porites compressa,Susceptible,3.791095544,
-2025-01-09,CAREER - Phys,239,Porites compressa,Susceptible,3.283235052,
-2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
-2025-01-09,CAREER - Phys,201,Montipora capitata,Susceptible,20.32709837,
-2025-01-09,CAREER - Phys,2,Montipora capitata,Resistant,17.54709409,
-2025-01-09,CAREER - Phys,235,Porites compressa,Susceptible,5.335792456,
-2025-01-09,CAREER - Phys,27,Porites compressa,Resistant,25.42651795,
-2025-01-09,CAREER - Phys,209,Montipora capitata,Susceptible,1.966670678,
-2025-01-09,CAREER - Phys,4,Montipora capitata,Resistant,9.663832697,
-2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
-2025-01-09,CAREER - Phys,44,Porites compressa,Resistant,10.77992369,
-2025-01-09,CAREER - Phys,210,Montipora capitata,Resistant,2.146571642,
-2025-01-09,CAREER - Phys,243,Porites compressa,Susceptible,4.186318624,
-2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
-2025-01-09,CAREER - Phys,29,Porites compressa,Resistant,10.22854452,
-2025-01-09,CAREER - Phys,242,Porites compressa,Resistant,4.267812757,
-2025-01-09,CAREER - Phys,221,Montipora capitata,Susceptible,1.901368408,"100% light level - 3 not showing a huge range, may not be usable. Will have space to rerun in later runs → maybe ok in the end, not putting into last run"
-2025-01-09,CAREER - Phys,26,Porites compressa,Susceptible,24.82633366,
-2025-01-09,CAREER - Phys,205,Montipora capitata,Susceptible,2.612351816,12:56pm Bubble on probe 5
-2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
-2025-01-09,CAREER - Phys,202,Montipora capitata,Resistant,10.87738545,
-2025-01-09,CAREER - Phys,236,Porites compressa,Resistant,4.655785654,
-2025-01-09,CAREER - Phys,240,Porites compressa,Resistant,3.190855294,
-2025-01-09,CAREER - Phys,206,Montipora capitata,Resistant,2.85733959,
-2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
-2025-01-09,CAREER - Phys,203,Montipora capitata,Susceptible,14.66955651,
-2025-01-09,CAREER - Phys,214,Montipora capitata,Resistant,2.453920728,
-2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
-2025-01-09,CAREER - Phys,237,Porites compressa,Susceptible,3.339037518,
-2025-01-09,CAREER - Phys,247,Porites compressa,Susceptible,4.358764492,
-2025-01-09,CAREER - Phys,204,Montipora capitata,Resistant,4.471058452,
-2025-01-09,CAREER - Phys,244,Porites compressa,Resistant,4.230231261,
-2025-01-09,CAREER - Phys,19,Montipora capitata,Susceptible,19.51943262,
-2025-01-09,CAREER - Phys,43,Porites compressa,Susceptible,18.64981456,
-2025-01-09,CAREER - Phys,1,Montipora capitata,Susceptible,12.93963472,
-2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
-2025-01-09,CAREER - Phys,233,Porites compressa,Susceptible,2.571067936,
-2025-01-09,CAREER - Phys,226,Porites compressa,Resistant,4.062392645,
-2025-01-09,CAREER - Phys,234,Porites compressa,Resistant,5.545107802,
-2025-01-09,CAREER - Phys,213,Montipora capitata,Susceptible,3.971200048,
-2025-01-09,CAREER - Phys,248,Porites compressa,Resistant,5.60646175,
-2025-01-09,CAREER - Phys,211,Montipora capitata,Susceptible,3.039359453,
-2025-01-09,CAREER - Phys,219,Montipora capitata,Susceptible,2.40672041,
-2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
-2025-01-09,CAREER - Phys,NOT RUN,NA,NA,NA,
-2025-01-09,CAREER - Phys,NOT RUN,NA,NA,NA,
-2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
-2025-05-08,CAREER - Phys,214,Montipora capitata,Resistant,16.84629821,Chamber vol for May 2025 from https://docs.google.com/spreadsheets/d/1ynUEL58zBLLtYkHcnG4ZssgsjUJf6HJE8lvM_JxutIM/edit?gid=0#gid=0 and cross-referencing round and zub # to Run and light zub # from https://docs.google.com/spreadsheets/d/1FRW4BGAmn3yW8qYeTmIi_E8RQmw-t8Nx4o4o9Cgf9BA/edit?gid=0#gid=0. SA for May 2025 has not been received from Spencer yet
-2025-05-08,CAREER - Phys,42,Porites compressa,Resistant,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 42
-2025-05-08,CAREER - Phys,238,Porites compressa,Susceptible,12.59052663,
-2025-05-08,CAREER - Phys,244,Porites compressa,Resistant,11.80094631,
-2025-05-08,CAREER - Phys,12,Montipora capitata,Resistant,12.07297033,
-2025-05-08,CAREER - Phys,221,Montipora capitata,Susceptible,16.57748179,
-2025-05-08,CAREER - Phys,240,Porites compressa,Resistant,15.17823682,
-2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
-2025-05-08,CAREER - Phys,248,Porites compressa,Resistant,9.378906006,
-2025-05-08,CAREER - Phys,3,Montipora capitata,Susceptible,NA,"Stir bar kept stopping, data probably not usable; No SA values recorded for this frag; avged the Mcap SAs from other frags to get SA for 3"
-2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
-2025-05-08,CAREER - Phys,239,Porites compressa,Susceptible,10.31630341,
-2025-05-08,CAREER - Phys,26,Porites compressa,Susceptible,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 26
-2025-05-08,CAREER - Phys,2,Montipora capitata,Resistant,19.84785402,
-2025-05-08,CAREER - Phys,234,Porites compressa,Resistant,10.39038065,
-2025-05-08,CAREER - Phys,213,Montipora capitata,Susceptible,24.97326333,
-2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
-2025-05-08,CAREER - Phys,206,Montipora capitata,Resistant,19.71425138,
-2025-05-08,CAREER - Phys,204,Montipora capitata,Resistant,21.83959592,
-2025-05-08,CAREER - Phys,205,Montipora capitata,Susceptible,26.7455347,
-2025-05-08,CAREER - Phys,242,Porites compressa,Resistant,11.98276695,
-2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
-2025-05-08,CAREER - Phys,236,Porites compressa,Resistant,19.75105953,
-2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
 2025-05-08,CAREER - Phys,225,Porites compressa,Susceptible,13.84966634,
-2025-05-08,CAREER - Phys,209,Montipora capitata,Susceptible,29.05540257,
-2025-05-08,CAREER - Phys,247,Porites compressa,Susceptible,20.32601415,
-2025-05-08,CAREER - Phys,201,Montipora capitata,Susceptible,11.25776496,
-2025-05-08,CAREER - Phys,237,Porites compressa,Susceptible,18.19990454,
-2025-05-08,CAREER - Phys,27,Porites compressa,Resistant,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 27
-2025-05-08,CAREER - Phys,4,Montipora capitata,Resistant,18.25277406,No SA values recorded for this frag; avged the Mcap SAs from other frags to get SA for 4
-2025-05-08,CAREER - Phys,211,Montipora capitata,Susceptible,12.92747515,
-2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
+2023-04-15,CAREER - Phys,226,Porites compressa,Resistant,11.35,Wax dipped
+2023-09-15,CAREER - Phys,226,Porites compressa,Resistant,18.51332616,
+2024-01-20,CAREER - Phys,226,Porites compressa,Resistant,31.72903393,
+2024-05-09,CAREER - Phys,226,Porites compressa,Resistant,10.29816918,
+2024-10-01,CAREER - Phys,226,Porites compressa,Resistant,27.21767863,
+2025-01-09,CAREER - Phys,226,Porites compressa,Resistant,4.062392645,
 2025-05-08,CAREER - Phys,226,Porites compressa,Resistant,6.344232824,
-2025-05-08,CAREER - Phys,20,Montipora capitata,Resistant,11.2851565,
-2025-05-08,CAREER - Phys,235,Porites compressa,Susceptible,16.64198678,
-2025-05-08,CAREER - Phys,210,Montipora capitata,Resistant,16.89215684,
-2025-05-08,CAREER - Phys,44,Porites compressa,Resistant,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 44
-2025-05-08,CAREER - Phys,203,Montipora capitata,Susceptible,6.689773558,
-2025-05-08,CAREER - Phys,241,Porites compressa,Susceptible,17.16397822,
-2025-05-08,CAREER - Phys,28,Porites compressa,Susceptible,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 28
-2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
-2025-05-08,CAREER - Phys,220,Montipora capitata,Resistant,24.46794204,
-2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
-2025-05-08,CAREER - Phys,219,Montipora capitata,Susceptible,12.97586276,
+2023-04-15,CAREER - Phys,233,Porites compressa,Susceptible,15.66,Wax dipped
+2023-09-15,CAREER - Phys,233,Porites compressa,Susceptible,15.22419622,
+2024-01-20,CAREER - Phys,233,Porites compressa,Susceptible,22.96669098,
+2024-05-09,CAREER - Phys,233,Porites compressa,Susceptible,17.54015736,
+2024-10-02,CAREER - Phys,233,Porites compressa,Susceptible,17.24946632,
+2025-01-09,CAREER - Phys,233,Porites compressa,Susceptible,2.571067936,
 2025-05-08,CAREER - Phys,233,Porites compressa,Susceptible,18.03866498,
-2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
-2025-05-08,CAREER - Phys,202,Montipora capitata,Resistant,20.63938771,
+2023-04-15,CAREER - Phys,234,Porites compressa,Resistant,13.98,Wax dipped
+2023-09-15,CAREER - Phys,234,Porites compressa,Resistant,17.66764385,
+2024-01-21,CAREER - Phys,234,Porites compressa,Resistant,21.38402958,
+2024-05-10,CAREER - Phys,234,Porites compressa,Resistant,12.9367376,
+2024-10-02,CAREER - Phys,234,Porites compressa,Resistant,14.39613008,
+2025-01-09,CAREER - Phys,234,Porites compressa,Resistant,5.545107802,
+2025-05-08,CAREER - Phys,234,Porites compressa,Resistant,10.39038065,
+2023-04-15,CAREER - Phys,235,Porites compressa,Susceptible,23.89,Wax dipped
+2023-09-14,CAREER - Phys,235,Porites compressa,Susceptible,13.25828415,
+2024-01-21,CAREER - Phys,235,Porites compressa,Susceptible,28.93156248,
+2024-05-09,CAREER - Phys,235,Porites compressa,Susceptible,14.9971933,
+2024-10-01,CAREER - Phys,235,Porites compressa,Susceptible,21.26253706,
+2025-01-09,CAREER - Phys,235,Porites compressa,Susceptible,5.335792456,
+2025-05-08,CAREER - Phys,235,Porites compressa,Susceptible,16.64198678,
+2023-04-15,CAREER - Phys,236,Porites compressa,Resistant,12.91,Wax dipped
+2023-09-14,CAREER - Phys,236,Porites compressa,Resistant,16.30973371,
+2024-01-21,CAREER - Phys,236,Porites compressa,Resistant,22.4353766,
+2024-05-09,CAREER - Phys,236,Porites compressa,Resistant,9.368837674,
+2024-10-01,CAREER - Phys,236,Porites compressa,Resistant,15.27020073,
+2025-01-09,CAREER - Phys,236,Porites compressa,Resistant,4.655785654,
+2025-05-08,CAREER - Phys,236,Porites compressa,Resistant,19.75105953,
+2023-04-15,CAREER - Phys,237,Porites compressa,Susceptible,12.17,Wax dipped
+2023-09-14,CAREER - Phys,237,Porites compressa,Susceptible,18.20289831,
+2024-01-20,CAREER - Phys,237,Porites compressa,Susceptible,18.95672166,
+2024-05-09,CAREER - Phys,237,Porites compressa,Susceptible,13.75445841,
+2024-10-02,CAREER - Phys,237,Porites compressa,Susceptible,15.17385271,
+2025-01-09,CAREER - Phys,237,Porites compressa,Susceptible,3.339037518,
+2025-05-08,CAREER - Phys,237,Porites compressa,Susceptible,18.19990454,
+2023-04-15,CAREER - Phys,238,Porites compressa,Resistant,12.11,Wax dipped
+2023-09-14,CAREER - Phys,238,Porites compressa,Susceptible,17.00661431,
+2024-01-20,CAREER - Phys,238,Porites compressa,Resistant,14.89105046,
+2024-05-09,CAREER - Phys,238,Porites compressa,Resistant,15.68677224,
+2024-10-02,CAREER - Phys,238,Porites compressa,Resistant,16.96565616,
+2025-01-09,CAREER - Phys,238,Porites compressa,Resistant,4.180827585,
+2025-05-08,CAREER - Phys,238,Porites compressa,Susceptible,12.59052663,
+2023-09-15,CAREER - Phys,239,Porites compressa,Susceptible,16.25144609,
+2024-01-20,CAREER - Phys,239,Porites compressa,Susceptible,19.02971119,
+2024-05-09,CAREER - Phys,239,Porites compressa,Susceptible,12.59344577,
+2024-10-02,CAREER - Phys,239,Porites compressa,Susceptible,24.0200572,
+2025-01-09,CAREER - Phys,239,Porites compressa,Susceptible,3.283235052,
+2025-05-08,CAREER - Phys,239,Porites compressa,Susceptible,10.31630341,
+2023-04-15,CAREER - Phys,240,Porites compressa,Resistant,19.17,Wax dipped
+2023-09-15,CAREER - Phys,240,Porites compressa,Resistant,18.72882124,
+2024-01-21,CAREER - Phys,240,Porites compressa,Resistant,13.99913436,
+2024-05-09,CAREER - Phys,240,Porites compressa,Resistant,17.9693712,
+2024-10-02,CAREER - Phys,240,Porites compressa,Resistant,20.30379454,
+2025-01-09,CAREER - Phys,240,Porites compressa,Resistant,3.190855294,
+2025-05-08,CAREER - Phys,240,Porites compressa,Resistant,15.17823682,
+2023-04-15,CAREER - Phys,241,Porites compressa,Susceptible,10.82,Wax dipped
+2023-09-15,CAREER - Phys,241,Porites compressa,Susceptible,16.51704508,
+2024-01-21,CAREER - Phys,241,Porites compressa,Susceptible,28.11625177,
+2024-05-09,CAREER - Phys,241,Porites compressa,Susceptible,17.98665129,
+2024-10-01,CAREER - Phys,241,Porites compressa,Susceptible,16.27613884,
+2025-01-09,CAREER - Phys,241,Porites compressa,Susceptible,3.791095544,
+2025-05-08,CAREER - Phys,241,Porites compressa,Susceptible,17.16397822,
+2023-04-15,CAREER - Phys,242,Porites compressa,Resistant,12.55,Wax dipped
+2023-09-15,CAREER - Phys,242,Porites compressa,Resistant,15.24890162,
+2024-01-21,CAREER - Phys,242,Porites compressa,Resistant,21.465022,
+2024-05-09,CAREER - Phys,242,Porites compressa,Resistant,18.86977768,
+2024-10-02,CAREER - Phys,242,Porites compressa,Resistant,13.52751801,
+2025-01-09,CAREER - Phys,242,Porites compressa,Resistant,4.267812757,
+2025-05-08,CAREER - Phys,242,Porites compressa,Resistant,11.98276695,
+2023-04-15,CAREER - Phys,243,Porites compressa,Susceptible,7.75,Wax dipped
+2023-09-14,CAREER - Phys,243,Porites compressa,Resistant,15.69865511,
+2024-01-20,CAREER - Phys,243,Porites compressa,Susceptible,22.46313393,
+2024-05-09,CAREER - Phys,243,Porites compressa,Susceptible,13.25647411,
+2024-10-01,CAREER - Phys,243,Porites compressa,Susceptible,25.95685695,
+2025-01-09,CAREER - Phys,243,Porites compressa,Susceptible,4.186318624,
 2025-05-08,CAREER - Phys,243,Porites compressa,Susceptible,17.53422151,
-2025-05-08,CAREER - Phys,29,Porites compressa,Resistant,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 29
-2025-05-08,CAREER - Phys,41,Porites compressa,Susceptible,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 41
-2025-05-08,CAREER - Phys,19,Montipora capitata,Susceptible,20.54693193,
-2025-05-08,CAREER - Phys,43,Porites compressa,Susceptible,14.34298723,No SA values recorded for this frag; avged the Pcomp SAs from other frags to get SA for 43
-2025-05-08,CAREER - Phys,1,Montipora capitata,Susceptible,21.44760345,
+2023-09-14,CAREER - Phys,244,Porites compressa,Resistant,16.63741579,
+2024-01-20,CAREER - Phys,244,Porites compressa,Resistant,21.92403319,
+2024-05-09,CAREER - Phys,244,Porites compressa,Resistant,11.06936777,
+2024-10-02,CAREER - Phys,244,Porites compressa,Resistant,30.34749347,
+2025-01-09,CAREER - Phys,244,Porites compressa,Resistant,4.230231261,
+2025-05-08,CAREER - Phys,244,Porites compressa,Resistant,11.80094631,
+2023-09-14,CAREER - Phys,247,Porites compressa,Susceptible,16.78110869,
+2024-01-20,CAREER - Phys,247,Porites compressa,Susceptible,24.34787308,
+2024-05-10,CAREER - Phys,247,Porites compressa,Susceptible,17.44069787,
+2024-10-01,CAREER - Phys,247,Porites compressa,Susceptible,13.70596193,
+2025-01-09,CAREER - Phys,247,Porites compressa,Susceptible,4.358764492,
+2025-05-08,CAREER - Phys,247,Porites compressa,Susceptible,20.32601415,
+2023-04-15,CAREER - Phys,248,Porites compressa,Resistant,18.64,Wax dipped
+2023-09-14,CAREER - Phys,248,Porites compressa,Resistant,16.07244613,
+2024-01-21,CAREER - Phys,248,Porites compressa,Resistant,19.57250727,
+2024-05-10,CAREER - Phys,248,Porites compressa,Resistant,13.87499244,
+2024-10-01,CAREER - Phys,248,Porites compressa,Resistant,26.9466151,
+2025-01-09,CAREER - Phys,248,Porites compressa,Resistant,5.60646175,
+2025-05-08,CAREER - Phys,248,Porites compressa,Resistant,9.378906006,
+2023-09-14,CAREER - Phys,blank,NA,NA,NA,
+2023-09-15,CAREER - Phys,blank,NA,NA,NA,
+2023-09-15,CAREER - Phys,blank,NA,NA,NA,
+2024-01-20,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
+2024-01-21,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
+2024-05-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-05-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-05-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-05-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-05-10,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-10-01,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-10-01,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-10-02,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-10-02,CAREER - Phys,blank,NA,NA,NA,Blank (ch. 6) possibly wasn't flushed and O2 dropped signficantly across the run (~10 umol). Perhaps use an average of earlier blank runs to standardize the data. Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2024-10-02,CAREER - Phys,blank,NA,NA,NA,Blank going down a bit. Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the three values from the calcifications metadata
+2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
+2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
+2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
+2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
+2025-01-09,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the five values from the calcifications metadata
+2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
+2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
+2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
+2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
+2025-05-08,CAREER - Phys,blank,NA,NA,NA,Not sure which blanks from calcifications corresponded to the pi data so avged blank volumes across the four values from the calcifications metadata
+2023-09-14,CAREER - Phys,HOBO,NA,NA,NA,
+2023-09-14,CAREER - Phys,HOBO,NA,NA,NA,
+2023-09-15,CAREER - Phys,HOBO,NA,NA,NA,
+2023-09-15,CAREER - Phys,HOBO,NA,NA,NA,
+2023-09-15,CAREER - Phys,HOBO,NA,NA,NA,
+2024-01-20,CAREER - Phys,HOBO,NA,NA,NA,
+2024-01-20,CAREER - Phys,HOBO,NA,NA,NA,
+2024-01-20,CAREER - Phys,HOBO,NA,NA,NA,
+2024-01-21,CAREER - Phys,HOBO,NA,NA,NA,
+2024-01-21,CAREER - Phys,HOBO,NA,NA,NA,
+2024-05-09,CAREER - Phys,HOBO,NA,NA,NA,
+2024-05-09,CAREER - Phys,HOBO,NA,NA,NA,
+2024-05-09,CAREER - Phys,HOBO,NA,NA,NA,
+2024-05-09,CAREER - Phys,HOBO,NA,NA,NA,
+2024-05-10,CAREER - Phys,HOBO,NA,NA,NA,
+2024-10-01,CAREER - Phys,HOBO,NA,NA,NA,
+2024-10-01,CAREER - Phys,HOBO,NA,NA,NA,
+2024-10-02,CAREER - Phys,HOBO,NA,NA,NA,
+2024-10-02,CAREER - Phys,HOBO,NA,NA,NA,
+2024-10-02,CAREER - Phys,HOBO,NA,NA,NA,
+2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
+2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
+2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
+2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
+2025-01-09,CAREER - Phys,HOBO,NA,NA,NA,
 2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
+2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
+2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
+2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
+2025-05-08,CAREER - Phys,HOBO,NA,NA,NA,
+2025-01-09,CAREER - Phys,NOT RUN,NA,NA,NA,
+2025-01-09,CAREER - Phys,NOT RUN,NA,NA,NA,
+2023-09-15,TCB ,1,Montipora capitata,Susceptible,36.34458077,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,2,Montipora capitata,Resistant,46.87715904,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,3,Montipora capitata,Susceptible,18.10783262,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,4,Montipora capitata,Resistant,21.38646321,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,12,Montipora capitata,Resistant,17.91342415,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,19,Montipora capitata,Susceptible,28.8298643,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,20,Montipora capitata,Resistant,23.44744167,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,26,Porites compressa,Resistant,17.8285627,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,27,Porites compressa,Susceptible,29.00149537,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,28,Porites compressa,Resistant,25.82005955,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,29,Porites compressa,Susceptible,22.2816215,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,41,Porites compressa,Susceptible,37.29585063,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,42,Porites compressa,Resistant,25.26160325,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,43,Porites compressa,Susceptible,26.11672915,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,44,Porites compressa,Resistant,18.08446534,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,45,Porites compressa,Susceptible,25.85918353,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,46,Porites compressa,Resistant,27.00664341,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,201,Montipora capitata,Susceptible,17.54826342,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,202,Montipora capitata,Resistant,18.32203385,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,203,Montipora capitata,Susceptible,27.14426152,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,204,Montipora capitata,Resistant,17.9887424,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,205,Montipora capitata,Susceptible,20.10097168,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-16,TCB ,207,Montipora capitata,Susceptible,19.28311848,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,209,Montipora capitata,Susceptible,21.31851996,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,210,Montipora capitata,Resistant,29.55521911,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,211,Montipora capitata,Susceptible,27.63191855,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,212,Montipora capitata,Resistant,19.69824764,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,213,Montipora capitata,Susceptible,28.02956805,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,214,Montipora capitata,Resistant,23.67001062,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,219,Montipora capitata,Susceptible,34.05491212,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,220,Montipora capitata,Resistant,21.78168664,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,222,Montipora capitata,Resistant,17.96180056,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,225,Porites compressa,Susceptible,38.56473475,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-15,TCB ,226,Porites compressa,Resistant,43.99584863,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,233,Porites compressa,Susceptible,24.71021272,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,234,Porites compressa,Resistant,27.38391964,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,235,Porites compressa,Susceptible,22.1589835,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,236,Porites compressa,Resistant,25.03735805,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,237,Porites compressa,Susceptible,18.02522674,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,238,Porites compressa,Resistant,18.75799107,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,239,Porites compressa,Susceptible,20.64626767,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,240,Porites compressa,Resistant,19.14610369,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,241,Porites compressa,Susceptible,26.56099352,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,242,Porites compressa,Resistant,20.69565458,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,243,Porites compressa,Susceptible,26.76841462,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,244,Porites compressa,Resistant,17.20620743,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,247,Porites compressa,Susceptible,28.66779108,All SAs from group A from file group1_T0_20230912_mesh_measure
+2023-09-17,TCB ,248,Porites compressa,Resistant,21.4366682,All SAs from group A from file group1_T0_20230912_mesh_measure

@@ -1,0 +1,120 @@
+---
+title: "Assemble master dataframe"
+author: "Jill Ashey"
+date: "2025-09-09"
+output: html_document
+---
+
+Assemble master csv for phys metrics (Pmax, Pgross, Ik, Rd, alpha, Fv/Fm, net calc)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(RColorBrewer)
+library(lme4)
+library(lmerTest)
+library(car)
+library(effects)
+library(ggfortify)
+library(cowplot)
+library(vegan)
+library(corrr)
+library(ggcorrplot)
+library(GGally)
+library(broom)
+library(cowplot)
+```
+
+Read in pi curve metrics 
+```{r}
+pi_metrics_sept2023 <- read.csv("../output/pi_curves/Sept2023/pi_curve_metrics_Sept2023.csv") %>%
+  select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
+pi_metrics_jan2024 <- read.csv("../output/pi_curves/Jan2024/pi_curve_metrics_Jan2024.csv") %>%
+  select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
+pi_metrics_may2024 <- read.csv("../output/pi_curves/May2024/pi_curve_metrics_May2024.csv") %>%
+  select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
+pi_metrics_oct2024 <- read.csv("../output/pi_curves/Oct2024/pi_curve_metrics_Oct2024.csv") %>%
+  select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
+pi_metrics_jan2025 <- read.csv("../output/pi_curves/Jan2025/pi_curve_metrics_Jan2025.csv") %>%
+  select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
+pi_metrics_may2025 <- read.csv("../output/pi_curves/May2025/pi_curve_metrics_May2025.csv") %>%
+  select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
+
+pi_metrics <- rbind(pi_metrics_sept2023, pi_metrics_jan2024, pi_metrics_may2024, pi_metrics_oct2024, pi_metrics_jan2025, pi_metrics_may2025)
+```
+
+Pivot pi metric data longer 
+```{r}
+pi_metrics_long <- pi_metrics %>%
+  pivot_longer(cols = -c(Colony_ID, Species, Date, Phenotype),
+               names_to = "Parameter",
+               values_to = "Value")
+```
+
+
+Read in Fv/Fm data 
+```{r}
+pam <- read_csv("../data/Master_datasheet_pam.csv")
+colnames(pam)[1] <- "Colony_ID" 
+```
+
+Pivot Fv/Fm data longer and tidy
+```{r}
+pam_long <- pam %>%
+  pivot_longer(
+    cols = starts_with("Fv/Fm_"),  # all the Fv/Fm_* columns
+    names_to = "Date",
+    values_to = "Fv_Fm") %>%
+  mutate(
+    Date = sub("Fv/Fm_", "", Date))  # remove the Fv/Fm_ prefix
+  
+pam_long_tidy <- pam_long %>%
+  pivot_longer(cols = Fv_Fm, 
+               names_to = "Parameter", 
+               values_to = "Value")
+
+# Ensure spp names are correct
+pam_long_tidy$Species <- ifelse(pam_long_tidy$Species == "Mcap", "Montipora capitata",
+                        ifelse(pam_long_tidy$Species == "Pcomp", "Porites compressa",
+                               pam_long_tidy$Species))
+```
+
+Read in calc data 
+```{r}
+calc <- read.csv("../output/calcification/Calcification_data_normalized.csv") %>%
+  filter(Light == "Light") %>%
+  select(Colony_ID, Date, Species, Phenotype, Net_Calcification_cm2)
+```
+
+Only selecting the light calc data. 
+
+Pivot calc data longer 
+```{r}
+calc_long <- calc %>%
+  pivot_longer(
+    cols = Net_Calcification_cm2,
+    names_to = "Parameter",
+    values_to = "Value"
+  )
+```
+
+Bind all long dfs together 
+```{r}
+dfs <- list(calc_long, pam_long_tidy, pi_metrics_long)
+combined_df <- do.call(rbind, dfs)
+```
+
+Remove blanks
+```{r}
+combined_df <- combined_df %>%
+  filter(!Colony_ID == "blank")
+```
+
+Save as csv 
+```{r}
+write.csv(combined_df, "../output/pairs_calc_pam_pi_long.csv")
+```
+
+Keep long or wide?? what is better for downstream data analysis?
