@@ -1970,6 +1970,13 @@ Bind data together
 all_time_pi_metrics <- rbind(pi_metrics_sept2023, pi_metrics_jan2024, pi_metrics_may2024, pi_metrics_oct2024, pi_metrics_jan2025, pi_metrics_may2025)
 ```
 
+Remove Jan25 for now (still need SA)
+```{r}
+all_time_pi_metrics <- all_time_pi_metrics %>%
+  filter(!Timepoint == "Jan25")
+```
+
+
 #### Stats 
 
 NEED TO DO
@@ -2016,46 +2023,22 @@ Both log and sqrt are normal. Proceed with log.
 
 Perform stats 
 ```{r}
-pmax.lme <- lme(
-  Pmax_log ~ Species * Phenotype * Timepoint,
-  random = ~1 | Colony_ID,  # random intercept for each colony
-  data = all_time_pi_metrics,
-  na.action = na.exclude
-)
-car::Anova(pmax.lme, type = 3)
-em_date <- emmeans(pmax.lme, pairwise ~ Timepoint, adjust = "tukey")
-summary(em_date)
-em_spp <- emmeans(pmax.lme, pairwise ~ Species, adjust = "tukey")
-summary(em_spp)
-
-# another test 
 mod_pmax <- lmer(Pmax_log ~ Species * Phenotype * Timepoint + (1 | Colony_ID),
                  data = all_time_pi_metrics,
                  REML = FALSE)
-anova(mod_pmax, type = 3)   # type III sums of squares
-emmeans(mod_pmax, pairwise ~ Species * Phenotype * Timepoint)
-
-# Separating by spp 
-## Pcomp
-all_time_pi_metrics_pcomp <- all_time_pi_metrics %>%
-  filter(Species == "Porites compressa")
-mod_pmax_pcomp <- lmer(Pmax_log ~ Phenotype * Timepoint + (1 | Colony_ID),
-                 data = all_time_pi_metrics_pcomp,
-                 REML = FALSE)
-anova(mod_pmax_pcomp, type = 3)   # type III sums of squares
-emmeans(mod_pmax_pcomp, pairwise ~ Phenotype * Timepoint)
-
-## Mcsp
-all_time_pi_metrics_mcap <- all_time_pi_metrics %>%
-  filter(Species == "Montipora capitata")
-mod_pmax_mcap <- lmer(Pmax_log ~ Phenotype * Timepoint + (1 | Colony_ID),
-                 data = all_time_pi_metrics_mcap,
-                 REML = FALSE)
-anova(mod_pmax_mcap, type = 3)   # type III sums of squares
-emmeans(mod_pmax_mcap, pairwise ~ Phenotype * Timepoint)
+car::Anova(mod_pmax, type = 3)
 ```
 
 Pmax is significant by species (Pcomp Pmax greater than Mcap Pmax) and Timepoint. ADD INFO ONCE I REDO JAN25 SURFACE AREA
+
+Look at posthoc comparisons 
+```{r}
+em_spp <- emmeans(mod_pmax, pairwise ~ Species, adjust = "tukey")
+summary(em_spp)
+
+em_time <- emmeans(mod_pmax, pairwise ~ Timepoint, adjust = "tukey")
+summary(em_time)
+```
 
 ##### Alpha 
 
@@ -2099,18 +2082,20 @@ Only sqrt is normal. Proceed with sqrt
 
 Perform stats 
 ```{r}
-alpha.lme <- lme(
-  alpha_sqrt ~ Species * Phenotype * Timepoint,
-  random = ~1 | Colony_ID,  # random intercept for each colony
-  data = all_time_pi_metrics,
-  na.action = na.exclude
-)
-car::Anova(alpha.lme, type = 3)
-em_date <- emmeans(alpha.lme, pairwise ~ Timepoint, adjust = "tukey")
-summary(em_date)
+mod_alpha <- lmer(alpha_sqrt ~ Species * Phenotype * Timepoint + (1 | Colony_ID),
+                 data = all_time_pi_metrics,
+                 REML = FALSE)
+car::Anova(mod_alpha, type = 3)
 ```
 
 Alpha is significant by Timepoint. ADD INFO ONCE I REDO JAN25 SURFACE AREA
+
+Look at posthoc comparisons 
+```{r}
+em_time_alpha <- emmeans(mod_alpha, pairwise ~ Timepoint, adjust = "tukey")
+summary(em_time_alpha)
+```
+
 
 ##### Ik 
 
@@ -2154,20 +2139,22 @@ Both log and sqrt are normal. Proceed with log.
 
 Perform stats 
 ```{r}
-Ik.lme <- lme(
-  Ik_log ~ Species * Phenotype * Timepoint,
-  random = ~1 | Colony_ID,  # random intercept for each colony
-  data = all_time_pi_metrics,
-  na.action = na.exclude
-)
-car::Anova(Ik.lme, type = 3)
-em_date <- emmeans(Ik.lme, pairwise ~ Timepoint, adjust = "tukey")
-summary(em_date)
-em_spp <- emmeans(Ik.lme, pairwise ~ Species, adjust = "tukey")
-summary(em_spp)
+mod_ik <- lmer(Ik_log ~ Species * Phenotype * Timepoint + (1 | Colony_ID),
+                 data = all_time_pi_metrics,
+                 REML = FALSE)
+car::Anova(mod_ik, type = 3)
 ```
 
 Ik is significant by species (Pcomp Ik greater than Mcap Ik) and Timepoint. ADD INFO ONCE I REDO JAN25 SURFACE AREA
+
+Look at posthoc comparisons 
+```{r}
+em_time_ik <- emmeans(mod_ik, pairwise ~ Timepoint, adjust = "tukey")
+summary(em_time_ik)
+
+em_spp_ik <- emmeans(mod_ik, pairwise ~ Species, adjust = "tukey")
+summary(em_spp_ik)
+```
 
 ##### Rd 
 
@@ -2211,20 +2198,22 @@ No normality produced...I think there are issues because Rd is negative.
 
 Perform stats 
 ```{r}
-Rd.lme <- lme(
-  Rd ~ Species * Phenotype * Timepoint,
-  random = ~1 | Colony_ID,  # random intercept for each colony
-  data = all_time_pi_metrics,
-  na.action = na.exclude
-)
-car::Anova(Rd.lme, type = 3)
-em_date <- emmeans(Rd.lme, pairwise ~ Timepoint, adjust = "tukey")
-summary(em_date)
-em_spp <- emmeans(Rd.lme, pairwise ~ Species, adjust = "tukey")
-summary(em_spp)
+mod_rd <- lmer(Rd ~ Species * Phenotype * Timepoint + (1 | Colony_ID),
+                 data = all_time_pi_metrics,
+                 REML = FALSE)
+car::Anova(mod_rd, type = 3)
 ```
 
 Rd is significant by species (Pcomp Rd more negative than Mcap Rd) and Timepoint. ADD INFO ONCE I REDO JAN25 SURFACE AREA
+
+Look at posthoc comparisons 
+```{r}
+em_time_rd <- emmeans(mod_rd, pairwise ~ Timepoint, adjust = "tukey")
+summary(em_time_rd)
+
+em_spp_rd <- emmeans(mod_rd, pairwise ~ Species, adjust = "tukey")
+summary(em_spp_rd)
+```
 
 ##### Pgross
 
@@ -2268,22 +2257,25 @@ Both log and sqrt are normal. Proceed with log.
 
 Perform stats 
 ```{r}
-pgross.lme <- lme(
-  Pgross_log ~ Species * Phenotype * Timepoint,
-  random = ~1 | Colony_ID,  # random intercept for each colony
-  data = all_time_pi_metrics,
-  na.action = na.exclude
-)
-car::Anova(pgross.lme, type = 3)
-em_date <- emmeans(pmax.lme, pairwise ~ Timepoint, adjust = "tukey")
-summary(em_date)
-em_spp <- emmeans(pmax.lme, pairwise ~ Species, adjust = "tukey")
-summary(em_spp)
+mod_pgross <- lmer(Pgross_log ~ Species * Phenotype * Timepoint + (1 | Colony_ID),
+                 data = all_time_pi_metrics,
+                 REML = FALSE)
+car::Anova(mod_pgross, type = 3)
 ```
 
-Pgross is significant by species (Pcomp Pgross greater than Mcap Pgross) and Timepoint. ADD INFO ONCE I REDO JAN25 SURFACE AREA
+Pgross is significant by species (Pcomp Pgross greater than Mcap Pgross), Timepoint and Species x Timepoint. ADD INFO ONCE I REDO JAN25 SURFACE AREA
 
-Try some other stats tests. 
+Look at posthoc comparisons 
+```{r}
+em_time_pgross <- emmeans(mod_pgross, pairwise ~ Timepoint, adjust = "tukey")
+summary(em_time_pgross)
+
+em_spp_pgross <- emmeans(mod_pgross, pairwise ~ Species, adjust = "tukey")
+summary(em_spp_pgross)
+
+em_time_spp_pgross <- emmeans(mod_pgross, pairwise ~ Species*Timepoint, adjust = "tukey")
+summary(em_time_spp_pgross)
+```
 
 #### Plot 
 
