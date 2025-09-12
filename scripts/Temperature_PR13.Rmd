@@ -209,7 +209,18 @@ df12 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_2115
 
 # May 2023 - Sept 2023
 df13 <- read.csv("../data/environmental/2023-04-14_to_2023-09-19_21152007_Reef13_3m.csv", header = T)
-#df14 <- read.csv("../data/environmental/2023-04-14_to_2023-09-19_21152007_Reef13_1m.csv", header = F)
+df14 <- read.csv("../data/environmental/2023-04-14_to_2023-09-19_21152007_Reef13_1m.csv", header = F, skip = 1)
+
+# Jan 2024 - May 2024
+df15 <- read.csv("../data/environmental/2024-05-08_Kbay_21152007.csv", header = T)
+df16 <- read.csv("../data/environmental/2024-05-09_Kbay_21152005.csv", header = T)
+df17 <- read.csv("../data/environmental/2024-05-09_Kbay_21152009.csv", header = T)
+
+# October 2024 - Jan 2025
+df18 <- read.csv("../data/environmental/Jan2025_KBay_21152005.csv", header = T)
+df19 <- read.csv("../data/environmental/Jan2025_KBay_21152007.csv", header = T)
+df20 <- read.csv("../data/environmental/Jan2025_KBay_21152009.csv", header = T)
+
 ```
 
 Process data 
@@ -281,18 +292,70 @@ df_group5_clean <- map2(df_group5, paste0("df", 13), ~
     select(DateTime, Temp_C, Source)
 )
 
+## --- Group 6: like df10 (Date, Time, Temp_C) --- 
+df_group6 <- list(df14)
+
+df_group6_clean <- map2(df_group6, paste0("df", 14), ~
+  .x %>%
+    mutate(
+      DateTime = ymd_hms(paste(V1, V2)),   # Date in dmy format (19-09-23)
+      Temp_C   = as.numeric(V3),
+      Source   = .y
+    ) %>%
+    select(DateTime, Temp_C, Source)
+)
+
+## --- Group 7: df15, df16, df17 (DateTime, Temp_C) --- 
+df_group7 <- list(df15, df16, df17)
+
+df_group7_clean <- map2(df_group7, paste0("df", 15:17), ~
+  .x %>%
+    mutate(
+      DateTime = dmy_hm(Date.Time..GMT.10.00),
+      Temp_C = as.numeric(
+        .x[[grep("Temp", names(.x), value = TRUE)[1]]]
+      ),
+      Source = .y
+    ) %>%
+    select(DateTime, Temp_C, Source)
+)
+
+## --- Group 8: df18, df19, df20 (DateTime, Temp_C) --- 
+df_group8 <- list(df18, df19, df20)
+
+df_group8_clean <- map2(df_group8, paste0("df", 18:20), ~
+  .x %>%
+    mutate(
+      DateTime = mdy_hms(Date.Time..GMT.07.00),
+      Temp_C = as.numeric(
+        .x[[grep("Temp", names(.x), value = TRUE)[1]]]
+      ),
+      Source = .y
+    ) %>%
+    select(DateTime, Temp_C, Source)
+)
+
 ## --- Combine all ---
-all_data <- bind_rows(df_group1_clean, df_group2_clean, df_group3_clean, df_group4_clean, df_group5_clean)
+all_data <- bind_rows(df_group1_clean, df_group2_clean, df_group3_clean, df_group4_clean, df_group5_clean, df_group6_clean, df_group7_clean, df_group8_clean)
 
 head(all_data)
 
-ggplot(all_data, aes(x = DateTime, y = Temp_C)) +
+ggplot(all_data, aes(x = DateTime, y = Temp_C, color = Source)) +
   geom_point() +
   scale_x_datetime( date_breaks = "1 month", date_labels = "%b") + 
 
   theme_minimal() +
   labs(y = "Temperature (°C)", x = "Time")
 ```
+
+Something weird is going on with the temperature data...some not parsing...find a better way to do this. 
+
+
+
+
+
+
+
 
 Separate out year, month and day 
 ```{r}
