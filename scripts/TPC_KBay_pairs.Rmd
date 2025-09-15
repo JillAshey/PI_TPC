@@ -1,0 +1,207 @@
+---
+title: "TPCs"
+author: "Jill Ashey"
+date: "2025-09-15"
+output: html_document
+---
+
+Interesting: https://www.nature.com/articles/s41467-024-53046-2
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(purrr)
+library(minpack.lm)  # for nlsLM
+library(tidyverse)
+library(broom)
+library(readr)
+library(lubridate)
+library(purrr)
+library(furrr)
+library(fuzzyjoin)
+library(future)
+library(LoLinR)
+library(rTPC)
+library(nls.multstart)
+```
+
+Testing use of rTPC package from [vignette](https://padpadpadpad.github.io/rTPC/articles/rTPC.html)
+```{r}
+# load in data
+data("chlorella_tpc")
+
+# keep just a single curve
+d <- filter(chlorella_tpc, curve_id == 1)
+
+# choose model
+mod = 'pawar_2018'
+
+# get start vals
+start_vals <- get_start_vals(d$temp, d$rate, model_name = 'pawar_2018')
+
+# get limits
+low_lims <- get_lower_lims(d$temp, d$rate, model_name = 'pawar_2018')
+upper_lims <- get_upper_lims(d$temp, d$rate, model_name = 'pawar_2018')
+
+start_vals
+low_lims
+upper_lims
+
+# fit model
+fit <- nls_multstart(rate~pawar_2018(temp = temp, r_tref,e,eh,th, tref = 15),
+                                                     data = d,
+                                                     iter = 500,
+                                                     start_lower = start_vals - 10,
+                                                     start_upper = start_vals + 10,
+                                                     lower = low_lims,
+                                                     upper = upper_lims,
+                                                     supp_errors = 'Y')
+
+fit
+
+# calculate additional traits
+calc_params(fit) %>%
+  # round for easy viewing
+  mutate_all(round, 2)
+
+# predict new data
+new_data <- data.frame(temp = seq(min(d$temp), max(d$temp), 0.5))
+preds <- augment(fit, newdata = new_data)
+
+# plot data and model fit
+ggplot(d, aes(temp, rate)) +
+  geom_point() +
+  geom_line(aes(temp, .fitted), preds, col = 'blue') +
+  theme_bw(base_size = 12) +
+  labs(x = 'Temperature (ºC)',
+       y = 'Metabolic rate',
+       title = 'Respiration across temperatures')
+```
+
+
+
+
+
+## Sept 2023
+
+### Prepare data 
+
+Load run metadata 
+```{r}
+run_meta <- read_csv("../data/TPC/TPC_metadata_run.csv") %>%
+  mutate(
+    Start = as_datetime(Date) + hours(hour(Start.time)) + minutes(minute(Start.time)),
+    Stop  = as_datetime(Date) + hours(hour(Stop.time)) + minutes(minute(Stop.time)))
+```
+
+Load sample metadata 
+```{r}
+sample_meta <- read_csv("../data/TPC/TPC_metadata_sample.csv")
+
+# Make sure Chamber well # is numeric
+sample_meta <- sample_meta %>%
+  mutate(`Chamber` = as.numeric(`Chamber`))
+```
+
+List all raw files for Sept 2023 
+```{r}
+files <- list.files(path = "../data/TPC/raw_data/Sept2023/", pattern = "*.csv", full.names = TRUE)
+```
+
+Join O2 data with metadata files based on start and stop times 
+```{r}
+all_data <- map_dfr(files, function(f) {
+  # Extract channel number from filename, e.g. Ch1 → 1
+  channel <- str_extract(f, "channel\\d+") %>% str_remove("channel") %>% as.numeric()
+  
+  # Read the file
+  raw <- read_csv(f) %>%
+    mutate(
+      # Parse datetime (adjust format if needed)
+      DateTime = dmy_hms(Date),
+      Channel = channel
+    )
+  
+  # Join to run metadata by fuzzy time match
+  raw_joined <- fuzzy_left_join(
+    raw,
+    run_meta,
+    by = c("DateTime" = "Start", "DateTime" = "Stop"),
+    match_fun = list(`>=`, `<=`)
+  )
+  
+  # Join to sample metadata by Date, Run #, and Channel
+  raw_joined <- raw_joined %>%
+    left_join(
+      sample_meta,
+      by = c(
+        "Date.y" = "Date",
+        "Run" = "Run",
+        "Channel" = "Chamber"
+      )
+    )
+  
+  return(raw_joined)
+})
+```
+
+Look at joined data and save
+```{r}
+all_data %>% count(is.na(`Colony_ID`))
+all_data %>% count(is.na(Run))
+
+write_csv(all_data, "../output/TPC/Sept2023/TPC_all_joined_data_Sept2023.csv")
+```
+
+### Run localized linear regressions 
+
+The interval fitting code will take about an hour to run and is computationally intense. If needed, run as a background job or on a remote server.
+
+Make list of all Colony_ID / Run combinations (including blanks)
+```{r}
+colony_runs <- all_data %>%
+  filter(!is.na(Colony_ID)) %>%
+  distinct(Colony_ID, Run)
+```
+
+For this timepoint, only two out of the five runs had blanks. Therefore, I am going to calculate the blank intervals, average them, and then apply them to the regression for each colony. 
+
+Calculate interval slopes for the blanks
+```{r}
+blank_data <- all_data %>%
+  filter(Colony_ID == "blank")
+
+blank_intervals <- blank_data %>%
+  group_by(Run, Temperature.y) %>%
+  filter(!is.na(Colony_ID)) %>%
+  group_split()
+```
+
+Fit regressions and extract slopes for each blank interval
+```{r}
+fit_reg <- function(df) {
+  rankLocReg(
+    xall = as.numeric(df$`Delta T [min]`),
+    yall = df$Oxygen,
+    alpha = 0.2,
+    method = "pc",
+    verbose = FALSE
+  )
+}
+
+blank_fits <- map(blank_intervals, fit_reg)
+blank_slopes <- map_dbl(blank_fits, ~ pluck(., "allRegs", "b1", 1))
+blank_summary <- map2_dfr(
+  blank_intervals,
+  blank_slopes,
+  ~ tibble(
+    Temperature.y = unique(.x$Temperature.y),
+    Blank_Slope = .y
+  )
+)
+```
+
+
+
+
