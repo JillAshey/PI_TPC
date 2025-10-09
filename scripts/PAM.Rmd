@@ -12,38 +12,18 @@ library(tidyverse)
 library(nlme)
 library(car)
 library(emmeans)
+library(lme4)
 ```
 
 Read in PAM data 
 ```{r}
 pam <- read_csv("../data/Master_datasheet_pam.csv")
-colnames(pam)[1] <- "Colony_ID" 
 ```
-
-Pivot longer 
-```{r}
-pam_long <- pam %>%
-  pivot_longer(
-    cols = starts_with("Fv/Fm_"),  # all the Fv/Fm_* columns
-    names_to = "Date",
-    values_to = "Fv_Fm"
-  ) %>%
-  mutate(
-    Date = sub("Fv/Fm_", "", Date)  # remove the Fv/Fm_ prefix
-  )
-```
-
-Change Sept2024 to Oct2024 
-```{r}
-pam_long$Date <- gsub("Sept2024", "Oct2024", pam_long$Date)
-```
-
-Maybe change other dates too so the entire month is spelled out...
 
 Calculate mean and sem 
 ```{r}
-pam_summary <- pam_long %>%
-  group_by(Date, Phenotype, Species) %>%
+pam_summary <- pam %>%
+  group_by(Date, Phenotype, Species, PAM_type) %>%
   summarise(
     mean_FvFm = mean(Fv_Fm, na.rm = TRUE),
     sd_FvFm = sd(Fv_Fm, na.rm = TRUE),
@@ -55,12 +35,12 @@ pam_summary <- pam_long %>%
 Plot! 
 ```{r}
 # Set levels 
-pam_summary$Date <- factor(pam_summary$Date, levels = c("Sept23", "Jan24", "May24", "Oct24", "Jan25", "May25"))
+pam_summary$Date <- factor(pam_summary$Date, levels = c("September_2023", "January_2024", "May_2024", "October_2024", "January_2025", "May_2025", "October_2025"))
 
 # Set spp names 
 species_labels <- c("Mcap" = "Montipora capitata", "Pcomp" = "Porites compressa")
 
-ggplot(pam_summary, aes(x = Date, y = mean_FvFm, color = Phenotype, group = Phenotype)) +
+ggplot(pam_summary, aes(x = Date, y = mean_FvFm, color = Phenotype, group = Phenotype, shape = PAM_type)) +
   geom_line(linewidth = 1) +
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = mean_FvFm - sem_FvFm, ymax = mean_FvFm + sem_FvFm, color = Phenotype),
@@ -80,7 +60,8 @@ theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
     strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
     strip.text = element_text(face = "italic", size = 16),
-    legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
     legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
     legend.key = element_blank(),    
     legend.title = element_text(size = 14),
@@ -113,7 +94,7 @@ mod_pam <- lmer(Fv_Fm ~ Species * Phenotype * Date + (1 | Colony_ID),
                  data = pam_long,
                  REML = FALSE)
 car::Anova(mod_pam, type = 3)
-em_date <- emmeans(pam.lme, pairwise ~ Date, adjust = "tukey")
+em_date <- emmeans(mod_pam, pairwise ~ Date, adjust = "tukey")
 summary(em_date)
 ```
 
