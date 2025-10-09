@@ -1,0 +1,399 @@
+---
+title: "TPC calcification"
+author: "Jill Ashey"
+date: "2025-09-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyverse)
+library(broom)
+library(readr)
+library(lubridate)
+library(purrr)
+library(furrr)
+library(fuzzyjoin)
+library(future)
+library(rTPC)
+library(nls.multstart)
+library(emmeans)
+library(lme4)
+library(nlme)
+library(Rmisc)
+library(boot)
+```
+
+## Sept 2023
+
+Read in data 
+```{r}
+CalSept23 <- read.csv("../data/TPC/TPC_calcification_all_standardized_without_blanks_2023_KB.csv")
+```
+
+Following Kristen code below 
+```{r}
+CalSept23$Target.Temperature<-as.numeric(CalSept23$Target.Temperature)
+CalSept23$log.rate <- log(CalSept23$umol.CaCO3h.1.cm.2 + 1)  #logging and adding 0.1 because a log of zero does not exist
+# convert temp to K
+CalSept23$K<-CalSept23$Target.Temperature + 273.15
+
+Calfig_Sept23<-ggplot(CalSept23, aes(y=umol.CaCO3h.1.cm.2, x=Target.Temperature, color=Phenotype, fill=Phenotype))+ 
+  geom_point(alpha=0.4)+
+  geom_smooth(method="gam", formula = y ~ s(x, bs = "cs", k=3))+
+  #geom_boxplot(aes(group = interaction(Date,Bleach), stat="identity"), alpha=0.7,  outlier.shape = NA)+
+  facet_grid(~Species)+
+  scale_x_continuous(Temperature~(degree~C))+ 
+  scale_y_continuous(expression(log~(mu~mol~CaCO[3]~'\U2219'~hr^{-1}~'\U2219'~cm^{-2})))+
+  geom_hline(yintercept = 0, linetype = 1, alpha = 0.8, color = "black") + 
+  scale_fill_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  scale_color_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  theme_classic()+
+  theme(axis.text.x=element_text(vjust=0.5, size=12),
+        axis.text.y=element_text(vjust=0.5, size=12),
+        axis.title.x=element_text(size=12),
+        axis.title.y=element_text(size=12),
+        legend.text = element_text(vjust=0.5, size=12),
+        #legend.position="none",
+        panel.background= element_rect(fill=NA, color='black'),
+        strip.text = element_text(size=12, face="italic"))
+Calfig_Sept23
+
+Calfig_Sept23_log<-ggplot(CalSept23, aes(y=log.rate, x=Target.Temperature, color=Phenotype, fill=Phenotype))+ 
+  geom_point(alpha=0.4)+
+  geom_smooth(method="gam", formula = y ~ s(x, bs = "cs", k=3))+
+  #geom_boxplot(aes(group = interaction(Date,Bleach), stat="identity"), alpha=0.7,  outlier.shape = NA)+
+  facet_grid(~Species)+
+  scale_x_continuous(Temperature~(degree~C))+ 
+  scale_y_continuous(expression(log~(mu~mol~CaCO[3]~'\U2219'~hr^{-1}~'\U2219'~cm^{-2})))+
+  geom_hline(yintercept = 0, linetype = 1, alpha = 0.8, color = "black") + 
+  scale_fill_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  scale_color_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  theme_classic()+
+  theme(axis.text.x=element_text(vjust=0.5, size=12),
+        axis.text.y=element_text(vjust=0.5, size=12),
+        axis.title.x=element_text(size=12),
+        axis.title.y=element_text(size=12),
+        legend.text = element_text(vjust=0.5, size=12),
+        #legend.position="none",
+        panel.background= element_rect(fill=NA, color='black'),
+        strip.text = element_text(size=12, face="italic"))
+Calfig_Sept23_log
+
+# Define the Sharpe-Schoolfield model function
+sharpe_schoolfield <- function(lnc, E, Eh, Th, temp, Tc) {
+  Tc <- 273.15 + Tc
+  k <- 8.62e-5
+  boltzmann.term <- lnc + log(exp(E/k*(1/Tc - 1/temp))) # units are eV/K, electrovolts/Kelvin
+  inactivation.term <- log(1/(1 + exp(Eh/k*(1/Th - 1/temp))))
+  return(boltzmann.term + inactivation.term)
+}
+
+# fit over each set of groupings
+fits <- CalSept23 %>%
+  group_by(Phenotype,Species,Colony.ID) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(log.rate ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = K, Tc = 27),
+                                                data = .x,
+                                                iter = 1000,
+                                                start_lower = c(lnc = -10, E = 0.1, Eh = 0.2, Th = 285),
+                                                start_upper = c(lnc = 10, E = 2, Eh = 5, Th = 330),
+                                                supp_errors = 'Y',
+                                                na.action = na.omit,
+                                                lower = c(lnc = -10, E = 0, Eh = 0, Th = 0))))
+
+# look at a single fit
+summary(fits$fit[[1]])
+
+# look at output object
+dplyr::select(fits, Colony.ID, data, fit)  
+
+# get summary info
+info <- fits %>%
+  unnest_legacy(fit %>% purrr::map(glance))
+info
+
+# get params
+params_cal <- fits %>%
+  unnest_legacy(fit %>% purrr::map(tidy))
+params_cal
+
+params_cal <- subset(params_cal, Colony.ID != 233)
+
+## lnc
+lnc_data_cal<- params_cal %>%
+  filter(term=="lnc")
+lnc_data_cal
+hist(lnc_data_cal$estimate)
+lnc.lm<- lm(estimate~Species*Phenotype, data=lnc_data_cal) #Gaussian
+par(mfrow=c(2,3))
+plot(lnc.lm, ask=FALSE, which=1:6)
+lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=lnc_data_cal, na.action=na.exclude)
+car::Anova(lnc.lme, type=3)
+lnc_sum<-summarySE(lnc_data_cal, measurevar='estimate', groupvars=c('Species', 'Phenotype'), na.rm=TRUE, conf.interval = 0.95)
+lnc_sum
+lncfig_cal_box<-ggplot(lnc_data_cal, aes(y=estimate, x=Species, color=Phenotype, fill=Phenotype))+ 
+  geom_boxplot(aes(group = interaction(Species,Phenotype), stat="identity"), alpha=0.7,  outlier.shape = NA, color="black")+
+  geom_point(data=lnc_data_cal, aes(y=estimate, x=Species,label=Colony.ID), alpha=0.8,position=position_dodge(0.75))+
+  #geom_linerange(aes(ymin=estimate-se, ymax=estimate+se), width= 0.7,  position=position_dodge(0.3),stat="identity") +
+  scale_y_continuous(expression(lnc), limits=c(0,0.6))+
+  scale_fill_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  scale_color_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  theme_classic()+
+  theme(axis.text.x=element_text(vjust=0.5, size=12, face="italic"),
+        axis.text.y=element_text(vjust=0.5, size=12),
+        axis.title.x=element_text(size=12),
+        axis.title.y=element_text(size=12),
+        legend.text = element_text(vjust=0.5, size=12),
+        legend.position="none",
+        panel.background= element_rect(fill=NA, color='black'),
+        strip.text = element_text(size=12, face="italic")); lncfig_cal_box
+
+## E - Activation energy (electron volts, eV)
+E_data_cal<- params_cal %>%
+  filter(term=="E")
+E_data_cal
+hist(E_data_cal$estimate)
+E.lm<- lm(estimate~Species*Phenotype, data=E_data_cal) #Gaussian
+par(mfrow=c(2,3))
+plot(E.lm, ask=FALSE, which=1:6)
+E.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=E_data_cal, na.action=na.exclude)
+car::Anova(E.lme, type=3)
+E_sum<-summarySE(E_data_cal, measurevar='estimate', groupvars=c('Species', 'Phenotype'), na.rm=TRUE, conf.interval = 0.95)
+E_sum
+Efig_cal_box<-ggplot(E_data_cal, aes(y=estimate, x=Species, color=Phenotype, fill=Phenotype))+ 
+  geom_boxplot(aes(group = interaction(Species,Phenotype), stat="identity"), alpha=0.7,  outlier.shape = NA, color="black")+
+  geom_point(data=E_data_cal, aes(y=estimate, x=Species,label=Colony.ID), alpha=0.8,position=position_dodge(0.75))+
+  #geom_linerange(aes(ymin=estimate-se, ymax=estimate+se), width= 0.7,  position=position_dodge(0.3),stat="identity") +
+  scale_y_continuous(expression(E))+
+  scale_fill_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  scale_color_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  theme_classic()+
+  theme(axis.text.x=element_text(vjust=0.5, size=12, face="italic"),
+        axis.text.y=element_text(vjust=0.5, size=12),
+        axis.title.x=element_text(size=12),
+        axis.title.y=element_text(size=12),
+        legend.text = element_text(vjust=0.5, size=12),
+        legend.position="none",
+        panel.background= element_rect(fill=NA, color='black'),
+        strip.text = element_text(size=12, face="italic")); Efig_cal_box
+```
+
+Try rTPC
+```{r}
+tpc_calc_1 <- CalSept23 %>%
+  filter(Colony.ID == "1")
+
+ggplot(tpc_calc_1, aes(Target.Temperature, log.rate)) +
+  geom_point() +
+  theme_bw(base_size = 12) +
+  labs(x = 'Temperature (ºC)',
+       y = 'Calc rate (log)',
+       title = 'Respiration across temperatures')
+
+# choose model
+mod = 'sharpschoolhigh_1981'
+
+# get start vals
+start_vals <- get_start_vals(tpc_calc_1$Target.Temperature, tpc_calc_1$log.rate, model_name = 'sharpeschoolhigh_1981')
+start_vals['eh'] <- 10 # or another plausible value, based on expected biology or limits
+
+# get limits
+low_lims <- get_lower_lims(tpc_calc_1$Target.Temperature, tpc_calc_1$log.rate, model_name = 'sharpeschoolhigh_1981')
+upper_lims <- get_upper_lims(tpc_calc_1$Target.Temperature, tpc_calc_1$log.rate, model_name = 'sharpeschoolhigh_1981')
+
+# fit model
+fit <- nls_multstart(log.rate~sharpeschoolhigh_1981(temp = Target.Temperature, r_tref,e,eh,th, tref = 18),
+                                                     data = tpc_calc_1,
+                                                     iter = 500,
+                                                     start_lower = start_vals - 10,
+                                                     start_upper = start_vals + 10,
+                                                     lower = low_lims,
+                                                     upper = upper_lims,
+                                                     supp_errors = 'Y')
+
+fit
+calc_params(fit)
+```
+
+```{r}
+library(tidyverse)
+library(rTPC)
+library(nls.multstart)
+
+# Group and nest data
+nested <- CalSept23 %>%
+  group_by(Species, Colony.ID, Phenotype) %>%
+  nest()
+
+# Function to fit the model for each group
+fit_tpc <- function(df) {
+  # Get sensible start, lower, and upper values for Sharpe-Schoolfield model
+  start_vals <- get_start_vals(df$K, df$log.rate, model_name = 'schoolfield_high')
+  lower_lims <- get_lower_lims(df$K, df$log.rate, model_name = 'schoolfield_high')
+  upper_lims <- get_upper_lims(df$K, df$log.rate, model_name = 'schoolfield_high')
+  
+  # Fit Sharpe-Schoolfield model with replicate multistart
+  nls_multstart(log.rate ~ schoolfield_high(temp = K, r_tref, e, eh, th, tref = 293.15),
+    data = df,
+    iter = c(3,3,3,3,3),
+    start_lower = start_vals - 10,
+    start_upper = start_vals + 10,
+    lower = lower_lims,
+    upper = upper_lims,
+    supp_errors = 'Y')
+}
+
+# Apply to each group
+nested <- nested %>%
+  mutate(fit = map(data, possibly(fit_tpc, NA)))
+
+# Extract coefficients/results or make predictions as needed
+results <- nested %>%
+  mutate(params = map(fit, ~ if(!is.na(.x)) coef(.x) else NA))
+```
+
+```{r}
+library(dplyr)
+library(purrr)
+library(nls.multstart)
+library(rTPC)
+library(broom)
+
+# Example: prepare your data
+df <- CalSept23 %>%
+  dplyr::rename(temp = K, rate = log.rate)
+
+df %>%
+  ggplot(aes(x = temp, y = rate, color = Phenotype)) +
+  geom_point() +
+  facet_grid(Species ~ Colony.ID)
+
+# Choose a TPC model function (e.g., Sharpe-Schoolfield)
+model <- get_model_names() # see list of all models
+chosen_model <- "sharpeschoolhigh_1981"
+
+# Function to fit model to one group
+models_to_try <- c("gaussian_1987", "briere2_1999", "sharpeschoolhigh_1981")
+
+fit_multi_models <- function(data) {
+  fits <- purrr::map(models_to_try, function(mod) {
+    tryCatch({
+      nls_multstart(
+        rate ~ get_model(mod)(temp = temp, !!!get_model_params(mod)),
+        data = data,
+        iter = 500,
+        start_lower = get_start_vals(data$temp, data$rate, model_name = mod)[1,],
+        start_upper = get_start_vals(data$temp, data$rate, model_name = mod)[2,],
+        lower = get_lower_lims(data$temp, data$rate, model_name = mod),
+        upper = get_upper_lims(data$temp, data$rate, model_name = mod),
+        supp_errors = "Y"
+      )
+    }, error = function(e) NULL)
+  })
+  # Pick the best model (lowest AIC) if any succeeded
+  fits <- compact(fits)
+  if (length(fits) > 0) {
+    fits[[which.min(map_dbl(fits, AIC))]]
+  } else {
+    NULL
+  }
+}
+
+
+# Fit per Species x Colony.ID x Phenotype
+fits <- df %>%
+  group_by(Species, Colony.ID, Phenotype) %>%
+  group_map(~ fit_multi_models(.x), .keep = TRUE)
+
+# Extract parameter estimates
+params <- fits %>%
+  map_dfr(~ if (!is.null(.x)) tidy(.x), .id = "group")
+
+# If you also want curve predictions:
+preds <- fits %>%
+  map2_dfr(.y = group_keys(df, Species, Colony.ID, Phenotype),
+           ~ {
+             if (!is.null(.x)) {
+               newdata <- tibble(temp = seq(min(df$temp), max(df$temp), length.out = 100))
+               newdata$rate <- predict(.x, newdata)
+               bind_cols(.y, newdata)
+             }
+           })
+
+```
+
+Following Federica's code: https://github.com/fscucchia/HI_PhotoPhysio_TPC_geneExpr/blob/main/PI_TPC/scripts/3_TPC_Curve.r
+
+```{r}
+CalSept23$Target.Temperature <- as.numeric(as.character(CalSept23$Target.Temperature))
+
+# Calculate mean and sd values for calc. grouped by colony id and temp 
+df_mean <- CalSept23 %>%
+  select(Species, Phenotype, Colony.ID, Target.Temperature, umol.CaCO3h.1.cm.2) %>%
+  group_by(Target.Temperature, Species, Phenotype) %>%
+  dplyr::summarise(sd = sd(umol.CaCO3h.1.cm.2,na.rm = TRUE), mean = mean(umol.CaCO3h.1.cm.2,na.rm = TRUE), .groups = "drop")
+str(df_mean)
+
+test_fit <- nest(df_mean, data = c(mean, Target.Temperature, sd)) %>%
+  mutate(weighted = map(data, ~nls_multstart(mean~pawar_2018(temp = Target.Temperature, r_tref,e,eh,topt, tref = 18),
+                                             data = .x,
+                                             iter = c(4,4,4,4),
+                                             start_lower = get_start_vals(.x$Target.Temperature, .x$mean, model_name = 'pawar_2018') - 10,
+                                             start_upper = get_start_vals(.x$Target.Temperature, .x$mean, model_name = 'pawar_2018') + 10,
+                                             lower = get_lower_lims(.x$Target.Temperature, .x$mean, model_name = 'pawar_2018'),
+                                             upper = get_upper_lims(.x$Target.Temperature, .x$mean, model_name = 'pawar_2018'),
+                                             supp_errors = 'Y',
+                                             convergence_count = FALSE,
+                                             # include weights here!
+                                             modelweights = 1/sd)))
+
+# Check that it worked
+test_fit$weighted[[1]]
+
+# get predictions using augment
+newdata_test <- tibble(Target.Temperature = seq(min(df_mean$Target.Temperature), max(df_mean$Target.Temperature), length.out = 100))
+df_preds <- test_fit %>%
+  mutate(., preds = map(weighted, augment, newdata = newdata_test)) %>%
+  select(-weighted) %>%
+  unnest(preds)
+
+ggplot() +
+  geom_line(aes(Target.Temperature, .fitted), df_preds) +
+  geom_linerange(aes(x = Target.Temperature, ymin = mean - sd, ymax = mean + sd), df_mean) +
+  geom_point(aes(Target.Temperature, mean), df_mean, size = 2, shape = 21, fill = 'green4') +
+  theme_bw(base_size = 12) +
+  theme(legend.position = 'none',
+        strip.text = element_text(hjust = 0),
+        strip.background = element_blank()) +
+  labs(x ='Temperature (ºC)',
+       y = 'Calc')+
+  geom_hline(aes(yintercept = 0), linetype = 2) 
+  #ylim(c(-0.25, 3.5))
+
+# Calculate additional traits
+calc_params(test_fit$weighted[[1]])
+
+### Residual re-sampling weighted non-linear regression
+fit_nlsLM <- minpack.lm::nlsLM(mean~pawar_2018(temp = Target.Temperature, r_tref,e,eh,topt, tref = 18),
+                                    data = df_mean,
+                                    start = coef(test_fit$weighted[[1]]),
+                                    lower = get_lower_lims(df_mean$Target.Temperature, df_mean$mean, model_name = 'pawar_2018'),
+                                    upper = get_upper_lims(df_mean$Target.Temperature, df_mean$mean, model_name = 'pawar_2018'),
+                                    weights = 1/sd,   
+                                    control = minpack.lm::nls.lm.control(maxiter = 500))
+
+# Residual bootstrapping 
+boot2 <- car::Boot(fit_nlsLM, method = 'case')
+sum(complete.cases(boot2$t))   # number of successful fits
+confint(boot2, type = "perc")  # percentile CIs
+hist(boot2$t[, "topt"], main = "Bootstrap topt", xlab = "topt")
+
+```
+
+Should I be breaking up the models so that I am fitting the species and phenotypes separately?? Ask Federica 
+
+I will also have to try to fit different models...
+

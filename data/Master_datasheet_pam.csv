@@ -1,49 +1,337 @@
-﻿Coral ID,Species,Phenotype,Fv/Fm_Oct24,Fv/Fm_May24,Fv/Fm_Jan24,Fv/Fm_Sept23,Fv/Fm_Jan25,Fv/Fm_May25
-2,Mcap,Resistant,0.571801045,0.556621725,0.622449285,0.56970087,0.616402356,0.538687268
-4,Mcap,Resistant,0.578579298,0.566903952,0.581988849,0.564753067,0.613600637,0.5397943
-20,Mcap,Resistant,0.586083884,0.566741,0.614064137,0.561766971,0.567687523,0.585107076
-26,Pcomp,Susceptible,0.580268714,0.527244053,0.581611825,0.538330345,0.58981248,0.590749112
-28,Pcomp,Susceptible,0.533605359,0.525710661,0.596430722,0.660389631,0.619499007,0.584195329
-42,Pcomp,Resistant,0.547066708,0.555517679,0.583570316,0.566981873,,0.57805669
-44,Pcomp,Resistant,0.546644062,0.499372824,0.576860227,0.615988191,0.5865943,0.539824964
-46,Pcomp,Resistant,,,0.558380399,0.540605169,,
-202,Mcap,Resistant,0.590631161,0.539281218,0.626614709,0.619516068,0.596464688,0.644897591
-204,Mcap,Resistant,0.612462436,0.565529517,0.63413515,0.61467251,0.592519557,0.589220038
-206,Mcap,Resistant,0.626016048,0.613478407,0.604746917,0.559865952,0.626007731,0.577295834
-210,Mcap,Resistant,0.641216638,0.59386294,0.61729567,0.563899097,0.620134837,0.615912077
-212,Mcap,Resistant,,,0.617916099,0.551120558,,
-214,Mcap,Resistant,0.597281209,0.552187461,0.594910242,0.608471415,0.585633344,0.58013111
-220,Mcap,Resistant,0.641882068,0.584136194,0.707841856,0.586142872,0.620619762,0.592203194
-12,Mcap,Resistant,0.591857847,0.549091014,0.570672869,,0.571451736,0.512334457
-226,Pcomp,Resistant,0.566707472,0.572596027,0.605270702,0.59904205,0.557081804,0.500978418
-234,Pcomp,Resistant,0.552482756,0.558476494,0.583847576,0.558171016,0.574675456,0.588983251
-236,Pcomp,Resistant,0.555115803,0.59075819,0.627019419,0.605906892,0.558131565,0.569027209
-238,Pcomp,Resistant,0.561599317,0.582622816,0.620869705,0.599055961,0.589851691,0.54747553
-240,Pcomp,Resistant,0.578776592,0.567790694,0.619810626,0.602466501,0.575508128,0.535892891
-242,Pcomp,Resistant,0.599286276,0.654130258,0.583666356,0.546007832,0.572011926,0.55182853
-244,Pcomp,Resistant,0.598081411,0.51868168,0.542686281,0.585477799,0.609671939,0.580521151
-248,Pcomp,Resistant,0.556056625,0.585727917,0.630887022,0.649818379,0.597817089,0.569596528
-1,Mcap,Susceptible,0.571226118,0.566310899,0.614766263,0.585338673,0.616781613,0.588333444
-3,Mcap,Susceptible,0.497315267,0.573996743,0.622572013,0.598793965,0.611461357,0.570407556
-19,Mcap,Susceptible,0.588089672,0.623842,0.612993711,0.547468795,0.597850018,0.590332146
-27,Pcomp,Resistant,0.556852041,0.551084281,0.607159146,0.559236486,0.565836955,0.535054709
-29,Pcomp,Resistant,0.569248223,0.567990159,0.579299337,0.567486602,0.623540525,0.482719204
-41,Pcomp,Susceptible,0.534919774,0.572676346,0.588688024,0.590630158,,0.584708303
-43,Pcomp,Susceptible,0.6081302,0.578790994,0.606804192,0.61282033,0.606069061,0.560683287
-45,Pcomp,Susceptible,,,0.565651149,0.597953636,,
-201,Mcap,Susceptible,0.601962902,0.56656598,0.63171507,0.578960029,0.642820382,0.636368339
-203,Mcap,Susceptible,0.632211872,0.602540136,0.6246295,0.567281075,0.605032836,0.596181195
-205,Mcap,Susceptible,0.626516752,0.584081164,0.624378887,0.579698678,0.636373654,0.578218458
-209,Mcap,Susceptible,0.658397609,0.550753743,0.624869668,0.574270405,0.558645406,0.56094602
-211,Mcap,Susceptible,0.623893661,0.60559833,0.625779785,0.557373241,0.615139702,0.603605907
-213,Mcap,Susceptible,0.558006701,0.514707025,0.563683428,0.630648054,0.587367929,0.552463826
-219,Mcap,Susceptible,0.646861008,0.507469239,0.597937034,0.482257623,0.587149347,0.640514448
-221,Mcap,Susceptible,0.618938112,0.579981933,0.609899711,0.554573125,0.569680244,0.596866164
-225,Pcomp,Susceptible,0.602208043,0.585911538,0.604458963,0.631545734,0.609974734,0.518995501
-233,Pcomp,Susceptible,0.552567155,0.52413598,0.571259437,0.6016014,0.541708961,0.52428785
-235,Pcomp,Susceptible,0.579476289,0.592934907,0.576232707,0.657047048,0.613120716,0.588649462
-237,Pcomp,Susceptible,0.621272983,0.621966137,0.618419884,0.610840757,0.557719346,0.584369285
-239,Pcomp,Susceptible,0.602650225,0.602034252,0.591702427,0.673334976,0.529269758,0.538536688
-241,Pcomp,Susceptible,0.628522906,0.674182656,0.57805363,0.572201574,0.541967353,0.532475162
-243,Pcomp,Susceptible,0.606616828,0.62389245,0.553753412,0.678521426,0.650548928,0.586327805
-247,Pcomp,Susceptible,0.593196013,0.599518532,0.611696514,0.648765228,0.587003387,0.568369011
+Colony_ID,Species,Phenotype,Date,Fv_Fm,PAM_type
+1,Montipora capitata,Susceptible,September_2023,0.585338673,Imaging PAM - CRL
+2,Montipora capitata,Resistant,September_2023,0.56970087,Imaging PAM - CRL
+3,Montipora capitata,Susceptible,September_2023,0.598793965,Imaging PAM - CRL
+4,Montipora capitata,Resistant,September_2023,0.564753067,Imaging PAM - CRL
+12,Montipora capitata,Resistant,September_2023,NA,Imaging PAM - CRL
+19,Montipora capitata,Susceptible,September_2023,0.547468795,Imaging PAM - CRL
+20,Montipora capitata,Resistant,September_2023,0.561766971,Imaging PAM - CRL
+26,Porites compressa,Susceptible,September_2023,0.538330345,Imaging PAM - CRL
+27,Porites compressa,Resistant,September_2023,0.559236486,Imaging PAM - CRL
+28,Porites compressa,Susceptible,September_2023,0.660389631,Imaging PAM - CRL
+29,Porites compressa,Resistant,September_2023,0.567486602,Imaging PAM - CRL
+41,Porites compressa,Susceptible,September_2023,0.590630158,Imaging PAM - CRL
+42,Porites compressa,Resistant,September_2023,0.566981873,Imaging PAM - CRL
+43,Porites compressa,Susceptible,September_2023,0.61282033,Imaging PAM - CRL
+44,Porites compressa,Resistant,September_2023,0.615988191,Imaging PAM - CRL
+45,Porites compressa,Susceptible,September_2023,0.597953636,Imaging PAM - CRL
+46,Porites compressa,Resistant,September_2023,0.540605169,Imaging PAM - CRL
+201,Montipora capitata,Susceptible,September_2023,0.578960029,Imaging PAM - CRL
+202,Montipora capitata,Resistant,September_2023,0.619516068,Imaging PAM - CRL
+203,Montipora capitata,Susceptible,September_2023,0.567281075,Imaging PAM - CRL
+204,Montipora capitata,Resistant,September_2023,0.61467251,Imaging PAM - CRL
+205,Montipora capitata,Susceptible,September_2023,0.579698678,Imaging PAM - CRL
+206,Montipora capitata,Resistant,September_2023,0.559865952,Imaging PAM - CRL
+209,Montipora capitata,Susceptible,September_2023,0.574270405,Imaging PAM - CRL
+210,Montipora capitata,Resistant,September_2023,0.563899097,Imaging PAM - CRL
+211,Montipora capitata,Susceptible,September_2023,0.557373241,Imaging PAM - CRL
+212,Montipora capitata,Resistant,September_2023,0.551120558,Imaging PAM - CRL
+213,Montipora capitata,Susceptible,September_2023,0.630648054,Imaging PAM - CRL
+214,Montipora capitata,Resistant,September_2023,0.608471415,Imaging PAM - CRL
+219,Montipora capitata,Susceptible,September_2023,0.482257623,Imaging PAM - CRL
+220,Montipora capitata,Resistant,September_2023,0.586142872,Imaging PAM - CRL
+221,Montipora capitata,Susceptible,September_2023,0.554573125,Imaging PAM - CRL
+225,Porites compressa,Susceptible,September_2023,0.631545734,Imaging PAM - CRL
+226,Porites compressa,Resistant,September_2023,0.59904205,Imaging PAM - CRL
+233,Porites compressa,Susceptible,September_2023,0.6016014,Imaging PAM - CRL
+234,Porites compressa,Resistant,September_2023,0.558171016,Imaging PAM - CRL
+235,Porites compressa,Susceptible,September_2023,0.657047048,Imaging PAM - CRL
+236,Porites compressa,Resistant,September_2023,0.605906892,Imaging PAM - CRL
+237,Porites compressa,Susceptible,September_2023,0.610840757,Imaging PAM - CRL
+238,Porites compressa,Resistant,September_2023,0.599055961,Imaging PAM - CRL
+239,Porites compressa,Susceptible,September_2023,0.673334976,Imaging PAM - CRL
+240,Porites compressa,Resistant,September_2023,0.602466501,Imaging PAM - CRL
+241,Porites compressa,Susceptible,September_2023,0.572201574,Imaging PAM - CRL
+242,Porites compressa,Resistant,September_2023,0.546007832,Imaging PAM - CRL
+243,Porites compressa,Susceptible,September_2023,0.678521426,Imaging PAM - CRL
+244,Porites compressa,Resistant,September_2023,0.585477799,Imaging PAM - CRL
+247,Porites compressa,Susceptible,September_2023,0.648765228,Imaging PAM - CRL
+248,Porites compressa,Resistant,September_2023,0.649818379,Imaging PAM - CRL
+1,Montipora capitata,Susceptible,January_2024,0.614766263,Imaging PAM - CRL
+2,Montipora capitata,Resistant,January_2024,0.622449285,Imaging PAM - CRL
+3,Montipora capitata,Susceptible,January_2024,0.622572013,Imaging PAM - CRL
+4,Montipora capitata,Resistant,January_2024,0.581988849,Imaging PAM - CRL
+12,Montipora capitata,Resistant,January_2024,0.570672869,Imaging PAM - CRL
+19,Montipora capitata,Susceptible,January_2024,0.612993711,Imaging PAM - CRL
+20,Montipora capitata,Resistant,January_2024,0.614064137,Imaging PAM - CRL
+26,Porites compressa,Susceptible,January_2024,0.581611825,Imaging PAM - CRL
+27,Porites compressa,Resistant,January_2024,0.607159146,Imaging PAM - CRL
+28,Porites compressa,Susceptible,January_2024,0.596430722,Imaging PAM - CRL
+29,Porites compressa,Resistant,January_2024,0.579299337,Imaging PAM - CRL
+41,Porites compressa,Susceptible,January_2024,0.588688024,Imaging PAM - CRL
+42,Porites compressa,Resistant,January_2024,0.583570316,Imaging PAM - CRL
+43,Porites compressa,Susceptible,January_2024,0.606804192,Imaging PAM - CRL
+44,Porites compressa,Resistant,January_2024,0.576860227,Imaging PAM - CRL
+45,Porites compressa,Susceptible,January_2024,0.565651149,Imaging PAM - CRL
+46,Porites compressa,Resistant,January_2024,0.558380399,Imaging PAM - CRL
+201,Montipora capitata,Susceptible,January_2024,0.63171507,Imaging PAM - CRL
+202,Montipora capitata,Resistant,January_2024,0.626614709,Imaging PAM - CRL
+203,Montipora capitata,Susceptible,January_2024,0.6246295,Imaging PAM - CRL
+204,Montipora capitata,Resistant,January_2024,0.63413515,Imaging PAM - CRL
+205,Montipora capitata,Susceptible,January_2024,0.624378887,Imaging PAM - CRL
+206,Montipora capitata,Resistant,January_2024,0.604746917,Imaging PAM - CRL
+209,Montipora capitata,Susceptible,January_2024,0.624869668,Imaging PAM - CRL
+210,Montipora capitata,Resistant,January_2024,0.61729567,Imaging PAM - CRL
+211,Montipora capitata,Susceptible,January_2024,0.625779785,Imaging PAM - CRL
+212,Montipora capitata,Resistant,January_2024,0.617916099,Imaging PAM - CRL
+213,Montipora capitata,Susceptible,January_2024,0.563683428,Imaging PAM - CRL
+214,Montipora capitata,Resistant,January_2024,0.594910242,Imaging PAM - CRL
+219,Montipora capitata,Susceptible,January_2024,0.597937034,Imaging PAM - CRL
+220,Montipora capitata,Resistant,January_2024,0.707841856,Imaging PAM - CRL
+221,Montipora capitata,Susceptible,January_2024,0.609899711,Imaging PAM - CRL
+225,Porites compressa,Susceptible,January_2024,0.604458963,Imaging PAM - CRL
+226,Porites compressa,Resistant,January_2024,0.605270702,Imaging PAM - CRL
+233,Porites compressa,Susceptible,January_2024,0.571259437,Imaging PAM - CRL
+234,Porites compressa,Resistant,January_2024,0.583847576,Imaging PAM - CRL
+235,Porites compressa,Susceptible,January_2024,0.576232707,Imaging PAM - CRL
+236,Porites compressa,Resistant,January_2024,0.627019419,Imaging PAM - CRL
+237,Porites compressa,Susceptible,January_2024,0.618419884,Imaging PAM - CRL
+238,Porites compressa,Resistant,January_2024,0.620869705,Imaging PAM - CRL
+239,Porites compressa,Susceptible,January_2024,0.591702427,Imaging PAM - CRL
+240,Porites compressa,Resistant,January_2024,0.619810626,Imaging PAM - CRL
+241,Porites compressa,Susceptible,January_2024,0.57805363,Imaging PAM - CRL
+242,Porites compressa,Resistant,January_2024,0.583666356,Imaging PAM - CRL
+243,Porites compressa,Susceptible,January_2024,0.553753412,Imaging PAM - CRL
+244,Porites compressa,Resistant,January_2024,0.542686281,Imaging PAM - CRL
+247,Porites compressa,Susceptible,January_2024,0.611696514,Imaging PAM - CRL
+248,Porites compressa,Resistant,January_2024,0.630887022,Imaging PAM - CRL
+1,Montipora capitata,Susceptible,May_2024,0.566310899,Imaging PAM - CRL
+2,Montipora capitata,Resistant,May_2024,0.556621725,Imaging PAM - CRL
+3,Montipora capitata,Susceptible,May_2024,0.573996743,Imaging PAM - CRL
+4,Montipora capitata,Resistant,May_2024,0.566903952,Imaging PAM - CRL
+12,Montipora capitata,Resistant,May_2024,0.549091014,Imaging PAM - CRL
+19,Montipora capitata,Susceptible,May_2024,0.623842,Imaging PAM - CRL
+20,Montipora capitata,Resistant,May_2024,0.566741,Imaging PAM - CRL
+26,Porites compressa,Susceptible,May_2024,0.527244053,Imaging PAM - CRL
+27,Porites compressa,Resistant,May_2024,0.551084281,Imaging PAM - CRL
+28,Porites compressa,Susceptible,May_2024,0.525710661,Imaging PAM - CRL
+29,Porites compressa,Resistant,May_2024,0.567990159,Imaging PAM - CRL
+41,Porites compressa,Susceptible,May_2024,0.572676346,Imaging PAM - CRL
+42,Porites compressa,Resistant,May_2024,0.555517679,Imaging PAM - CRL
+43,Porites compressa,Susceptible,May_2024,0.578790994,Imaging PAM - CRL
+44,Porites compressa,Resistant,May_2024,0.499372824,Imaging PAM - CRL
+45,Porites compressa,Susceptible,May_2024,NA,Imaging PAM - CRL
+46,Porites compressa,Resistant,May_2024,NA,Imaging PAM - CRL
+201,Montipora capitata,Susceptible,May_2024,0.56656598,Imaging PAM - CRL
+202,Montipora capitata,Resistant,May_2024,0.539281218,Imaging PAM - CRL
+203,Montipora capitata,Susceptible,May_2024,0.602540136,Imaging PAM - CRL
+204,Montipora capitata,Resistant,May_2024,0.565529517,Imaging PAM - CRL
+205,Montipora capitata,Susceptible,May_2024,0.584081164,Imaging PAM - CRL
+206,Montipora capitata,Resistant,May_2024,0.613478407,Imaging PAM - CRL
+209,Montipora capitata,Susceptible,May_2024,0.550753743,Imaging PAM - CRL
+210,Montipora capitata,Resistant,May_2024,0.59386294,Imaging PAM - CRL
+211,Montipora capitata,Susceptible,May_2024,0.60559833,Imaging PAM - CRL
+212,Montipora capitata,Resistant,May_2024,NA,Imaging PAM - CRL
+213,Montipora capitata,Susceptible,May_2024,0.514707025,Imaging PAM - CRL
+214,Montipora capitata,Resistant,May_2024,0.552187461,Imaging PAM - CRL
+219,Montipora capitata,Susceptible,May_2024,0.507469239,Imaging PAM - CRL
+220,Montipora capitata,Resistant,May_2024,0.584136194,Imaging PAM - CRL
+221,Montipora capitata,Susceptible,May_2024,0.579981933,Imaging PAM - CRL
+225,Porites compressa,Susceptible,May_2024,0.585911538,Imaging PAM - CRL
+226,Porites compressa,Resistant,May_2024,0.572596027,Imaging PAM - CRL
+233,Porites compressa,Susceptible,May_2024,0.52413598,Imaging PAM - CRL
+234,Porites compressa,Resistant,May_2024,0.558476494,Imaging PAM - CRL
+235,Porites compressa,Susceptible,May_2024,0.592934907,Imaging PAM - CRL
+236,Porites compressa,Resistant,May_2024,0.59075819,Imaging PAM - CRL
+237,Porites compressa,Susceptible,May_2024,0.621966137,Imaging PAM - CRL
+238,Porites compressa,Resistant,May_2024,0.582622816,Imaging PAM - CRL
+239,Porites compressa,Susceptible,May_2024,0.602034252,Imaging PAM - CRL
+240,Porites compressa,Resistant,May_2024,0.567790694,Imaging PAM - CRL
+241,Porites compressa,Susceptible,May_2024,0.674182656,Imaging PAM - CRL
+242,Porites compressa,Resistant,May_2024,0.654130258,Imaging PAM - CRL
+243,Porites compressa,Susceptible,May_2024,0.62389245,Imaging PAM - CRL
+244,Porites compressa,Resistant,May_2024,0.51868168,Imaging PAM - CRL
+247,Porites compressa,Susceptible,May_2024,0.599518532,Imaging PAM - CRL
+248,Porites compressa,Resistant,May_2024,0.585727917,Imaging PAM - CRL
+1,Montipora capitata,Susceptible,October_2024,0.571226118,Imaging PAM - CRL
+2,Montipora capitata,Resistant,October_2024,0.571801045,Imaging PAM - CRL
+3,Montipora capitata,Susceptible,October_2024,0.497315267,Imaging PAM - CRL
+4,Montipora capitata,Resistant,October_2024,0.578579298,Imaging PAM - CRL
+12,Montipora capitata,Resistant,October_2024,0.591857847,Imaging PAM - CRL
+19,Montipora capitata,Susceptible,October_2024,0.588089672,Imaging PAM - CRL
+20,Montipora capitata,Resistant,October_2024,0.586083884,Imaging PAM - CRL
+26,Porites compressa,Susceptible,October_2024,0.580268714,Imaging PAM - CRL
+27,Porites compressa,Resistant,October_2024,0.556852041,Imaging PAM - CRL
+28,Porites compressa,Susceptible,October_2024,0.533605359,Imaging PAM - CRL
+29,Porites compressa,Resistant,October_2024,0.569248223,Imaging PAM - CRL
+41,Porites compressa,Susceptible,October_2024,0.534919774,Imaging PAM - CRL
+42,Porites compressa,Resistant,October_2024,0.547066708,Imaging PAM - CRL
+43,Porites compressa,Susceptible,October_2024,0.6081302,Imaging PAM - CRL
+44,Porites compressa,Resistant,October_2024,0.546644062,Imaging PAM - CRL
+45,Porites compressa,Susceptible,October_2024,NA,Imaging PAM - CRL
+46,Porites compressa,Resistant,October_2024,NA,Imaging PAM - CRL
+201,Montipora capitata,Susceptible,October_2024,0.601962902,Imaging PAM - CRL
+202,Montipora capitata,Resistant,October_2024,0.590631161,Imaging PAM - CRL
+203,Montipora capitata,Susceptible,October_2024,0.632211872,Imaging PAM - CRL
+204,Montipora capitata,Resistant,October_2024,0.612462436,Imaging PAM - CRL
+205,Montipora capitata,Susceptible,October_2024,0.626516752,Imaging PAM - CRL
+206,Montipora capitata,Resistant,October_2024,0.626016048,Imaging PAM - CRL
+209,Montipora capitata,Susceptible,October_2024,0.658397609,Imaging PAM - CRL
+210,Montipora capitata,Resistant,October_2024,0.641216638,Imaging PAM - CRL
+211,Montipora capitata,Susceptible,October_2024,0.623893661,Imaging PAM - CRL
+212,Montipora capitata,Resistant,October_2024,NA,Imaging PAM - CRL
+213,Montipora capitata,Susceptible,October_2024,0.558006701,Imaging PAM - CRL
+214,Montipora capitata,Resistant,October_2024,0.597281209,Imaging PAM - CRL
+219,Montipora capitata,Susceptible,October_2024,0.646861008,Imaging PAM - CRL
+220,Montipora capitata,Resistant,October_2024,0.641882068,Imaging PAM - CRL
+221,Montipora capitata,Susceptible,October_2024,0.618938112,Imaging PAM - CRL
+225,Porites compressa,Susceptible,October_2024,0.602208043,Imaging PAM - CRL
+226,Porites compressa,Resistant,October_2024,0.566707472,Imaging PAM - CRL
+233,Porites compressa,Susceptible,October_2024,0.552567155,Imaging PAM - CRL
+234,Porites compressa,Resistant,October_2024,0.552482756,Imaging PAM - CRL
+235,Porites compressa,Susceptible,October_2024,0.579476289,Imaging PAM - CRL
+236,Porites compressa,Resistant,October_2024,0.555115803,Imaging PAM - CRL
+237,Porites compressa,Susceptible,October_2024,0.621272983,Imaging PAM - CRL
+238,Porites compressa,Resistant,October_2024,0.561599317,Imaging PAM - CRL
+239,Porites compressa,Susceptible,October_2024,0.602650225,Imaging PAM - CRL
+240,Porites compressa,Resistant,October_2024,0.578776592,Imaging PAM - CRL
+241,Porites compressa,Susceptible,October_2024,0.628522906,Imaging PAM - CRL
+242,Porites compressa,Resistant,October_2024,0.599286276,Imaging PAM - CRL
+243,Porites compressa,Susceptible,October_2024,0.606616828,Imaging PAM - CRL
+244,Porites compressa,Resistant,October_2024,0.598081411,Imaging PAM - CRL
+247,Porites compressa,Susceptible,October_2024,0.593196013,Imaging PAM - CRL
+248,Porites compressa,Resistant,October_2024,0.556056625,Imaging PAM - CRL
+1,Montipora capitata,Susceptible,January_2025,0.616781613,Imaging PAM - CRL
+2,Montipora capitata,Resistant,January_2025,0.616402356,Imaging PAM - CRL
+3,Montipora capitata,Susceptible,January_2025,0.611461357,Imaging PAM - CRL
+4,Montipora capitata,Resistant,January_2025,0.613600637,Imaging PAM - CRL
+12,Montipora capitata,Resistant,January_2025,0.571451736,Imaging PAM - CRL
+19,Montipora capitata,Susceptible,January_2025,0.597850018,Imaging PAM - CRL
+20,Montipora capitata,Resistant,January_2025,0.567687523,Imaging PAM - CRL
+26,Porites compressa,Susceptible,January_2025,0.58981248,Imaging PAM - CRL
+27,Porites compressa,Resistant,January_2025,0.565836955,Imaging PAM - CRL
+28,Porites compressa,Susceptible,January_2025,0.619499007,Imaging PAM - CRL
+29,Porites compressa,Resistant,January_2025,0.623540525,Imaging PAM - CRL
+41,Porites compressa,Susceptible,January_2025,NA,Imaging PAM - CRL
+42,Porites compressa,Resistant,January_2025,NA,Imaging PAM - CRL
+43,Porites compressa,Susceptible,January_2025,0.606069061,Imaging PAM - CRL
+44,Porites compressa,Resistant,January_2025,0.5865943,Imaging PAM - CRL
+45,Porites compressa,Susceptible,January_2025,NA,Imaging PAM - CRL
+46,Porites compressa,Resistant,January_2025,NA,Imaging PAM - CRL
+201,Montipora capitata,Susceptible,January_2025,0.642820382,Imaging PAM - CRL
+202,Montipora capitata,Resistant,January_2025,0.596464688,Imaging PAM - CRL
+203,Montipora capitata,Susceptible,January_2025,0.605032836,Imaging PAM - CRL
+204,Montipora capitata,Resistant,January_2025,0.592519557,Imaging PAM - CRL
+205,Montipora capitata,Susceptible,January_2025,0.636373654,Imaging PAM - CRL
+206,Montipora capitata,Resistant,January_2025,0.626007731,Imaging PAM - CRL
+209,Montipora capitata,Susceptible,January_2025,0.558645406,Imaging PAM - CRL
+210,Montipora capitata,Resistant,January_2025,0.620134837,Imaging PAM - CRL
+211,Montipora capitata,Susceptible,January_2025,0.615139702,Imaging PAM - CRL
+212,Montipora capitata,Resistant,January_2025,NA,Imaging PAM - CRL
+213,Montipora capitata,Susceptible,January_2025,0.587367929,Imaging PAM - CRL
+214,Montipora capitata,Resistant,January_2025,0.585633344,Imaging PAM - CRL
+219,Montipora capitata,Susceptible,January_2025,0.587149347,Imaging PAM - CRL
+220,Montipora capitata,Resistant,January_2025,0.620619762,Imaging PAM - CRL
+221,Montipora capitata,Susceptible,January_2025,0.569680244,Imaging PAM - CRL
+225,Porites compressa,Susceptible,January_2025,0.609974734,Imaging PAM - CRL
+226,Porites compressa,Resistant,January_2025,0.557081804,Imaging PAM - CRL
+233,Porites compressa,Susceptible,January_2025,0.541708961,Imaging PAM - CRL
+234,Porites compressa,Resistant,January_2025,0.574675456,Imaging PAM - CRL
+235,Porites compressa,Susceptible,January_2025,0.613120716,Imaging PAM - CRL
+236,Porites compressa,Resistant,January_2025,0.558131565,Imaging PAM - CRL
+237,Porites compressa,Susceptible,January_2025,0.557719346,Imaging PAM - CRL
+238,Porites compressa,Resistant,January_2025,0.589851691,Imaging PAM - CRL
+239,Porites compressa,Susceptible,January_2025,0.529269758,Imaging PAM - CRL
+240,Porites compressa,Resistant,January_2025,0.575508128,Imaging PAM - CRL
+241,Porites compressa,Susceptible,January_2025,0.541967353,Imaging PAM - CRL
+242,Porites compressa,Resistant,January_2025,0.572011926,Imaging PAM - CRL
+243,Porites compressa,Susceptible,January_2025,0.650548928,Imaging PAM - CRL
+244,Porites compressa,Resistant,January_2025,0.609671939,Imaging PAM - CRL
+247,Porites compressa,Susceptible,January_2025,0.587003387,Imaging PAM - CRL
+248,Porites compressa,Resistant,January_2025,0.597817089,Imaging PAM - CRL
+1,Montipora capitata,Susceptible,May_2025,0.588333444,Imaging PAM - CRL
+2,Montipora capitata,Resistant,May_2025,0.538687268,Imaging PAM - CRL
+3,Montipora capitata,Susceptible,May_2025,0.570407556,Imaging PAM - CRL
+4,Montipora capitata,Resistant,May_2025,0.5397943,Imaging PAM - CRL
+12,Montipora capitata,Resistant,May_2025,0.512334457,Imaging PAM - CRL
+19,Montipora capitata,Susceptible,May_2025,0.590332146,Imaging PAM - CRL
+20,Montipora capitata,Resistant,May_2025,0.585107076,Imaging PAM - CRL
+26,Porites compressa,Susceptible,May_2025,0.590749112,Imaging PAM - CRL
+27,Porites compressa,Resistant,May_2025,0.535054709,Imaging PAM - CRL
+28,Porites compressa,Susceptible,May_2025,0.584195329,Imaging PAM - CRL
+29,Porites compressa,Resistant,May_2025,0.482719204,Imaging PAM - CRL
+41,Porites compressa,Susceptible,May_2025,0.584708303,Imaging PAM - CRL
+42,Porites compressa,Resistant,May_2025,0.57805669,Imaging PAM - CRL
+43,Porites compressa,Susceptible,May_2025,0.560683287,Imaging PAM - CRL
+44,Porites compressa,Resistant,May_2025,0.539824964,Imaging PAM - CRL
+45,Porites compressa,Susceptible,May_2025,NA,Imaging PAM - CRL
+46,Porites compressa,Resistant,May_2025,NA,Imaging PAM - CRL
+201,Montipora capitata,Susceptible,May_2025,0.636368339,Imaging PAM - CRL
+202,Montipora capitata,Resistant,May_2025,0.644897591,Imaging PAM - CRL
+203,Montipora capitata,Susceptible,May_2025,0.596181195,Imaging PAM - CRL
+204,Montipora capitata,Resistant,May_2025,0.589220038,Imaging PAM - CRL
+205,Montipora capitata,Susceptible,May_2025,0.578218458,Imaging PAM - CRL
+206,Montipora capitata,Resistant,May_2025,0.577295834,Imaging PAM - CRL
+209,Montipora capitata,Susceptible,May_2025,0.56094602,Imaging PAM - CRL
+210,Montipora capitata,Resistant,May_2025,0.615912077,Imaging PAM - CRL
+211,Montipora capitata,Susceptible,May_2025,0.603605907,Imaging PAM - CRL
+212,Montipora capitata,Resistant,May_2025,NA,Imaging PAM - CRL
+213,Montipora capitata,Susceptible,May_2025,0.552463826,Imaging PAM - CRL
+214,Montipora capitata,Resistant,May_2025,0.58013111,Imaging PAM - CRL
+219,Montipora capitata,Susceptible,May_2025,0.640514448,Imaging PAM - CRL
+220,Montipora capitata,Resistant,May_2025,0.592203194,Imaging PAM - CRL
+221,Montipora capitata,Susceptible,May_2025,0.596866164,Imaging PAM - CRL
+225,Porites compressa,Susceptible,May_2025,0.518995501,Imaging PAM - CRL
+226,Porites compressa,Resistant,May_2025,0.500978418,Imaging PAM - CRL
+233,Porites compressa,Susceptible,May_2025,0.52428785,Imaging PAM - CRL
+234,Porites compressa,Resistant,May_2025,0.588983251,Imaging PAM - CRL
+235,Porites compressa,Susceptible,May_2025,0.588649462,Imaging PAM - CRL
+236,Porites compressa,Resistant,May_2025,0.569027209,Imaging PAM - CRL
+237,Porites compressa,Susceptible,May_2025,0.584369285,Imaging PAM - CRL
+238,Porites compressa,Resistant,May_2025,0.54747553,Imaging PAM - CRL
+239,Porites compressa,Susceptible,May_2025,0.538536688,Imaging PAM - CRL
+240,Porites compressa,Resistant,May_2025,0.535892891,Imaging PAM - CRL
+241,Porites compressa,Susceptible,May_2025,0.532475162,Imaging PAM - CRL
+242,Porites compressa,Resistant,May_2025,0.55182853,Imaging PAM - CRL
+243,Porites compressa,Susceptible,May_2025,0.586327805,Imaging PAM - CRL
+244,Porites compressa,Resistant,May_2025,0.580521151,Imaging PAM - CRL
+247,Porites compressa,Susceptible,May_2025,0.568369011,Imaging PAM - CRL
+248,Porites compressa,Resistant,May_2025,0.569596528,Imaging PAM - CRL
+1,Montipora capitata,Susceptible,October_2025,0.609,Mini PAM - ToBo 
+2,Montipora capitata,Resistant,October_2025,0.63,Mini PAM - ToBo 
+3,Montipora capitata,Susceptible,October_2025,0.613,Mini PAM - ToBo 
+4,Montipora capitata,Resistant,October_2025,0.65,Mini PAM - ToBo 
+12,Montipora capitata,Resistant,October_2025,0.613,Mini PAM - ToBo 
+19,Montipora capitata,Susceptible,October_2025,0.685,Mini PAM - ToBo 
+20,Montipora capitata,Resistant,October_2025,0.663,Mini PAM - ToBo 
+26,Porites compressa,Susceptible,October_2025,0.571,Mini PAM - ToBo 
+27,Porites compressa,Resistant,October_2025,0.618,Mini PAM - ToBo 
+28,Porites compressa,Susceptible,October_2025,0.641,Mini PAM - ToBo 
+29,Porites compressa,Resistant,October_2025,0.58,Mini PAM - ToBo 
+41,Porites compressa,Susceptible,October_2025,0.629,Mini PAM - ToBo 
+42,Porites compressa,Resistant,October_2025,0.629,Mini PAM - ToBo 
+43,Porites compressa,Susceptible,October_2025,0.64,Mini PAM - ToBo 
+44,Porites compressa,Resistant,October_2025,0.612,Mini PAM - ToBo 
+45,Porites compressa,Susceptible,October_2025,NA,Mini PAM - ToBo 
+46,Porites compressa,Resistant,October_2025,NA,Mini PAM - ToBo 
+201,Montipora capitata,Susceptible,October_2025,0.76,Mini PAM - ToBo 
+202,Montipora capitata,Resistant,October_2025,0.598,Mini PAM - ToBo 
+203,Montipora capitata,Susceptible,October_2025,0.665,Mini PAM - ToBo 
+204,Montipora capitata,Resistant,October_2025,0.624,Mini PAM - ToBo 
+205,Montipora capitata,Susceptible,October_2025,0.619,Mini PAM - ToBo 
+206,Montipora capitata,Resistant,October_2025,0.657,Mini PAM - ToBo 
+209,Montipora capitata,Susceptible,October_2025,0.659,Mini PAM - ToBo 
+210,Montipora capitata,Resistant,October_2025,0.661,Mini PAM - ToBo 
+211,Montipora capitata,Susceptible,October_2025,0.629,Mini PAM - ToBo 
+212,Montipora capitata,Resistant,October_2025,NA,Mini PAM - ToBo 
+213,Montipora capitata,Susceptible,October_2025,0.661,Mini PAM - ToBo 
+214,Montipora capitata,Resistant,October_2025,0.634,Mini PAM - ToBo 
+219,Montipora capitata,Susceptible,October_2025,NA,Mini PAM - ToBo 
+220,Montipora capitata,Resistant,October_2025,NA,Mini PAM - ToBo 
+221,Montipora capitata,Susceptible,October_2025,0.49,Mini PAM - ToBo 
+225,Porites compressa,Susceptible,October_2025,0.63,Mini PAM - ToBo 
+226,Porites compressa,Resistant,October_2025,0.621,Mini PAM - ToBo 
+233,Porites compressa,Susceptible,October_2025,0.575,Mini PAM - ToBo 
+234,Porites compressa,Resistant,October_2025,0.639,Mini PAM - ToBo 
+235,Porites compressa,Susceptible,October_2025,0.624,Mini PAM - ToBo 
+236,Porites compressa,Resistant,October_2025,0.602,Mini PAM - ToBo 
+237,Porites compressa,Susceptible,October_2025,0.583,Mini PAM - ToBo 
+238,Porites compressa,Resistant,October_2025,0.65,Mini PAM - ToBo 
+239,Porites compressa,Susceptible,October_2025,0.603,Mini PAM - ToBo 
+240,Porites compressa,Resistant,October_2025,0.636,Mini PAM - ToBo 
+241,Porites compressa,Susceptible,October_2025,0.636,Mini PAM - ToBo 
+242,Porites compressa,Resistant,October_2025,0.61,Mini PAM - ToBo 
+243,Porites compressa,Susceptible,October_2025,0.621,Mini PAM - ToBo 
+244,Porites compressa,Resistant,October_2025,0.632,Mini PAM - ToBo 
+247,Porites compressa,Susceptible,October_2025,0.609,Mini PAM - ToBo 
+248,Porites compressa,Resistant,October_2025,0.637,Mini PAM - ToBo 

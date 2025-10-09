@@ -31,6 +31,7 @@ calc <- calc %>%
     grepl("2024-10", Date) ~ "Oct24",
     grepl("2025-01", Date) ~ "Jan25",
     grepl("2025-05", Date) ~ "May25",
+    grepl("2025-10", Date) ~ "Oct25",
     TRUE ~ NA_character_))
 ```
 
@@ -103,6 +104,7 @@ sample_meta <- sample_meta %>%
     grepl("2024-10", Date) ~ "Oct24",
     grepl("2025-01", Date) ~ "Jan25",
     grepl("2025-05", Date) ~ "May25",
+    grepl("2025-10", Date) ~ "Oct25",
     TRUE ~ NA_character_))
 ```
 
@@ -156,7 +158,8 @@ joined_summary$Timepoint <- factor(joined_summary$Timepoint, levels = c("Apr23",
                                                                         "May24", 
                                                                         "Oct24", 
                                                                         #"Jan25", 
-                                                                        "May25"))
+                                                                        "May25",
+                                                                        "Oct25"))
 
 ggplot(joined_summary, aes(x = Timepoint, y = mean_calc, color = Phenotype, group = Phenotype)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
@@ -277,7 +280,8 @@ joined_light_summary$Timepoint <- factor(joined_light_summary$Timepoint, levels 
                                                                         "May24", 
                                                                         "Oct24", 
                                                                         #"Jan25", 
-                                                                        "May25"))
+                                                                        "May25",
+                                                                        "Oct25"))
 
 ggplot(joined_light_summary, aes(x = Timepoint, y = mean_calc, color = Phenotype, group = Phenotype)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
@@ -396,7 +400,8 @@ joined_dark_summary$Timepoint <- factor(joined_dark_summary$Timepoint, levels = 
                                                                         "May24", 
                                                                         "Oct24", 
                                                                         #"Jan25", 
-                                                                        "May25"))
+                                                                        "May25",
+                                                                        "Oct25"))
 
 ggplot(joined_dark_summary, aes(x = Timepoint, y = mean_calc, color = Phenotype, group = Phenotype)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
