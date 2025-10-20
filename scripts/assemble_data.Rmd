@@ -29,8 +29,10 @@ pi_metrics_jan2025 <- read.csv("../output/pi_curves/Jan2025/pi_curve_metrics_Jan
   select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
 pi_metrics_may2025 <- read.csv("../output/pi_curves/May2025/pi_curve_metrics_May2025.csv") %>%
   select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
+pi_metrics_oct2025 <- read.csv("../output/pi_curves/Oct2025/pi_curve_metrics_Oct2025.csv") %>%
+  select(Colony_ID, Pmax, alpha, Rd, Ik, Pgross, Date, Species, Phenotype)
 
-pi_metrics <- rbind(pi_metrics_sept2023, pi_metrics_jan2024, pi_metrics_may2024, pi_metrics_oct2024, pi_metrics_jan2025, pi_metrics_may2025)
+pi_metrics <- rbind(pi_metrics_sept2023, pi_metrics_jan2024, pi_metrics_may2024, pi_metrics_oct2024, pi_metrics_jan2025, pi_metrics_may2025, pi_metrics_oct2025)
 ```
 
 Pivot pi metric data longer 
@@ -41,32 +43,17 @@ pi_metrics_long <- pi_metrics %>%
                values_to = "Value")
 ```
 
-
-Read in Fv/Fm data 
+Read in PAM data 
 ```{r}
 pam <- read_csv("../data/Master_datasheet_pam.csv")
-colnames(pam)[1] <- "Colony_ID" 
 ```
 
-Pivot Fv/Fm data longer and tidy
+Tidy pam data
 ```{r}
 pam_long <- pam %>%
-  pivot_longer(
-    cols = starts_with("Fv/Fm_"),  # all the Fv/Fm_* columns
-    names_to = "Date",
-    values_to = "Fv_Fm") %>%
-  mutate(
-    Date = sub("Fv/Fm_", "", Date))  # remove the Fv/Fm_ prefix
-  
-pam_long_tidy <- pam_long %>%
-  pivot_longer(cols = Fv_Fm, 
-               names_to = "Parameter", 
-               values_to = "Value")
-
-# Ensure spp names are correct
-pam_long_tidy$Species <- ifelse(pam_long_tidy$Species == "Mcap", "Montipora capitata",
-                        ifelse(pam_long_tidy$Species == "Pcomp", "Porites compressa",
-                               pam_long_tidy$Species))
+  rename(Value = Fv_Fm) %>%       # rename the PAM measurement to "Value"
+  mutate(Parameter = "Fv/Fm") %>% # add a column for the parameter name
+  select(Colony_ID, Date, Species, Phenotype, Parameter, Value)
 ```
 
 Read in calc data 
@@ -95,7 +82,7 @@ calc_long <- calc %>%
 
 Bind all long dfs together 
 ```{r}
-dfs <- list(calc_long, pam_long_tidy, pi_metrics_long)
+dfs <- list(calc_long, pam_long, pi_metrics_long)
 combined_df <- do.call(rbind, dfs)
 ```
 
@@ -121,17 +108,19 @@ combined_df <- combined_df %>%
     grepl("2023-04", Date) ~ "Apr23",
     grepl("Apr23", Date) ~ "Apr23",
     grepl("2023-09", Date) ~ "Sept23",
-    grepl("Sept23", Date) ~ "Sept23",
+    grepl("September_2023", Date) ~ "Sept23",
     grepl("2024-01", Date) ~ "Jan24",
-    grepl("Jan24", Date) ~ "Jan24",
+    grepl("January_2024", Date) ~ "Jan24",
     grepl("2024-05", Date) ~ "May24",
-    grepl("May24", Date) ~ "May24",
+    grepl("May_2024", Date) ~ "May24",
     grepl("2024-10", Date) ~ "Oct24",
-    grepl("Oct24", Date) ~ "Oct24",
+    grepl("October_2024", Date) ~ "Oct24",
     grepl("2025-01", Date) ~ "Jan25",
-    grepl("Jan25", Date) ~ "Jan25",
+    grepl("January_2025", Date) ~ "Jan25",
     grepl("2025-05", Date) ~ "May25",
-    grepl("May25", Date) ~ "May25",
+    grepl("May_2025", Date) ~ "May25",
+    grepl("2025-10", Date) ~ "Oct25",
+    grepl("May_2025", Date) ~ "Oct25",
     TRUE ~ NA_character_))
 ```
 
@@ -167,7 +156,8 @@ combined_summary$Timepoint <- factor(combined_summary$Timepoint, levels = c(#"Ap
                                                                         "May24", 
                                                                         "Oct24", 
                                                                         #"Jan25", 
-                                                                        "May25"))
+                                                                        "May25",
+                                                                        "Oct25"))
 
 # Custom y-axis labels
 y_labels <- c(
@@ -190,17 +180,19 @@ param_levels <- c(
   "Ik",
   "Pmax",
   "Pgross",
-  "Rd"
-)
-combined_summary <- combined_summary %>%
-  mutate(Parameter = factor(Parameter, levels = param_levels))
+  "Rd")
+
+# combined_summary <- combined_summary %>%
+#   mutate(Parameter = factor(Parameter, levels = param_levels)) %>%
+#   mutate(Parameter = ifelse(Parameter %in% c("Fv/Fm", "FvFm"), "Fv_Fm", Parameter)) %>%
+#   filter(!is.na(Parameter)) %>%
+#   mutate(Parameter = factor(Parameter, levels = param_levels))
 
 # Shading for times of year w/ highest temps
 shade_df <- data.frame(
-  Timepoint = c("Sept23", "Oct24"),
-  xmin = c(1 - 0.5, 4 - 0.5),  # factor positions - 0.5 for left edge
-  xmax = c(1 + 0.5, 4 + 0.5)   # factor positions + 0.5 for right edge
-)
+  Timepoint = c("Sept23", "Oct24", "Oct25"),
+  xmin = c(1 - 0.5, 4 - 0.5, 6 - 0.5),  # factor positions - 0.5 for left edge
+  xmax = c(1 + 0.5, 4 + 0.5, 6 + 0.5))   # factor positions + 0.5 for right edge
 
 # Function to generate plot
 plot_parameter <- function(param_name, show_legend = FALSE) {
@@ -251,3 +243,208 @@ ggsave("../output/pairs_calc_pam_pi.pdf", final_plot, width = 30, height = 18, u
 ggsave("../output/pairs_calc_pam_pi.png", final_plot, width = 30, height = 18, units = "in", dpi = 300)
 ```
 
+Getting errors when trying to facet...need to redo this chunk.
+
+
+
+
+
+
+
+
+
+
+```{r}
+selected_params <- c(
+  "Net_Calcification_cm2_Light",
+  "Fv_Fm",
+  "Ik",
+  "Pgross",
+  "Pmax",
+  "alpha"
+)
+
+summary_six <- combined_summary %>%
+  filter(Parameter %in% selected_params) %>%
+  mutate(Parameter = factor(Parameter, levels = selected_params))
+
+library(ggplot2)
+
+plot_six <- ggplot(summary_six, aes(x = Timepoint, y = mean, color = Phenotype, group = Phenotype)) +
+  geom_line(linewidth = 1.5) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean - sem, ymax = mean + sem), width = 0.2) +
+  facet_grid(Parameter ~ Species, scales = "free_y", switch = "y") +
+  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  labs(x = "Timepoint", y = NULL, color = "Phenotype") +
+  theme_classic(base_size = 16) +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(face = "italic", size = 16),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12, color = "black"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    legend.position = "right"
+  ); plot_six
+
+
+
+```
+
+```{r}
+
+
+# Custom y-axis labels
+y_labels <- c(
+  "Net_Calcification_cm2_Light" = "Light net calcification (cm\u00B2 h\u207B\u00B9)",
+  "Net_Calcification_cm2_Dark"  = "Dark net calcification (cm\u00B2 h\u207B\u00B9)",
+  "Fv_Fm"                        = "Maximum quantum yield (Fv/Fm)",
+  "Ik"                           = "Ik (\u03BCmol photons m\u207B\u00B2 s\u207B\u00B9)",
+  "Pgross"                        = "Gross photosynthesis (\u03BCmol O\u2082 cm\u207B\u00B2 h\u207B\u00B9)",
+  "Pmax"                         = "Maximum photosynthesis (\u03BCmol O\u2082 cm\u207B\u00B2 h\u207B\u00B9)",
+  "Rd"                            = "Dark respiration (\u03BCmol O\u2082 cm\u207B\u00B2 h\u207B\u00B9)",
+  "alpha"                         = "Alpha"
+)
+
+# Param levels 
+selected_params <- c(
+  "Net_Calcification_cm2_Light",
+  "Net_Calcification_cm2_Dark",
+  "Fv_Fm",
+  "alpha",
+  "Ik",
+  "Pmax",
+  "Pgross",
+  "Rd")
+
+library(ggplot2)
+selected_params <- names(y_labels)
+plot_all <- ggplot(
+    combined_summary %>% filter(Parameter %in% selected_params),
+    aes(x = Timepoint, y = mean, color = Phenotype, group = Phenotype)
+  ) +
+  geom_rect(
+    data = shade_df,
+    aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+    inherit.aes = FALSE,
+    fill = "grey80", alpha = 0.3
+  ) +
+  geom_line(linewidth = 2) +
+  geom_point(size = 5) +
+  geom_errorbar(aes(ymin = mean - sem, ymax = mean + sem), width = 0.5, linewidth = 1.5) +
+  facet_grid(Parameter ~ Species, scales = "free_y",
+             labeller = labeller(Parameter = y_labels)) +
+  scale_color_manual(values = c("Resistant" = "#4b294fff",
+                                "Susceptible" = "#f3a17dff")) +
+  theme_classic() +
+  labs(x = "Timepoint", y = NULL, color = "Phenotype") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 22),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 18, color = "black"),
+    axis.text.y = element_text(size = 18, color = "black")
+  ); plot_all
+
+ggsave("../output/combined_parameters_faceted.pdf", plot_all, width = 30, height = 18, units = "in")
+ggsave("../output/combined_parameters_faceted.png", plot_all, width = 30, height = 18, units = "in", dpi = 300)
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+
+# Shading for times of year with highest temperatures
+shade_df <- data.frame(
+  Timepoint = c("Sept23", "Oct24", "Oct25"),
+  xmin = c(1 - 0.5, 4 - 0.5, 6 - 0.5),  # factor positions - 0.5 for left edge
+  xmax = c(1 + 0.5, 4 + 0.5, 6 + 0.5)   # factor positions + 0.5 for right edge
+)
+
+# Custom y-axis labels
+y_labels <- c(
+  "Net_Calcification_cm2_Light"  = "Light net calcification (cm\u00B2 h\u207B\u00B9)",
+  "Net_Calcification_cm2_Dark"   = "Dark net calcification (cm\u00B2 h\u207B\u00B9)",
+  "Fv_Fm"                       = "Maximum quantum yield (Fv/Fm)",
+  "Ik"                          = "Ik (\u03BCmol photons m\u207B\u00B2 s\u207B\u00B9)",
+  "Pgross"                      = "Gross photosynthesis (\u03BCmol O\u2082 cm\u207B\u00B2 h\u207B\u00B9)",
+  "Pmax"                        = "Maximum photosynthesis (\u03BCmol O\u2082 cm\u207B\u00B2 h\u207B\u00B9)",
+  "Rd"                          = "Dark respiration (\u03BCmol O\u2082 cm\u207B\u00B2 h\u207B\u00B9)",
+  "alpha"                       = "Alpha"
+)
+
+# Parameter levels in order
+param_levels <- c(
+  "Net_Calcification_cm2_Light",
+  "Net_Calcification_cm2_Dark",
+  "Fv_Fm",
+  "alpha",
+  "Ik",
+  "Pmax",
+  "Pgross",
+  "Rd"
+)
+
+# Plotting function for a single parameter with droplevels to fix faceting error
+plot_parameter <- function(param_name, show_legend = FALSE) {
+  dat <- combined_summary %>%
+    filter(Parameter == param_name) %>%
+    droplevels()
+
+  ggplot(dat, aes(x = Timepoint, y = mean, color = Phenotype, group = Phenotype)) +
+    geom_rect(
+      data = shade_df,
+      aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+      inherit.aes = FALSE,
+      fill = "grey80",
+      alpha = 0.3
+    ) +
+    geom_line(size = 1) +
+    geom_point(size = 2.5) +
+    geom_errorbar(aes(ymin = mean - sem, ymax = mean + sem), width = 0.3, size = 0.9) +
+    facet_wrap(~ Species, scales = "fixed") +
+    scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+    labs(
+      x = "",
+      y = y_labels[param_name],
+      color = if (show_legend) "Phenotype" else NULL
+    ) +
+    theme_classic(base_size = 14) +
+    theme(
+      panel.border = element_rect(color = "black", fill = NA, size = 1),
+      strip.background = element_rect(fill = "white", color = "black", size = 1),
+      strip.text = element_text(face = "italic", size = 16),
+      axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 12, color = "black"),
+      axis.text.y = element_text(size = 12, color = "black"),
+      axis.title.y = element_text(size = 14),
+      legend.position = if (show_legend) "right" else "none"
+    )
+}
+
+# Generate a list of plots, showing legend only on the first plot
+plots <- lapply(seq_along(param_levels), function(i) {
+  plot_parameter(param_levels[i], show_legend = (i == 1))
+})
+
+# Remove any NULL plots (in case of missing data)
+plots <- plots[!sapply(plots, is.null)]
+
+# Combine all plots with labels A, B, C, ... using patchwork
+final_plot <- wrap_plots(plots, ncol = 4, guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(
+    plot.tag = element_text(size = 18, face = "bold"),
+    legend.position = "right",
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 14, face = "bold")
+  )
+
+# Save the combined figure
+ggsave("../output/combined_parameters_labeled.pdf", final_plot, width = 30, height = 18, units = "in")
+ggsave("../output/combined_parameters_labeled.png", final_plot, width = 30, height = 18, units = "in", dpi = 300)
+
+
+```
+
+this is still not working 

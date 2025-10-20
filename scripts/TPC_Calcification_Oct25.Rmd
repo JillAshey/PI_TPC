@@ -1,0 +1,145 @@
+---
+title: "Net calcification TPC"
+author: "Jill Ashey"
+date: "2025-10-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(emmeans)
+library(lme4)
+library(lmerTest)
+library(lsmeans)
+library(rTPC)
+```
+
+Read in data 
+```{r}
+calc <- read.csv("../data/TPC_calcification/Calcification_data_TPC.csv", header = T)
+```
+
+Calculate incubation time 
+```{r}
+calc <- calc %>%
+  mutate(
+    start = hm(Time_start),
+    end   = hm(Time_end),
+    elapsed_mins  = as.numeric(end - start, units = "mins"),
+    elapsed_hours = elapsed_mins / 60)
+```
+
+Calculate delta alkalinity 
+```{r}
+calc <- calc %>%
+  mutate(Delta_TA_raw = Starting_alk_value - Alk_avg)
+```
+
+Calculate blanks 
+```{r}
+blank_delta_ta <- calc %>%
+  filter(ColonyID == "blank" | Notes == "blank") %>%
+  group_by(Date, Target_Temperature) %>%
+  summarise(mean_blank_delta_ta = mean(Delta_TA_raw, na.rm = TRUE))# %>%
+  #pull(mean_blank_delta_ta)
+```
+
+Subtract blank and calculate net calcification
+```{r}
+# Correct Delta_TA by subtracting blank
+calc <- calc %>%
+  left_join(blank_delta_ta, by = c("Date", "Target_Temperature")) 
+
+calc <- calc %>%
+  mutate(
+    Delta_TA_corr = Delta_TA_raw - mean_blank_delta_ta,
+    # Assuming seawater density 1.028 g/mL and volume in mL to L, and no coral weight (thus calc mg/L/hr)
+    Net_Calcification = (Delta_TA_corr / 2) * (Sample_Volume_mL / 1000) * 1.028 / elapsed_hours) %>%
+  filter(!is.na(Net_Calcification) & !is.nan(Net_Calcification))
+```
+
+Normalize by SA
+```{r}
+calc <- calc %>%
+  mutate(Net_Calcification_cm2 = Net_Calcification / Surface_Area)
+```
+
+Read in meta
+```{r}
+meta <- read_csv("../data/pi_curves/pi_curve_metadata_sample.csv")
+```
+
+Join with calc 
+```{r}
+meta_unique <- meta %>%
+  group_by(Colony_ID) %>%
+  slice(1) %>%   # or use slice_max(Date) if you want the most recent entry
+  ungroup()
+
+calc_meta <- calc %>%
+  left_join(meta_unique, by = c("ColonyID" = "Colony_ID"))
+```
+
+Plot 
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Filter out blanks and missing phenotype/species
+calc_plot <- calc_meta %>%
+  filter(!is.na(Phenotype),
+         !is.na(Species),
+         ColonyID != "blank")
+
+ggplot(calc_plot, aes(
+  x = Target_Temperature,
+  y = Net_Calcification_cm2,
+  color = Phenotype,
+  fill = Phenotype
+)) +
+  geom_point(size = 3, alpha = 0.8) +
+  geom_smooth(method = "loess", se = TRUE, span = 0.6, alpha = 0.25) +
+  facet_wrap(~Species, scales = "fixed") +
+  theme_classic(base_size = 14) +
+  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  scale_fill_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  labs(
+    x = "Target Temperature (°C)",
+    y = expression("Net Calcification ("*cm^-2*")"),
+    color = "Phenotype",
+    fill = "Phenotype"
+  )
+
+
+```
+
+
+```{r}
+calc_summary <- calc_plot %>%
+  group_by(Target_Temperature, Species, Phenotype) %>%
+  summarise(
+    mean_calc = mean(Net_Calcification_cm2, na.rm = TRUE),
+    se = sd(Net_Calcification_cm2, na.rm = TRUE) / sqrt(n())
+  )
+
+ggplot(calc_summary, aes(x = Target_Temperature,
+                         y = mean_calc,
+                         color = Phenotype)) +
+  geom_point(size = 3) +
+  #geom_line(linewidth = 1) +
+  geom_smooth(se = FALSE, method = "gam", formula = y ~ s(x, bs = "cs")) +
+  geom_errorbar(aes(ymin = mean_calc - se, ymax = mean_calc + se),
+                width = 0.3, linewidth = 0.8) +
+  facet_wrap(~Species, scales = "free_y") +
+  theme_classic(base_size = 14) +
+  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  labs(
+    x = "Target Temperature (°C)",
+    y = expression("Net Calcification ("*cm^-2*")"),
+    color = "Phenotype"
+  )
+
+```
+
