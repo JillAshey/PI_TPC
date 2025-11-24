@@ -1,0 +1,182 @@
+---
+title: "Physiology"
+author: "Jill Ashey"
+date: "2025-11-24"
+output: html_document
+---
+
+Script for all physiology (sym counts, chlorophyll, protein, MAAs, and AFDW) analyses. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(purrr)
+library(readr)
+library(stringr)
+```
+
+## Sym counts 
+
+Read in metadata 
+```{r}
+meta_sym <- read.csv("../data/Physiology/sym_counts/sym_count_metadata.csv")
+
+# Remove extra spaces 
+meta_sym <- meta_sym %>%
+  mutate(
+    Run = str_replace_all(Run, "\\s+", ""),  # "Run 1" -> "Run1"
+    Well = str_trim(Well),
+    Date = as.character(Date))
+```
+
+Read in raw data from guava
+```{r}
+files <- list.files(path = "../data/Physiology/sym_counts/raw_guava", pattern = "*.csv", full.names = TRUE)
+
+read_with_metadata <- function(f) {
+  df <- read.csv(f, skip = 4, header = TRUE, stringsAsFactors = FALSE)
+  
+  # extract filename without path and extension
+  filename <- basename(f)
+  filename <- str_remove(filename, "\\.csv$")
+
+  # split filename at underscore, e.g., "20230805_Run1" -> c("20230805", "Run1")
+  parts <- str_split(filename, "_", simplify = TRUE)
+
+  # add columns for Date and Run parsed from filename
+  df %>%
+    mutate(
+      Date = parts[1],
+      Run = parts[2],
+      # ensure consistent types and clean whitespace
+      Well = str_trim(Well),
+      Sample.ID = as.character(Sample.ID)
+    )
+}
+
+all_dfs <- lapply(files, read_with_metadata)
+
+combined_df <- bind_rows(all_dfs)
+
+combined_df <- combined_df %>%
+  mutate(
+    Run = str_replace_all(Run, "\\s+", ""),
+    Well = str_trim(Well),
+    Date = as.character(Date)  # ensure same type
+  )
+```
+
+Merge raw data and metadata
+```{r}
+sym_counts <- left_join(meta_sym, combined_df, by = c("Date", "Run", "Well"))
+```
+
+Remove samples marked "Do not use"
+```{r}
+sym_counts <- sym_counts %>%
+  filter(is.na(Use) | Use == "")
+```
+
+Calculate mean counts per sample and number of cells per sample 
+```{r}
+homogenate_volume <- 50
+
+sym_counts_avg <- sym_counts %>%
+  group_by(Date, Run, Dilution, Timepoint, Pellet_Resuspend_Vol_mL, ColonyID) %>%
+  summarise(mean_cells_mL = mean(CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL., na.rm = T))%>%
+  mutate(cells = Dilution * Pellet_Resuspend_Vol_mL * mean_cells_mL,
+         ColonyID = as.character(ColonyID)) %>%
+  ungroup()
+```
+
+Read in surface area df and add time point col 
+```{r}
+surface_area <- read.csv("../data/Surface_Area/fragrammetry_SurfaceArea.csv")
+
+surface_area <- surface_area %>%
+  mutate(Timepoint = case_when(
+    grepl("2023-04", Date) ~ "April_2023",
+    grepl("2023-09", Date) ~ "September_2023",
+    grepl("2024-01", Date) ~ "January_2024",
+    grepl("2024-05", Date) ~ "May_2024",
+    grepl("2024-10", Date) ~ "October_2024",
+    grepl("2025-01", Date) ~ "January_2025",
+    grepl("2025-05", Date) ~ "May_2025",
+    grepl("2025-10", Date) ~ "October_2025",
+    TRUE ~ NA_character_)) %>%
+  rename(ColonyID = Colony_ID) %>%
+  filter(Project == "CAREER - Phys")
+```
+
+Merge with sym counts and calculate cells/cm2
+```{r}
+sym_counts_avg <- sym_counts_avg %>%
+  left_join(surface_area, by = c("ColonyID", "Timepoint")) 
+
+sym_counts_avg <- sym_counts_avg %>%
+  mutate(cells_cm2 = cells/Surface_Area_cm2,
+          cells_cm2_M = cells_cm2 / 1e6) %>%
+  select(ColonyID, Timepoint, Species, Phenotype, cells_cm2, cells_cm2_M)
+```
+
+Save as csv 
+```{r}
+write.csv(sym_counts_avg, "../output/Physiology/sym_density.csv")
+```
+
+Calculate mean, sem, and sd 
+```{r}
+sym_summary <- sym_counts_avg %>%
+  group_by(Timepoint, Phenotype, Species) %>%
+  summarise(
+    mean_sym = mean(cells_cm2_M, na.rm = TRUE),
+    sd_sym = sd(cells_cm2_M, na.rm = T),
+    se_sym = sd(cells_cm2_M, na.rm = T) / sqrt(length(cells_cm2_M)),
+    .groups = "drop") %>%
+  drop_na() 
+```
+
+Plot! 
+```{r}
+# Set levels 
+sym_summary$Timepoint <- factor(sym_summary$Timepoint, levels = c("April_2023",
+                                                                        "September_2023",
+                                                                        "January_2024", 
+                                                                        "May_2024"))
+
+ggplot(sym_summary, aes(x = Timepoint, y = mean_sym, color = Phenotype, group = Phenotype)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_sym - se_sym, ymax = mean_sym + se_sym, color = Phenotype),
+                width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")
+  ) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Sym density (10^6 x cells/cm2)",
+    color = "Phenotype"
+  ) +
+theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16)
+  )
+```
+
+Values look slightly lower than I would expect...maybe due to the surface area being based on the fraggameter?
+
