@@ -80,8 +80,6 @@ sym_counts <- sym_counts %>%
 
 Calculate mean counts per sample and number of cells per sample 
 ```{r}
-homogenate_volume <- 50
-
 sym_counts_avg <- sym_counts %>%
   group_by(Date, Run, Dilution, Timepoint, Pellet_Resuspend_Vol_mL, ColonyID) %>%
   summarise(mean_cells_mL = mean(CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL., na.rm = T))%>%
@@ -117,7 +115,7 @@ sym_counts_avg <- sym_counts_avg %>%
 sym_counts_avg <- sym_counts_avg %>%
   mutate(cells_cm2 = cells/Surface_Area_cm2,
           cells_cm2_M = cells_cm2 / 1e6) %>%
-  select(ColonyID, Timepoint, Species, Phenotype, cells_cm2, cells_cm2_M)
+  select(ColonyID, Timepoint, Species, Phenotype, Dilution, cells_cm2, cells_cm2_M)
 ```
 
 Save as csv 
@@ -179,4 +177,118 @@ theme(
 ```
 
 Values look slightly lower than I would expect...maybe due to the surface area being based on the fraggameter?
+
+## Chlorophyll 
+
+Read in metadata and data. 
+```{r}
+meta_chl <- read.csv("../data/Physiology/chlorophyll/chl_metadata.csv")
+data_chl <- read.csv("../data/Physiology/chlorophyll/chl_data.csv")
+```
+
+Merge raw data and metadata
+```{r}
+chl <- left_join(meta_chl, data_chl, by = c("Date", "Run", "Well"))
+```
+
+Calculate chlorophyll values 
+```{r}
+chl_values <- chl %>%
+  group_by(ColonyID, Timepoint) %>%
+  summarise(mean_A630 = mean(A630),
+            mean_A663 = mean(A663),
+            mean_A750 = mean(A750)) %>%
+  mutate(chla.ug.ml = (11.43*(mean_A663-mean_A750))-(0.64*(mean_A630-mean_A750)),
+         chlc.ug.ml = (24.36*(mean_A630-mean_A750))-(3.73*(mean_A663-mean_A750)))
+```
+
+Read in surface area df and add time point col 
+```{r}
+surface_area <- read.csv("../data/Surface_Area/fragrammetry_SurfaceArea.csv")
+
+surface_area <- surface_area %>%
+  mutate(Timepoint = case_when(
+    grepl("2023-04", Date) ~ "April_2023",
+    grepl("2023-09", Date) ~ "September_2023",
+    grepl("2024-01", Date) ~ "January_2024",
+    grepl("2024-05", Date) ~ "May_2024",
+    grepl("2024-10", Date) ~ "October_2024",
+    grepl("2025-01", Date) ~ "January_2025",
+    grepl("2025-05", Date) ~ "May_2025",
+    grepl("2025-10", Date) ~ "October_2025",
+    TRUE ~ NA_character_)) %>%
+  rename(ColonyID = Colony_ID) %>%
+  filter(Project == "CAREER - Phys")
+```
+
+Merge with sym counts and calculate cells/cm2
+```{r}
+chl_homogenate_volume <- 10
+
+chl_values <- chl_values %>%
+  left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
+  mutate(chla.ug.cm2 = (chla.ug.ml * chl_homogenate_volume / Surface_Area_cm2),
+         chlc.ug.cm2 = (chlc.ug.ml * chl_homogenate_volume / Surface_Area_cm2)) %>%
+  select(ColonyID, Timepoint, Species, Phenotype, chla.ug.cm2, chlc.ug.cm2)
+```
+
+Save as csv 
+```{r}
+write.csv(chl_values, "../output/Physiology/chlorophyll.csv")
+```
+
+Calculate mean, sem, and sd 
+```{r}
+chl_summary <- chl_values %>%
+  group_by(Timepoint, Phenotype, Species) %>%
+  summarise(
+    mean_chla = mean(chla.ug.cm2, na.rm = TRUE),
+    sd_chla = sd(chla.ug.cm2, na.rm = T),
+    se_chla = sd(chla.ug.cm2, na.rm = T) / sqrt(length(chla.ug.cm2)),
+    .groups = "drop") %>%
+  drop_na() 
+```
+
+Plot! 
+```{r}
+# Set levels 
+chl_summary$Timepoint <- factor(chl_summary$Timepoint, levels = c("April_2023",
+                                                                        "September_2023",
+                                                                        "January_2024", 
+                                                                        "May_2024"))
+
+ggplot(chl_summary, aes(x = Timepoint, y = mean_chla, color = Phenotype, group = Phenotype)) +
+  #geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_chla - se_chla, ymax = mean_chla + se_chla, color = Phenotype),
+                width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")
+  ) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Chlorophyll-a (ug/cm2)",
+    color = "Phenotype"
+  ) +
+theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16)
+  )
+```
+
+
 
