@@ -141,10 +141,10 @@ Plot!
 sym_summary$Timepoint <- factor(sym_summary$Timepoint, levels = c("April_2023",
                                                                         "September_2023",
                                                                         "January_2024", 
-                                                                        "May_2024"))
+                                                                        "May_2024",
+                                                                        "October_2024"))
 
 ggplot(sym_summary, aes(x = Timepoint, y = mean_sym, color = Phenotype, group = Phenotype)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
   geom_line(linewidth = 1) +
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = mean_sym - se_sym, ymax = mean_sym + se_sym, color = Phenotype),
