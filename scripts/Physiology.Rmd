@@ -290,5 +290,103 @@ theme(
   )
 ```
 
+## AFDW
+
+Read in AFDW data 
+```{r}
+afdw <- read.csv("../data/Physiology/AFDW.csv")
+afdw$ColonyID <- as.character(afdw$ColonyID)
+```
+
+Read in surface area df and add time point col 
+```{r}
+surface_area <- read.csv("../data/Surface_Area/fragrammetry_SurfaceArea.csv")
+
+surface_area <- surface_area %>%
+  mutate(Timepoint = case_when(
+    grepl("2023-04", Date) ~ "April_2023",
+    grepl("2023-09", Date) ~ "September_2023",
+    grepl("2024-01", Date) ~ "January_2024",
+    grepl("2024-05", Date) ~ "May_2024",
+    grepl("2024-10", Date) ~ "October_2024",
+    grepl("2025-01", Date) ~ "January_2025",
+    grepl("2025-05", Date) ~ "May_2025",
+    grepl("2025-10", Date) ~ "October_2025",
+    TRUE ~ NA_character_)) %>%
+  rename(ColonyID = Colony_ID) %>%
+  filter(Project == "CAREER - Phys")
+```
+
+Merge surface area and AFDW dfs and calculate biomass in mg/mL
+```{r}
+homogenate_volume <- 50
+
+afdw <- afdw %>%
+  left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
+  mutate(dry_mass_g_mL = Dry_mass_g * homogenate_volume, # Standardize dry mass to homogenate volume
+         burnt_mass_g_mL = Burnt_mass_g * homogenate_volume, # Standardize burnt mass to homogenate volume
+          dry_biomass_g = dry_mass_g_mL - Initial_mass_g, # Calculate dry biomass
+          dw_mg_cm2 = (dry_biomass_g*1000)/Surface_Area_cm2,
+          ash_biomass_g = dry_mass_g_mL - burnt_mass_g_mL,
+          afdw_mg_cm2 = (ash_biomass_g*1000)/Surface_Area_cm2)
+```
+
+Save as csv 
+XXXXXXXX
+
+Calculate mean, sem, and sd 
+```{r}
+afdw_summary <- afdw %>%
+  group_by(Timepoint, Phenotype, Species) %>%
+  summarise(
+    mean_afdw = mean(afdw_mg_cm2, na.rm = TRUE),
+    sd_afdw = sd(afdw_mg_cm2, na.rm = T),
+    se_afdw = sd(afdw_mg_cm2, na.rm = T) / sqrt(length(afdw_mg_cm2)),
+    .groups = "drop") %>%
+  drop_na() 
+```
+
+Plot! 
+```{r}
+# Set levels 
+afdw_summary$Timepoint <- factor(afdw_summary$Timepoint, levels = c("April_2023",
+                                                                        "September_2023",
+                                                                        "January_2024", 
+                                                                        "May_2024"))
+
+ggplot(afdw_summary, aes(x = Timepoint, y = mean_afdw, color = Phenotype, group = Phenotype)) +
+  #geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_afdw - se_afdw, ymax = mean_afdw + se_afdw, color = Phenotype),
+                width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")
+  ) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Biomass (mg/cm2)",
+    color = "Phenotype"
+  ) +
+theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16)
+  )
+```
+
+
 
 
