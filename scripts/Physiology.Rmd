@@ -142,7 +142,8 @@ sym_summary$Timepoint <- factor(sym_summary$Timepoint, levels = c("April_2023",
                                                                         "September_2023",
                                                                         "January_2024", 
                                                                         "May_2024",
-                                                                        "October_2024"))
+                                                                        "October_2024",
+                                                                        "January_2025"))
 
 ggplot(sym_summary, aes(x = Timepoint, y = mean_sym, color = Phenotype, group = Phenotype)) +
   geom_line(linewidth = 1) +
@@ -176,7 +177,7 @@ theme(
   )
 ```
 
-Values look slightly lower than I would expect...maybe due to the surface area being based on the fraggameter?
+Values look slightly lower than I would expect...maybe due to the surface area being based on the fraggameter? Need the wax dipped SA. 
 
 ## Chlorophyll 
 
@@ -352,7 +353,8 @@ Plot!
 afdw_summary$Timepoint <- factor(afdw_summary$Timepoint, levels = c("April_2023",
                                                                         "September_2023",
                                                                         "January_2024", 
-                                                                        "May_2024"))
+                                                                        "May_2024",
+                                                                        "October_2024"))
 
 ggplot(afdw_summary, aes(x = Timepoint, y = mean_afdw, color = Phenotype, group = Phenotype)) +
   #geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
