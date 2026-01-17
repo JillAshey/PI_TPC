@@ -389,6 +389,233 @@ theme(
   )
 ```
 
+## Protein & MAAs
 
+Read in protein & MAA data
+```{r}
+prot <- read.csv("../data/Physiology/Protein_MAA_data.csv")
+prot$ColonyID <- as.character(prot$ColonyID)
+```
 
+Read in surface area df and add time point col 
+```{r}
+surface_area <- read.csv("../data/Surface_Area/fragrammetry_SurfaceArea.csv")
+
+surface_area <- surface_area %>%
+  mutate(Timepoint = case_when(
+    grepl("2023-04", Date) ~ "April_2023",
+    grepl("2023-09", Date) ~ "September_2023",
+    grepl("2024-01", Date) ~ "January_2024",
+    grepl("2024-05", Date) ~ "May_2024",
+    grepl("2024-10", Date) ~ "October_2024",
+    grepl("2025-01", Date) ~ "January_2025",
+    grepl("2025-05", Date) ~ "May_2025",
+    grepl("2025-10", Date) ~ "October_2025",
+    TRUE ~ NA_character_)) %>%
+  rename(ColonyID = Colony_ID) %>%
+  filter(Project == "CAREER - Phys")
+```
+
+Merge surface area and protein dfs and calculate protein/MAAs in mg/cm2
+```{r}
+homogenate_volume <- 50
+
+prot <- prot %>%
+  left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
+  mutate(protein_mg_mL = (A235 - A280)/2.51,
+         protein_mg = protein_mg_mL*homogenate_volume*Dilution,
+         protein_mg_cm2 = protein_mg/Surface_Area_cm2,
+         mycrosporine_glycine_mg_mL = A310/A280, 
+         mycrosporine_glycine_mg = mycrosporine_glycine_mg_mL*homogenate_volume*Dilution,
+         mycrosporine_glycine_mg_cm2 = mycrosporine_glycine_mg/Surface_Area_cm2,
+         palythine_mg_mL = A320/A280,
+         palythine_mg = palythine_mg_mL*homogenate_volume*Dilution,
+         palythine_mg_cm2 = palythine_mg/Surface_Area_cm2,
+         asterina_mg_mL = A330/A280,
+         asterina_mg = asterina_mg_mL*homogenate_volume*Dilution,
+         asterina_mg_cm2 = asterina_mg/Surface_Area_cm2,
+         shinorine_mg_mL = A334/A280,
+         shinorine_mg = shinorine_mg_mL*homogenate_volume*Dilution,
+         shinorine_mg_cm2 = shinorine_mg/Surface_Area_cm2)
+```
+
+Save as csv 
+XXXXXXXX
+
+Calculate mean, sem, and sd 
+```{r}
+prot_summary <- prot %>%
+  group_by(Timepoint, Phenotype, Species) %>%
+  summarise(
+    mean_prot = mean(protein_mg_cm2, na.rm = TRUE),
+    sd_prot = sd(protein_mg_cm2, na.rm = T),
+    se_prot = sd(protein_mg_cm2, na.rm = T) / sqrt(length(protein_mg_cm2)),
+    mean_mycrosporine_glycine = mean(mycrosporine_glycine_mg_cm2, na.rm = TRUE),
+    sd_mycrosporine_glycine = sd(mycrosporine_glycine_mg_cm2, na.rm = T),
+    se_mycrosporine_glycine = sd(mycrosporine_glycine_mg_cm2, na.rm = T) / sqrt(length(mycrosporine_glycine_mg_cm2)),
+    mean_palythine = mean(palythine_mg_cm2, na.rm = TRUE),
+    sd_palythine = sd(palythine_mg_cm2, na.rm = T),
+    se_palythine = sd(palythine_mg_cm2, na.rm = T) / sqrt(length(palythine_mg_cm2)),
+    mean_asterina = mean(asterina_mg_cm2, na.rm = TRUE),
+    sd_asterina = sd(asterina_mg_cm2, na.rm = T),
+    se_asterina = sd(asterina_mg_cm2, na.rm = T) / sqrt(length(asterina_mg_cm2)),
+    mean_shinorine = mean(shinorine_mg_cm2, na.rm = TRUE),
+    sd_shinorine = sd(shinorine_mg_cm2, na.rm = T),
+    se_shinorine = sd(shinorine_mg_cm2, na.rm = T) / sqrt(length(shinorine_mg_cm2)),
+    .groups = "drop") %>%
+  drop_na() 
+```
+
+Plot! 
+```{r}
+# Set levels 
+prot_summary$Timepoint <- factor(prot_summary$Timepoint, levels = c("April_2023",
+                                                                        "September_2023",
+                                                                        "January_2024"))
+
+# Protein
+ggplot(prot_summary, aes(x = Timepoint, y = mean_prot, color = Phenotype, group = Phenotype)) +
+  #geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_prot - se_prot, ymax = mean_prot + se_prot, color = Phenotype), width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Protein (mg/cm2)",
+    color = "Phenotype") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16))
+
+# Mycrosporine glycine
+ggplot(prot_summary, aes(x = Timepoint, y = mean_mycrosporine_glycine, color = Phenotype, group = Phenotype)) +
+  #geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_mycrosporine_glycine - se_mycrosporine_glycine, ymax = mean_mycrosporine_glycine + se_mycrosporine_glycine, color = Phenotype), width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Mycrosporine glycine (mg/cm2)",
+    color = "Phenotype") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16))
+
+# Palythine
+ggplot(prot_summary, aes(x = Timepoint, y = mean_palythine, color = Phenotype, group = Phenotype)) +
+  #geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_palythine - se_palythine, ymax = mean_palythine + se_palythine, color = Phenotype), width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Palythine (mg/cm2)",
+    color = "Phenotype") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16))
+
+# Asterina
+ggplot(prot_summary, aes(x = Timepoint, y = mean_asterina, color = Phenotype, group = Phenotype)) +
+  #geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_asterina - se_asterina, ymax = mean_asterina + se_asterina, color = Phenotype), width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Asterina (mg/cm2)",
+    color = "Phenotype") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16))
+
+# Shinorine
+ggplot(prot_summary, aes(x = Timepoint, y = mean_shinorine, color = Phenotype, group = Phenotype)) +
+  #geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_shinorine - se_shinorine, ymax = mean_shinorine + se_shinorine, color = Phenotype), width = 0.3, linewidth = 0.8) +  # color matches points/lines
+  facet_wrap(~ Species) +
+  #facet_grid(rows = vars(Species)) +
+  scale_color_manual(
+    values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  theme_classic(base_size = 16) +  # bigger base size
+  labs(
+    x = "",
+    y = "Shinorine (mg/cm2)",
+    color = "Phenotype") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    strip.background = element_rect(fill = "white", color = "black", linewidth = 1),
+    strip.text = element_text(face = "italic", size = 16),
+    #legend.position = c(0.85, 0.83),  # adjust x, y for placement
+    legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+    legend.key = element_blank(),    
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 13),
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 13, color = "black"),
+    axis.text.y = element_text(size = 13, color = "black"),
+    axis.title.y = element_text(size = 16))
+```
 
