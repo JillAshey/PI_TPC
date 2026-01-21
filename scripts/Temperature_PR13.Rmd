@@ -383,12 +383,42 @@ may25_oct25_21152009 <- may25_oct25_21152009 %>%
          Temp_C = V3) %>%
   select(DateTime, Temp_C)
 
-may25_sept25 <- rbind(may25_oct25_21152007, may25_oct25_21152009)
-may25_sept25 <- may25_sept25 %>% # remove times when logger was out of water 
+may25_oct25 <- rbind(may25_oct25_21152007, may25_oct25_21152009)
+may25_oct25 <- may25_oct25 %>% # remove times when logger was out of water 
   mutate(DateTime = ymd_hms(DateTime)) %>%
   filter(DateTime >= ymd("2025-05-13"),
          DateTime <= ymd_hms("2025-10-01 08:30:00"))
-ggplot(may25_sept25, aes(x = DateTime, y = Temp_C)) +
+ggplot(may25_oct25, aes(x = DateTime, y = Temp_C)) +
+  geom_point() +
+  scale_x_datetime( date_breaks = "1 month", date_labels = "%b") + 
+  theme_minimal() +
+  labs(y = "Temperature (°C)", x = "Time")
+
+# Oct 2025 - Jan 2026
+oct25_jan26_21152007 <- read.csv("../data/environmental/Jan2026_21152007.csv", skip = 2, header = F)
+oct25_jan26_21152007 <- oct25_jan26_21152007 %>%
+  mutate(DateTime = mdy_hms(V2),
+         Temp_C = V3) %>%
+  select(DateTime, Temp_C)
+
+oct25_jan26_21152009 <- read.csv("../data/environmental/Jan2026_21152009.csv", skip = 2, header = F)
+oct25_jan26_21152009 <- oct25_jan26_21152009 %>%
+  mutate(DateTime = mdy_hms(V2),
+         Temp_C = V3) %>%
+  select(DateTime, Temp_C)
+
+oct25_jan26_20947172 <- read.csv("../data/environmental/Jan2026_20947172.csv", skip = 2, header = F)
+oct25_jan26_20947172 <- oct25_jan26_20947172 %>%
+  mutate(DateTime = mdy_hms(V2),
+         Temp_C = V3) %>%
+  select(DateTime, Temp_C)
+
+oct25_jan26 <- rbind(oct25_jan26_21152007, oct25_jan26_21152009, oct25_jan26_20947172)
+oct25_jan26 <- oct25_jan26 %>% # remove times when logger was out of water 
+  mutate(DateTime = ymd_hms(DateTime)) %>%
+  filter(DateTime >= ymd("2025-10-14"),
+         DateTime <= ymd_hms("2026-01-20 08:30:00"))
+ggplot(oct25_jan26, aes(x = DateTime, y = Temp_C)) +
   geom_point() +
   scale_x_datetime( date_breaks = "1 month", date_labels = "%b") + 
   theme_minimal() +
@@ -397,7 +427,7 @@ ggplot(may25_sept25, aes(x = DateTime, y = Temp_C)) +
 
 Bind all data together and plot 
 ```{r}
-all_data <- rbind(sept22_apr23, apr23_sept23, sept23_jan24, jan24_may24, may24_sept24, oct24_jan25, jan25_may25, may25_sept25)
+all_data <- rbind(sept22_apr23, apr23_sept23, sept23_jan24, jan24_may24, may24_sept24, oct24_jan25, jan25_may25, may25_oct25, oct25_jan26)
 ggplot(all_data, aes(x = DateTime, y = Temp_C)) +
   geom_point() +
   scale_x_datetime( date_breaks = "1 month", date_labels = "%b") + 
@@ -664,8 +694,8 @@ combined_data <- combined_data %>%
 
 # Make df of sampling dates to mark on plot 
 sample_dates <- data.frame(
-  datetime = as.POSIXct(c("2023-09-14 00:00", "2024-01-20 00:00", "2024-05-09 00:00", "2024-10-01 00:00", "2025-01-09 00:00", "2025-05-08 00:00", "2025-10-01 00:00")),
-  sample_id = c("Sept2023", "Jan2024", "May2024", "Oct2024", "Jan2025", "May2025", "Oct2025"))
+  datetime = as.POSIXct(c("2023-09-14 00:00", "2024-01-20 00:00", "2024-05-09 00:00", "2024-10-01 00:00", "2025-01-09 00:00", "2025-05-08 00:00", "2025-10-01 00:00", "2026-01-20 00:00")),
+  sample_id = c("Sept2023", "Jan2024", "May2024", "Oct2024", "Jan2025", "May2025", "Oct2025", "Jan2026"))
 
 # Plot
 whole_plot <- ggplot() +
@@ -708,8 +738,8 @@ whole_plot <- ggplot() +
         axis.title.y = element_text(size = 28,
                                     face = "bold"))
 
-ggsave("../output/environmental/KBay_temps_DHW_2013-2025.png", plot = whole_plot, width=18, height=7)
-ggsave("../output/environmental/KBay_temps_DHW_2013-2025.pdf", plot = whole_plot, width=18, height=7)
+ggsave("../output/environmental/KBay_temps_DHW_2013-2026.png", plot = whole_plot, width=18, height=7)
+ggsave("../output/environmental/KBay_temps_DHW_2013-2026.pdf", plot = whole_plot, width=18, height=7)
 ```
 
 Plot with only the sampling data 
@@ -771,8 +801,8 @@ nsf_plot <- ggplot() +
         axis.title.y = element_text(size = 28,
                                     face = "bold"))
 
-ggsave("../output/environmental/KBay_temps_2022-2025.png", plot = nsf_plot, width=18, height=7)
-ggsave("../output/environmental/KBay_temps_2022-2025.pdf", plot = nsf_plot, width=18, height=7)
+ggsave("../output/environmental/KBay_temps_2022-2026.png", plot = nsf_plot, width=18, height=7)
+ggsave("../output/environmental/KBay_temps_2022-2026.pdf", plot = nsf_plot, width=18, height=7)
 ```
 
 Combine both plots into one figure and save
