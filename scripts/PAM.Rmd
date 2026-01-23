@@ -35,7 +35,7 @@ pam_summary <- pam %>%
 Plot! 
 ```{r}
 # Set levels 
-pam_summary$Date <- factor(pam_summary$Date, levels = c("September_2023", "January_2024", "May_2024", "October_2024", "January_2025", "May_2025", "October_2025"))
+pam_summary$Date <- factor(pam_summary$Date, levels = c("September_2023", "January_2024", "May_2024", "October_2024", "January_2025", "May_2025", "October_2025", "January_2026"))
 
 # Set spp names 
 species_labels <- c("Mcap" = "Montipora capitata", "Pcomp" = "Porites compressa")
@@ -74,28 +74,7 @@ theme(
 ## save 
 ```
 
-Look at normality 
-```{r}
-hist(pam_long$Fv_Fm)
 
-# Q-Q Plot
-qqnorm(pam_long$Fv_Fm)
-qqline(pam_long$Fv_Fm, col = "red")
 
-# Shapiro-Wilk Test
-shapiro.test(pam_long$Fv_Fm)
-```
-
-Data is normal. 
-
-Stats
-```{r}
-mod_pam <- lmer(Fv_Fm ~ Species * Phenotype * Date + (1 | Colony_ID),
-                 data = pam_long,
-                 REML = FALSE)
-car::Anova(mod_pam, type = 3)
-em_date <- emmeans(mod_pam, pairwise ~ Date, adjust = "tukey")
-summary(em_date)
-```
 
 
