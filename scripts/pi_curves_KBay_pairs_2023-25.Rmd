@@ -2275,7 +2275,7 @@ jan_2026 <- sample_meta %>%
 jan_2026$Surface_Area_cm2 <- as.numeric(jan_2026$Surface_Area_cm2)
 ```
 
-NOTE FOR JAN 2026 - I set SA and chamber volumes to dummy values (20 for SA and 240 for chamber vols) until we can get fraggrameter values for SA and calcification info for chamber vols. 
+NOTE FOR JAN 2026 - I set SA to dummy values (20 for SA) until we can get fraggrameter values for SA. 
 
 Merge sample metadata with interval data 
 ```{r}
@@ -2463,13 +2463,13 @@ ggplot(all_time_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
   labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype", fill = "Phenotype")
 ```
 
-Remove Colony 237 from Sept23, Colony 214 from Jan24 and Colony 28 from May25 and re-plot. Also remove Jan25 because the surface area measurements are messed up
+Remove Colony 237 from Sept23, Colony 214 from Jan24 and Colony 28 from May25 and re-plot
 ```{r}
 all_time_int_filt <- all_time_int %>%
   filter(!(Colony_ID == "237" & Timepoint == "Sept23")) %>%
   filter(!(Colony_ID == "214" & Timepoint == "Jan24")) %>%
-  filter(!(Colony_ID == "28" & Timepoint == "May25")) %>%
-  filter(!Timepoint == "Jan25")
+  filter(!(Colony_ID == "28" & Timepoint == "May25")) #%>%
+  #filter(!Timepoint == "Jan25")
 
 ggplot(all_time_int_filt, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
   geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
@@ -2528,6 +2528,8 @@ pi_metrics_oct2024$Timepoint <- "Oct24"
 
 pi_metrics_jan2025 <- read.csv("../output/pi_curves/Jan2025/pi_curve_metrics_Jan2025.csv")
 pi_metrics_jan2025$Timepoint <- "Jan25"
+pi_metrics_jan2025 <- pi_metrics_jan2025 %>% 
+  select(-c("...11", "...12", "...13"))
 
 pi_metrics_may2025 <- read.csv("../output/pi_curves/May2025/pi_curve_metrics_May2025.csv")
 pi_metrics_may2025$Timepoint <- "May25"
@@ -2548,8 +2550,8 @@ all_time_pi_metrics <- rbind(pi_metrics_sept2023, pi_metrics_jan2024, pi_metrics
 
 Remove Jan25 for now (still need SA)
 ```{r}
-all_time_pi_metrics <- all_time_pi_metrics %>%
-  filter(!Timepoint == "Jan25")
+# all_time_pi_metrics <- all_time_pi_metrics %>%
+#   filter(!Timepoint == "Jan25")
 ```
 
 

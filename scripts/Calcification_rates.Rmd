@@ -17,7 +17,7 @@ library(lsmeans)
 
 Read in data 
 ```{r}
-calc <- read.csv("../data/Calcification_data_field.csv", header = T)
+calc <- read.csv("../data/Calcification/Calcification_data_field.csv", header = T)
 ```
 
 Add Timepoint as a column
@@ -32,6 +32,7 @@ calc <- calc %>%
     grepl("2025-01", Date) ~ "Jan25",
     grepl("2025-05", Date) ~ "May25",
     grepl("2025-10", Date) ~ "Oct25",
+    grepl("2026-01", Date) ~ "Jan26",
     TRUE ~ NA_character_))
 ```
 
@@ -90,7 +91,7 @@ calc <- calc %>%
 
 Read in sample metadata for surface area 
 ```{r}
-sample_meta <- read_csv("../data/NSF_Career_SurfaceArea.csv")
+sample_meta <- read_csv("../data/Surface_Area/SurfaceArea_fraggrameter.csv")
 ```
 
 Add timepoint col
@@ -105,6 +106,7 @@ sample_meta <- sample_meta %>%
     grepl("2025-01", Date) ~ "Jan25",
     grepl("2025-05", Date) ~ "May25",
     grepl("2025-10", Date) ~ "Oct25",
+    grepl("2026-01", Date) ~ "Jan26",
     TRUE ~ NA_character_))
 ```
 
@@ -146,7 +148,8 @@ joined_summary <- joined %>%
     se_calc = sd(Net_Calcification_cm2, na.rm = T) / sqrt(length(Net_Calcification_cm2)),
     .groups = "drop") %>%
   drop_na() %>%
-  filter(!Timepoint == "Jan25") # remove Jan25 for now 
+  filter(Light == "Light")
+  #filter(!Timepoint == "Jan25") # remove Jan25 for now 
 ```
 
 Plot! 
@@ -157,9 +160,10 @@ joined_summary$Timepoint <- factor(joined_summary$Timepoint, levels = c("Apr23",
                                                                         "Jan24", 
                                                                         "May24", 
                                                                         "Oct24", 
-                                                                        #"Jan25", 
+                                                                        "Jan25", 
                                                                         "May25",
-                                                                        "Oct25"))
+                                                                        "Oct25",
+                                                                        "Jan26"))
 
 ggplot(joined_summary, aes(x = Timepoint, y = mean_calc, color = Phenotype, group = Phenotype)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey", size = 1) +
