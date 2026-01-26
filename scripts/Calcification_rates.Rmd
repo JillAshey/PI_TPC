@@ -147,8 +147,8 @@ joined_summary <- joined %>%
     sd_calc = sd(Net_Calcification_cm2, na.rm = T),
     se_calc = sd(Net_Calcification_cm2, na.rm = T) / sqrt(length(Net_Calcification_cm2)),
     .groups = "drop") %>%
-  drop_na() %>%
-  filter(Light == "Light")
+  drop_na()# %>%
+  #filter(Light == "Light")
   #filter(!Timepoint == "Jan25") # remove Jan25 for now 
 ```
 
