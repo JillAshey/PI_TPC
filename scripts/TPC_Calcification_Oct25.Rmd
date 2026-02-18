@@ -9,12 +9,273 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
-library(emmeans)
-library(lme4)
-library(lmerTest)
-library(lsmeans)
 library(rTPC)
+library(broom)
+library(nls.multstart)
+library(boot)
+library(patchwork) 
+library(parallel)
+library(MuMIn)
+library(purrr)
+library(ggfortify) 
+
+n_cores <- detectCores() - 1
 ```
+
+# 2023
+
+Read in data 
+```{r}
+calc_2023 <- read.csv("../data/TPC_calcification/TPC_calcification_all_standardized_without_blanks_2023_KB.csv")
+```
+
+Kristen already manually calculated the calcification rates in excel. 
+
+Plot raw data 
+```{r}
+calc_plot_2023 <- calc_2023 %>%
+  filter(!is.na(Phenotype),
+         !is.na(Species),
+         Colony.ID != "blank")
+
+ggplot(calc_plot_2023, aes(
+  x = Target.Temperature,
+  y = umol.CaCO3h.1.cm.2,
+  color = Phenotype,
+  fill = Phenotype
+)) +
+  geom_point(size = 3, alpha = 0.8) +
+  geom_smooth(method = "loess", se = TRUE, span = 0.6, alpha = 0.25) +
+  facet_wrap(~Species, scales = "fixed") +
+  theme_classic(base_size = 14) +
+  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  scale_fill_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  labs(
+    x = "Target Temperature (°C)",
+    y = expression("Net Calcification ("*cm^-2*")"),
+    color = "Phenotype",
+    fill = "Phenotype")
+```
+
+
+## rTPC for 2023 
+
+Because some values are negative, we need to 'shift' the data away from negative values while still maintaining the shape of the curve.
+```{r}
+# log 
+calc_2023 <- calc_2023 %>%
+  mutate(log_calc = log(umol.CaCO3h.1.cm.2 + 1))
+
+calc_shifted_2023 <- calc_2023 %>%
+  filter(!is.na(Species)) %>%
+  mutate(
+    rate_shifted = log_calc,
+    temp = Target.Temperature)
+```
+
+Fit multiple models to find best fit for our data 
+```{r}
+safe_fit_aic_v2 <- function(d, mod_name) {
+  tryCatch({
+    sv <- get_start_vals(d$temp, d$rate_shifted, model_name = mod_name)
+    
+    # We use a formula approach for each model to ensure parameter names match
+    if(mod_name == 'pawar_2018'){
+       fit <- nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, topt, tref = 25),
+                            data = d, iter = 100, start_lower = sv - 10, start_upper = sv + 10, supp_errors = 'Y')
+    } 
+    else if(mod_name == 'sharpeschoolhigh_1981'){
+       fit <- nls_multstart(rate_shifted ~ sharpeschoolhigh_1981(temp, r_tref, e, eh, th, tref = 25),
+                            data = d, iter = 100, start_lower = sv - 10, start_upper = sv + 10, supp_errors = 'Y')
+    } 
+    else if(mod_name == 'gaussian_1987'){
+       fit <- nls_multstart(rate_shifted ~ gaussian_1987(temp, rmax, topt, a),
+                            data = d, iter = 100, start_lower = sv - 10, start_upper = sv + 10, supp_errors = 'Y')
+    } 
+    else if(mod_name == 'boatman_2017'){
+       fit <- nls_multstart(rate_shifted ~ boatman_2017(temp, rmax, tmin, tmax, topt, a),
+                            data = d, iter = 100, start_lower = sv - 10, start_upper = sv + 10, supp_errors = 'Y')
+    }
+    
+    return(MuMIn::AICc(fit))
+  }, error = function(e) return(NA))
+}
+
+# Run all models 
+all_group_aic_2023 <- calc_shifted_2023 %>%
+  group_by(Species, Phenotype) %>%
+  nest() %>%
+  crossing(model_name = c('sharpeschoolhigh_1981', 'pawar_2018', 'boatman_2017', 'gaussian_1987')) %>%
+  mutate(aic_score = map2_dbl(data, model_name, ~safe_fit_aic_v2(.x, .y))) %>%
+  group_by(Species, Phenotype) %>%
+  mutate(delta_AICc = aic_score - min(aic_score, na.rm = TRUE)) %>%
+  arrange(Species, Phenotype, delta_AICc)
+```
+
+Pawar_2018 model is the best fit for 3 out of 4 groups (Pcomp susceptible had Boatman_2017 as a better fit but for comparability across groups, we will stick with Pawar_2018). 
+
+Fit the pawar 2018 function and run bootstrap across groups 
+```{r}
+# Define the Pawar-based bootstrap function
+fit_pawar_boot <- function(x) {
+  mod <- 'pawar_2018'
+  
+  # Wider search range (+/- 10) for stability
+  fit <- nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, topt, tref = 25),
+                       data = x,
+                       iter = 50, 
+                       start_lower = get_start_vals(x$temp, x$rate_shifted, model_name = mod) - 10,
+                       start_upper = get_start_vals(x$temp, x$rate_shifted, model_name = mod) + 10,
+                       lower = get_lower_lims(x$temp, x$rate_shifted, model_name = mod),
+                       upper = get_upper_lims(x$temp, x$rate_shifted, model_name = mod),
+                       supp_errors = 'Y')
+  
+  # Calculate derived parameters
+  extra_params <- calc_params(fit)
+  
+  # Get the raw r_tref estimate from the model
+  r_tref_val <- broom::tidy(fit) %>% filter(term == "r_tref") %>% pull(estimate)
+  
+  # Return: rmax, topt, e, eh, r_tref_25
+  all_stats <- c(as.numeric(extra_params$rmax), 
+                 as.numeric(extra_params$topt), 
+                 as.numeric(extra_params$e), 
+                 as.numeric(extra_params$eh),
+                 as.numeric(r_tref_val))
+  
+  names(all_stats) <- c("rmax", "topt", "e", "eh", "r_tref_25")
+  return(all_stats)
+}
+
+# Run the bootstrap
+boot_results_2023 <- calc_shifted_2023 %>%
+  group_by(Species, Phenotype) %>%
+  nest() %>%
+  mutate(boot = map(data, ~boot(data = .x, 
+                                 statistic = function(d, i) as.numeric(fit_pawar_boot(d[i,])), 
+                                 R = 1000,
+                                 parallel = "multicore", 
+                                 ncpus = n_cores)))
+
+# Tidy the results for interpretation
+boot_stats_2023 <- boot_results_2023 %>%
+  mutate(stats = map(boot, ~broom::tidy(.x, conf.int = TRUE, conf.method = 'perc'))) %>%
+  unnest(stats) %>%
+  ungroup() %>%
+  mutate(term = rep(c("rmax", "topt", "e", "eh", "r_tref_25"), 4))
+```
+
+Clean up data and create 5 panel plot
+```{r}
+# Clean up the NAs by using the average of the confidence intervals where statistic is NA
+boot_stats_cleaned_2023 <- boot_stats_final %>%
+  mutate(statistic = ifelse(is.na(statistic), (conf.low + conf.high) / 2, statistic))
+
+# Define the 5 traits we want to plot
+traits <- c("r_tref_25", "rmax", "topt", "e", "eh")
+
+# Create a list to store the plots
+plot_list <- list()
+
+for (i in 1:length(traits)) {
+  trait_name <- traits[i]
+  df_sub <- subset(boot_stats_cleaned_2023, term == trait_name)
+  
+  # Set specific labels for each trait
+  y_label <- case_when(
+    trait_name == "r_tref_25" ~ "Rate at 25°C (log)",
+    trait_name == "rmax"      ~ "Rmax (log)",
+    trait_name == "topt"      ~ "Topt (°C)",
+    trait_name == "e"         ~ "Activation (e)",
+    trait_name == "eh"        ~ "Deactivation (eh)"
+  )
+  
+  # Build the plot using your specific style
+  p <- ggplot(df_sub, aes(x = Phenotype, y = statistic, color = Phenotype)) +
+    geom_errorbar(aes(ymin = statistic - std.error, ymax = statistic + std.error), 
+                  width = 0.15, linewidth = 1) +
+    geom_point(size = 4) +
+    facet_grid(~Species) + # Species side-by-side in each row
+    scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+    theme_bw(base_size = 12) +
+    theme(
+      legend.position = "none",
+      strip.background = element_rect(fill = "gray95"),
+      strip.text = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    ) +
+    labs(y = y_label, x = NULL)
+  
+  # Hide x-axis text for all except the bottom-most plot
+  if (i < length(traits)) {
+    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  }
+  
+  plot_list[[i]] <- p
+}
+
+# Combine all 5 plots into one tall column
+final_5_panel <- wrap_plots(plot_list, ncol = 1)
+print(final_5_panel)
+```
+
+Plot log scale calcification rates across temps 
+```{r}
+calc_plot_2023 <- calc_2023 %>%
+  filter(!is.na(Phenotype),
+         !is.na(Species),
+         Colony.ID != "blank")
+
+ggplot(calc_plot_2023, aes(
+  x = Target.Temperature,
+  y = log_calc,
+  color = Phenotype,
+  fill = Phenotype
+)) +
+  geom_point(size = 3, alpha = 0.5) +
+  geom_smooth(method = "loess", se = TRUE, span = 0.6, alpha = 0.25) +
+  facet_wrap(~Species, scales = "fixed") +
+  theme_classic(base_size = 14) +
+  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  scale_fill_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  labs(
+    x = "Target Temperature (°C)",
+    y = expression("log(Net Calcification ("*cm^-2*"))"),
+    color = "Phenotype",
+    fill = "Phenotype")
+```
+
+Plot as PCA
+```{r}
+# 1. Extract all 1000 replicates for all 5 traits from the 'boot' column
+pca_prep_clean <- boot_results_final %>%
+  mutate(reps = map(boot, ~as.data.frame(.x$t))) %>%
+  unnest(reps) %>%
+  ungroup() %>%
+  # Rename based on your specific column order
+  rename(rmax = V1, topt = V2, e = V3, eh = V4, r_tref_25 = V5) %>%
+  # REMOVE THE NAs
+  drop_na(rmax, topt, e, eh, r_tref_25)
+
+# 2. Perform PCA (Scaling is vital because Topt and Rmax have different magnitudes)
+pca_fit <- prcomp(pca_prep_clean[, c("rmax", "topt", "e", "eh", "r_tref_25")], scale. = TRUE)
+
+# 3. Plot with Loadings (Arrows)
+autoplot(pca_fit, data = pca_prep_clean, colour = 'Phenotype', 
+         shape = 'Species', frame = TRUE, frame.type = 'norm',
+         loadings = TRUE, loadings.label = TRUE, 
+         loadings.label.size = 3, loadings.colour = "black", loadings.label.colour = "black") +
+  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  scale_fill_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  theme_bw() +
+  labs(title = "Multivariate Thermal Phenotype PCA",
+       subtitle = "Bootstrap cloud showing separation of coral groups",
+       caption = "Arrows indicate the direction of trait influence.")
+```
+
+# 2025
+
+## Calculate calcification rates 
 
 Read in data 
 ```{r}
@@ -79,7 +340,8 @@ meta_unique <- meta %>%
   ungroup()
 
 calc_meta <- calc %>%
-  left_join(meta_unique, by = c("ColonyID" = "Colony_ID"))
+  left_join(meta_unique, by = c("ColonyID" = "Colony_ID")) %>%
+  select(ColonyID, Target_Temperature, Net_Calcification_cm2, Species, Phenotype)
 ```
 
 Plot 
@@ -106,603 +368,100 @@ ggplot(calc_plot, aes(
     x = "Target Temperature (°C)",
     y = expression("Net Calcification ("*cm^-2*")"),
     color = "Phenotype",
-    fill = "Phenotype"
-  )
-
-
+    fill = "Phenotype")
 ```
 
-# rTPC 
+## rTPC 
 
-## Prep data
-
+Because some values are negative, we need to 'shift' the data away from negative values while still maintaining the shape of the curve.
 ```{r}
-# Remove blank samples and ensure we have complete data
-tpc_data <- calc_meta %>%
-  filter(!is.na(Species), ColonyID != "blank") %>%
-  # Use the corrected net calcification rate
-  select(ColonyID, Species, Phenotype, Target_Temperature, 
-         Net_Calcification_cm2, Light, Run.x) %>%
-  rename(temp = Target_Temperature,
-         rate = Net_Calcification_cm2) %>%
-  # Remove any missing values
-  filter(!is.na(rate), !is.na(temp))
+min_rate <- min(calc_meta$Net_Calcification_cm2, na.rm = TRUE)
+shift_val <- abs(min_rate) + 0.01 
+
+calc_shifted <- calc_meta %>%
+  filter(!is.na(Species)) %>%
+  mutate(
+    rate_shifted = Net_Calcification_cm2 + shift_val,
+    temp = Target_Temperature)
+
+# calc_clean <- calc_meta %>%
+#   filter(!is.na(Species)) %>%
+#   mutate(group = paste(Species, Phenotype, sep = "_")) %>%
+#   rename(temp = Target_Temperature, rate = Net_Calcification_cm2)
 ```
 
-## Fit TPC models
-
+Fitting curves for each group
 ```{r}
-# Function to fit TPC for each colony
-fit_tpc_colony <- function(data) {
-  
-  # Get starting values using get_start_vals
-  start_vals <- get_start_vals(data$temp, data$rate, model_name = 'sharpeschoolhigh_1981')
-  
-  # Fit the model using nls_multstart for robust parameter estimation
-  fit <- nls_multstart(rate ~ sharpeschoolhigh_1981(temp = temp, r_tref, e, eh, th, tref = 18),
-                       data = data,
-                       iter = 500,
-                       start_lower = start_vals - 1,
-                       start_upper = start_vals + 1,
-                       lower = get_lower_lims(data$temp, data$rate, model_name = 'sharpeschoolhigh_1981'),
-                       upper = get_upper_lims(data$temp, data$rate, model_name = 'sharpeschoolhigh_1981'),
+mod_pawar <- 'pawar_2018'
+
+fit_pawar <- calc_shifted %>%
+  group_by(Species, Phenotype) %>%
+  nest() %>%
+  mutate(fit = map(data, ~nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, th, tref = 25),
+                                        data = .x,
+                                        iter = 500,
+                                        start_lower = get_start_vals(.x$temp, .x$rate_shifted, model_name = mod_pawar) - 1,
+                                        start_upper = get_start_vals(.x$temp, .x$rate_shifted, model_name = mod_pawar) + 1,
+                                        supp_errors = 'Y',
+                                        convergence_count = 100)))
+
+pawar_params <- fit_pawar %>%
+  mutate(params = map(fit, ~calc_params(.x))) %>%
+  unnest(params)
+```
+
+Bootstrapping TPC metrics
+```{r}
+# Function to fit model and return a vector of parameters
+fit_n_calc <- function(x){
+  mod <- 'pawar_2018'
+  fit <- nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, th, tref = 25),
+                       data = x,
+                       iter = 10, 
+                       start_lower = get_start_vals(x$temp, x$rate_shifted, model_name = mod) - 1,
+                       start_upper = get_start_vals(x$temp, x$rate_shifted, model_name = mod) + 1,
                        supp_errors = 'Y')
-  
-  return(fit)
+  return(calc_params(fit))
 }
 
-# Group by colony and fit models
-colony_fits <- tpc_data %>%
-  group_by(ColonyID, Species, Phenotype) %>%
-  nest() %>%
-  mutate(
-    # Fit model
-    fit = map(data, possibly(fit_tpc_colony, otherwise = NULL)),
-    # Extract model parameters
-    params = map(fit, possibly(tidy, otherwise = NULL))
-  ) %>%
-  filter(!is.null(fit))
-
-# Extract key thermal performance metrics for each colony
-tpc_metrics <- colony_fits %>%
-  mutate(
-    # Calculate thermal optimum (Topt)
-    topt = map_dbl(fit, ~get_topt(.x)),
-    # Calculate maximum performance (rmax)
-    rmax = map_dbl(fit, ~get_rmax(.x)),
-    # Calculate breadth (temperature range at 50% rmax)
-    breadth = map_dbl(fit, ~get_breadth(.x)),
-    # Calculate critical thermal maximum (CTmax)
-    ctmax = map_dbl(fit, ~get_ctmax(.x)),
-    # Calculate Q10 (temperature sensitivity)
-    q10 = map_dbl(fit, possibly(~get_q10(.x), otherwise = NA))
-  )
-```
-
-
-
-
-
-
-
-
-
-
-# rTPC attempt 2
-
-Data prep
-```{r}
-tpc_data <- calc_meta %>%
-  filter(!is.na(Species), ColonyID != "blank") %>%
-  # Use the corrected net calcification rate
-  select(ColonyID, Species, Phenotype, Target_Temperature, 
-         Net_Calcification_cm2, Light, Run.x) %>%
-  rename(temp = Target_Temperature,
-         rate = Net_Calcification_cm2) %>%
-  # Remove any missing values
-  filter(!is.na(rate), !is.na(temp))
-```
-
- Check colonies 
-```{r}
-diagnostic_check <- tpc_data %>%
-  group_by(ColonyID, Species, Phenotype) %>%
-  summarise(
-    n_points = n(),
-    temp_range = max(temp) - min(temp),
-    min_temp = min(temp),
-    max_temp = max(temp),
-    mean_rate = mean(rate),
-    sd_rate = sd(rate),
-    any_negative = any(rate < 0),
-    all_zero = all(rate == 0),
-    .groups = 'drop'
-  )
-
-print("Data diagnostic for each colony:")
-print(diagnostic_check)
-
-# Check specific problematic colonies
-problem_colonies <- c(3, 233, 226, 211, 213, 221)
-print("\nDetailed check for problematic colonies:")
-print(diagnostic_check %>% filter(ColonyID %in% problem_colonies))
-
-```
- 
-Fit TPC models
-```{r}
-# Function to fit TPC for each colony with better error handling
-fit_tpc_colony <- function(data, colony_id = NULL) {
-  
-  # Check for minimum data requirements
-  if(nrow(data) < 5) {
-    warning(paste("Colony", colony_id, ": Insufficient data points (n =", nrow(data), ")"))
-    return(NULL)
-  }
-  
-  # Check for variation in response
-  if(sd(data$rate, na.rm = TRUE) == 0) {
-    warning(paste("Colony", colony_id, ": No variation in rates"))
-    return(NULL)
-  }
-  
-  # Check for all negative or zero rates
-  if(all(data$rate <= 0)) {
-    warning(paste("Colony", colony_id, ": All rates are zero or negative"))
-    return(NULL)
-  }
-  
-  tryCatch({
-    # Get starting values using get_start_vals
-    start_vals <- get_start_vals(data$temp, data$rate, model_name = 'pawar_2018')
-    
-    # Fit the model using nls_multstart for robust parameter estimation
-    fit <- nls_multstart(rate ~ sharpeschoolhigh_1981(temp = temp, r_tref, e, eh, th, tref = 18),
-                         data = data,
-                         iter = 1000,  # Increased iterations
-                         start_lower = start_vals - 2,  # Wider search range
-                         start_upper = start_vals + 2,
-                         lower = get_lower_lims(data$temp, data$rate, model_name = 'pawar_2018'),
-                         upper = get_upper_lims(data$temp, data$rate, model_name = 'pawar_2018'),
-                         supp_errors = 'Y',
-                         convergence_count = 100)  # More stringent convergence
-    
-    return(fit)
-  }, error = function(e) {
-    warning(paste("Colony", colony_id, ": Model fitting failed -", e$message))
-    return(NULL)
-  })
-}
-
-# Group by colony and fit models
-colony_fits <- tpc_data %>%
-  group_by(ColonyID, Species, Phenotype) %>%
-  nest() %>%
-  mutate(
-    # Fit model with colony ID for better diagnostics
-    fit = map2(data, ColonyID, ~fit_tpc_colony(.x, .y)),
-    # Check if fit succeeded
-    fit_success = !map_lgl(fit, is.null),
-    # Extract model parameters
-    params = map(fit, possibly(tidy, otherwise = NULL))
-  )
-
-```
-
-In Federica's paper, she used the pawar model. 
-
-Check fits
-```{r}
-# Report fitting success
-fit_summary <- colony_fits %>%
-  group_by(fit_success) %>%
-  summarise(n_colonies = n(), .groups = 'drop')
-
-print("\nModel Fitting Summary:")
-print(fit_summary)
-
-# Identify failed fits
-failed_fits <- colony_fits %>%
-  filter(!fit_success) %>%
-  select(ColonyID, Species, Phenotype)
-
-if(nrow(failed_fits) > 0) {
-  print("\nColonies with failed fits:")
-  print(failed_fits)
-  
-  # Plot data for failed colonies to diagnose
-  failed_data <- tpc_data %>%
-    filter(ColonyID %in% failed_fits$ColonyID)
-  
-  if(nrow(failed_data) > 0) {
-    print("\nPlotting data for failed colonies:")
-    p_failed <- ggplot(failed_data, aes(x = temp, y = rate, color = as.factor(ColonyID))) +
-      geom_point(size = 3) +
-      geom_line() +
-      facet_wrap(~ColonyID, scales = "free_y") +
-      theme_bw() +
-      labs(x = "Temperature (°C)", 
-           y = "Net Calcification",
-           title = "Data for Colonies with Failed Model Fits") +
-      theme(legend.position = "none")
-    print(p_failed)
-  }
-}
-```
-
-Come back and check these failed colony values...6 colonies failing total (211, 213, 221, 226, 233, 3) --with failing meaning not being successfully fit for TPC. 
-
-Continue with successful fits
-```{r}
-# Continue with only successful fits
-colony_fits <- colony_fits %>%
-  filter(fit_success)
-```
-
-Calculate TPC metrics 
-```{r}
-# Extract key thermal performance metrics for each colony
-tpc_metrics <- colony_fits %>%
-  mutate(
-    # Calculate thermal optimum (Topt) - temperature at maximum rate
-    topt = map_dbl(fit, ~get_topt(.x)),
-    
-    # Calculate maximum performance (rmax) - maximum rate
-    rmax = map_dbl(fit, ~get_rmax(.x)),
-    
-    # Calculate breadth (temperature range at 50% rmax)
-    breadth = map_dbl(fit, possibly(~get_breadth(.x), otherwise = NA)),
-    
-    # Calculate critical thermal maximum (CTmax)
-    ctmax = map_dbl(fit, possibly(~get_ctmax(.x), otherwise = NA)),
-    
-    # Calculate critical thermal minimum (CTmin)
-    ctmin = map_dbl(fit, possibly(~get_ctmin(.x), otherwise = NA)),
-    
-    # Extract model parameters directly
-    # rtref - rate at reference temperature (18°C)
-    rtref = map_dbl(fit, ~coef(.x)["r_tref"]),
-    
-    # e - activation energy (controls rate rise with temp)
-    e = map_dbl(fit, ~coef(.x)["e"]),
-    
-    # eh - deactivation energy (controls rate decline at high temp)
-    eh = map_dbl(fit, ~coef(.x)["eh"]),
-    
-    # th - temperature at which enzyme is 50% deactivated
-    th = map_dbl(fit, ~coef(.x)["th"]),
-    
-    # Calculate Q10 (temperature sensitivity) between 18-28°C
-    q10 = map_dbl(fit, possibly(~get_q10(.x, temp_1 = 18, temp_2 = 28), otherwise = NA)),
-    
-    # Model fit quality metrics
-    #r_squared = map_dbl(fit, ~summary(.x)$r.squared),
-    aic = map_dbl(fit, ~AIC(.x)),
-    residual_se = map_dbl(fit, ~summary(.x)$sigma)
-  )
-
-# Create comprehensive metrics table
-metrics_table <- tpc_metrics %>%
-  select(ColonyID, Species, Phenotype, 
-         topt, rmax, ctmax, ctmin, breadth,
-         rtref, e, eh, th, q10,
-         #r_squared, 
-         aic, residual_se) %>%
-  arrange(Species, Phenotype, ColonyID)
-
-print("\nComprehensive TPC Metrics:")
-print(metrics_table)
-```
-
-Summarize 
-```{r}
-tpc_summary <- tpc_metrics %>%
+# Run the bootstrap
+n_cores <- detectCores() - 1
+boot_results <- calc_shifted %>%
   group_by(Species, Phenotype) %>%
-  summarise(
-    n = n(),
-    # Thermal optimum
-    mean_topt = mean(topt, na.rm = TRUE),
-    sd_topt = sd(topt, na.rm = TRUE),
-    se_topt = sd_topt / sqrt(n),
-    # Maximum rate
-    mean_rmax = mean(rmax, na.rm = TRUE),
-    sd_rmax = sd(rmax, na.rm = TRUE),
-    se_rmax = sd_rmax / sqrt(n),
-    # Thermal breadth
-    mean_breadth = mean(breadth, na.rm = TRUE),
-    sd_breadth = sd(breadth, na.rm = TRUE),
-    se_breadth = sd_breadth / sqrt(n),
-    # CTmax
-    mean_ctmax = mean(ctmax, na.rm = TRUE),
-    sd_ctmax = sd(ctmax, na.rm = TRUE),
-    se_ctmax = sd_ctmax / sqrt(n),
-    # CTmin
-    mean_ctmin = mean(ctmin, na.rm = TRUE),
-    sd_ctmin = sd(ctmin, na.rm = TRUE),
-    se_ctmin = sd_ctmin / sqrt(n),
-    # Rate at reference temp
-    mean_rtref = mean(rtref, na.rm = TRUE),
-    sd_rtref = sd(rtref, na.rm = TRUE),
-    # Activation energy
-    mean_e = mean(e, na.rm = TRUE),
-    sd_e = sd(e, na.rm = TRUE),
-    # Deactivation energy
-    mean_eh = mean(eh, na.rm = TRUE),
-    sd_eh = sd(eh, na.rm = TRUE),
-    # Q10
-    mean_q10 = mean(q10, na.rm = TRUE),
-    sd_q10 = sd(q10, na.rm = TRUE),
-    .groups = 'drop'
-  )
-
-```
-
-Plot
-```{r}
-# Create predictions for smooth curves
-new_data <- tpc_data %>%
-  group_by(ColonyID) %>%
-  summarise(temp = seq(min(temp), max(temp), length.out = 100))
-
-# Add predictions from models
-predictions <- colony_fits %>%
-  select(ColonyID, Species, Phenotype, fit) %>%
-  left_join(new_data, by = "ColonyID") %>%
-  mutate(pred_rate = map2_dbl(fit, temp, ~predict(.x, newdata = data.frame(temp = .y))))
-
-# Plot fitted curves with data points
-ggplot() +
-  geom_point(data = tpc_data, aes(x = temp, y = rate, color = Species), 
-             alpha = 0.5, size = 2) +
-  geom_line(data = predictions, aes(x = temp, y = pred_rate, 
-                                     color = Species, group = ColonyID),
-            linewidth = 1) +
-  facet_wrap(~Phenotype) +
-  theme_bw() +
-  labs(x = "Temperature (°C)",
-       y = "Net Calcification (μmol CaCO₃ cm⁻² h⁻¹)",
-       title = "Fitted Thermal Performance Curves by Colony") +
-  theme(legend.position = "bottom")
-```
-
-Trying another way
-```{r}
-# TPC Model Diagnostics and Alternative Fitting Approaches
-# Diagnose issues with thermal performance curves
-
-library(rTPC)
-library(nls.multstart)
-library(broom)
-library(tidyverse)
-
-# 1. VISUALIZE INDIVIDUAL CURVES TO CHECK MODEL APPROPRIATENESS
-# Plot each colony's data to see the shape
-plot_individual_tpcs <- function(data, n_cols = 4) {
-  ggplot(data, aes(x = temp, y = rate)) +
-    geom_point(size = 2, alpha = 0.6) +
-    geom_line(alpha = 0.3) +
-    facet_wrap(~paste(ColonyID, Species, Phenotype, sep = "\n"), 
-               scales = "free_y", ncol = n_cols) +
-    theme_bw() +
-    labs(x = "Temperature (°C)", 
-         y = "Net Calcification Rate",
-         title = "Individual Colony TPCs - Check for Thermal Optima") +
-    theme(strip.text = element_text(size = 7))
-}
-
-# Plot all colonies
-print(plot_individual_tpcs(tpc_data, n_cols = 5))
-
-# 2. CHECK TEMPERATURE RANGE FOR EACH COLONY
-temp_range_check <- tpc_data %>%
-  group_by(ColonyID, Species, Phenotype) %>%
-  summarise(
-    n_temps = n_distinct(temp),
-    min_temp = min(temp),
-    max_temp = max(temp),
-    temp_span = max_temp - min_temp,
-    max_rate = max(rate),
-    temp_at_max = temp[which.max(rate)],
-    max_at_edge = temp_at_max %in% c(min_temp, max_temp),
-    .groups = 'drop'
-  )
-
-print("\nTemperature Range Summary:")
-print(temp_range_check)
-
-# Flag colonies where max is at edge (suggests incomplete curve)
-edge_max <- temp_range_check %>%
-  filter(max_at_edge)
-
-if(nrow(edge_max) > 0) {
-  cat("\nWARNING: These colonies have peak performance at edge of temp range:\n")
-  print(edge_max %>% select(ColonyID, Species, min_temp, max_temp, temp_at_max))
-  cat("These may not have a true thermal optimum in the data range.\n")
-}
-
-# 3. ASSESS CURVE SHAPE - Does it match Sharpe-Schoolfield assumptions?
-assess_curve_shape <- function(data) {
-  data %>%
-    group_by(ColonyID) %>%
-    summarise(
-      # Check if there's a peak (unimodal)
-      has_peak = any(rate > rate[temp == min(temp)] & 
-                     rate > rate[temp == max(temp)]),
-      # Check for monotonic increase
-      monotonic_increase = all(diff(rate[order(temp)]) >= 0),
-      # Check for monotonic decrease  
-      monotonic_decrease = all(diff(rate[order(temp)]) <= 0),
-      # Coefficient of variation
-      cv = sd(rate) / mean(rate),
-      .groups = 'drop'
-    )
-}
-
-curve_shapes <- assess_curve_shape(tpc_data)
-print("\nCurve Shape Assessment:")
-print(curve_shapes)
-
-cat("\nCurves without clear peak:", sum(!curve_shapes$has_peak), "\n")
-cat("Monotonically increasing:", sum(curve_shapes$monotonic_increase), "\n")
-cat("Monotonically decreasing:", sum(curve_shapes$monotonic_decrease), "\n")
-
-# 4. ALTERNATIVE MODEL: Try Gaussian model (simpler, more robust)
-# Better for curves without strong high-temp decline
-
-fit_gaussian_tpc <- function(data, colony_id = NULL) {
-  if(nrow(data) < 4) return(NULL)
-  if(sd(data$rate, na.rm = TRUE) == 0) return(NULL)
-  if(all(data$rate <= 0)) return(NULL)
-  
-  tryCatch({
-    start_vals <- get_start_vals(data$temp, data$rate, model_name = 'gaussian_1987')
-    
-    fit <- nls_multstart(rate ~ gaussian_1987(temp = temp, rmax, topt, a),
-                         data = data,
-                         iter = 1000,
-                         start_lower = start_vals - 2,
-                         start_upper = start_vals + 2,
-                         lower = get_lower_lims(data$temp, data$rate, 
-                                                model_name = 'gaussian_1987'),
-                         upper = get_upper_lims(data$temp, data$rate, 
-                                                model_name = 'gaussian_1987'),
-                         supp_errors = 'Y')
-    return(fit)
-  }, error = function(e) {
-    warning(paste("Colony", colony_id, "- Gaussian fit failed"))
-    return(NULL)
-  })
-}
-
-# 5. FIT BOTH MODELS AND COMPARE
-colony_fits_comparison <- tpc_data %>%
-  group_by(ColonyID, Species, Phenotype) %>%
   nest() %>%
-  mutate(
-    # Sharpe-Schoolfield fit
-    fit_ss = map2(data, ColonyID, ~fit_tpc_colony(.x, .y)),
-    ss_success = !map_lgl(fit_ss, is.null),
-    ss_aic = map_dbl(fit_ss, possibly(~AIC(.x), otherwise = NA)),
-    
-    # Gaussian fit
-    fit_gauss = map2(data, ColonyID, ~fit_gaussian_tpc(.x, .y)),
-    gauss_success = !map_lgl(fit_gauss, is.null),
-    gauss_aic = map_dbl(fit_gauss, possibly(~AIC(.x), otherwise = NA)),
-    
-    # Choose best model by AIC (lower is better)
-    best_model = case_when(
-      !ss_success & !gauss_success ~ "none",
-      !ss_success ~ "gaussian",
-      !gauss_success ~ "sharpeschool",
-      gauss_aic < ss_aic - 2 ~ "gaussian",  # AIC difference > 2
-      TRUE ~ "sharpeschool"
-    ),
-    
-    # Use best fitting model
-    fit_best = case_when(
-      best_model == "gaussian" ~ fit_gauss,
-      best_model == "sharpeschool" ~ fit_ss,
-      TRUE ~ list(NULL)
-    )
-  )
-
-# Report model comparison
-model_comparison_summary <- colony_fits_comparison %>%
-  group_by(best_model) %>%
-  summarise(n = n(), .groups = 'drop')
-
-print("\nModel Selection Summary:")
-print(model_comparison_summary)
-
-# 6. CALCULATE METRICS BASED ON BEST MODEL
-# For Sharpe-Schoolfield models
-calc_ss_metrics <- function(fit) {
-  if(is.null(fit)) return(NULL)
-  
-  tibble(
-    topt = get_topt(fit),
-    rmax = get_rmax(fit),
-    ctmax = tryCatch(get_ctmax(fit), error = function(e) NA),
-    ctmin = tryCatch(get_ctmin(fit), error = function(e) NA),
-    breadth = tryCatch(get_breadth(fit), error = function(e) NA),
-    rtref = coef(fit)["r_tref"],
-    e = coef(fit)["e"],
-    eh = coef(fit)["eh"],
-    th = coef(fit)["th"],
-    aic = AIC(fit),
-    model = "sharpeschool"
-  )
-}
-
-# For Gaussian models (fewer parameters)
-calc_gauss_metrics <- function(fit) {
-  if(is.null(fit)) return(NULL)
-  
-  tibble(
-    topt = coef(fit)["topt"],
-    rmax = coef(fit)["rmax"],
-    ctmax = NA,  # Gaussian doesn't estimate this
-    ctmin = NA,  # Gaussian doesn't estimate this
-    breadth = tryCatch(get_breadth(fit), error = function(e) NA),
-    rtref = NA,
-    e = NA,
-    eh = NA,
-    th = NA,
-    aic = AIC(fit),
-    model = "gaussian"
-  )
-}
-
-# Calculate metrics for all colonies
-metrics_improved <- colony_fits_comparison %>%
-  mutate(
-    metrics = case_when(
-      best_model == "sharpeschool" ~ map(fit_ss, calc_ss_metrics),
-      best_model == "gaussian" ~ map(fit_gauss, calc_gauss_metrics),
-      TRUE ~ list(NULL)
-    )
-  ) %>%
-  filter(!is.null(metrics[[1]])) %>%
-  select(ColonyID, Species, Phenotype, best_model, metrics) %>%
-  unnest(metrics)
-
-print("\nImproved Metrics (first 20):")
-print(head(metrics_improved, 20))
-
-# 7. COMPARE METRICS TO IDENTIFY OUTLIERS
-outlier_check <- metrics_improved %>%
-  group_by(Species, Phenotype) %>%
-  mutate(
-    topt_z = abs(topt - mean(topt, na.rm = TRUE)) / sd(topt, na.rm = TRUE),
-    ctmax_z = abs(ctmax - mean(ctmax, na.rm = TRUE)) / sd(ctmax, na.rm = TRUE),
-    is_outlier = topt_z > 3 | ctmax_z > 3
-  ) %>%
-  ungroup()
-
-outliers <- outlier_check %>%
-  filter(is_outlier) %>%
-  select(ColonyID, Species, Phenotype, topt, ctmax, topt_z, ctmax_z)
-
-if(nrow(outliers) > 0) {
-  cat("\nStatistical outliers detected:\n")
-  print(outliers)
-}
-
-# 8. EXPORT IMPROVED METRICS
-write.csv(metrics_improved, "tpc_metrics_improved.csv", row.names = FALSE)
-write.csv(model_comparison_summary, "model_selection_summary.csv", row.names = FALSE)
-
-# 9. RECOMMENDATIONS
-cat("\n=== RECOMMENDATIONS ===\n")
-cat("1. Inspect the individual TPC plots above\n")
-cat("2. Colonies with max at edge may need more extreme temperatures\n")
-cat("3. Consider using Gaussian model for colonies without clear thermal decline\n")
-cat("4. Suspect CTmin < 10°C and CTmax > 40°C for tropical corals\n")
-cat("5. Check 'tpc_metrics_improved.csv' for model-appropriate metrics\n")
+  mutate(boot = map(data, ~boot(data = .x, 
+                                 statistic = function(d, i) as.numeric(fit_n_calc(d[i,])), 
+                                 R = 1000,
+                                 parallel = "multicore", 
+                                 ncpus = n_cores)))
 ```
 
+Unnest bootstrap results 
+```{r}
+boot_stats <- boot_results %>%
+  mutate(stats = map(boot, ~tidy(.x, conf.int = TRUE, conf.method = 'perc'))) %>%
+  unnest(stats) %>%
+  ungroup() %>% 
+  mutate(term = rep(names(calc_params(fit_ss$fit[[1]])), 4))
+```
 
+Look at specific metrics 
+```{r}
+# Filter for Topt to check for Phenotype differences
+topt_comparison <- boot_stats %>%
+  filter(term == "e") %>%
+  select(Species, Phenotype, statistic, std.error, conf.low, conf.high)
 
-
+ggplot(topt_comparison, aes(x = Phenotype, y = statistic, fill = Phenotype)) +
+  geom_point() +
+  #geom_bar(stat = "identity", width = 0.6, alpha = 0.8) + # Using bars to match your ref
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
+  facet_wrap(~Species) +
+  theme_classic() +
+  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  labs(y = "Acute Thermal Optimum (ºC)", 
+       title = "Thermal Optimum Comparison",
+       subtitle = "Error bars represent 95% Bootstrap Confidence Intervals")
+```
 
 
