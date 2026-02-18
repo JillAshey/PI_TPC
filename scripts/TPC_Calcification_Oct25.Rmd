@@ -17,7 +17,8 @@ library(patchwork)
 library(parallel)
 library(MuMIn)
 library(purrr)
-library(ggfortify) 
+library(ggfortify)
+library(job)
 
 n_cores <- detectCores() - 1
 ```
@@ -375,93 +376,451 @@ ggplot(calc_plot, aes(
 
 Because some values are negative, we need to 'shift' the data away from negative values while still maintaining the shape of the curve.
 ```{r}
-min_rate <- min(calc_meta$Net_Calcification_cm2, na.rm = TRUE)
-shift_val <- abs(min_rate) + 0.01 
+# log 
+calc_2025 <- calc_meta %>%
+  mutate(log_calc = log(Net_Calcification_cm2 + 1))
 
-calc_shifted <- calc_meta %>%
+calc_shifted_2025 <- calc_2025 %>%
   filter(!is.na(Species)) %>%
   mutate(
-    rate_shifted = Net_Calcification_cm2 + shift_val,
+    rate_shifted = log_calc,
     temp = Target_Temperature)
-
-# calc_clean <- calc_meta %>%
-#   filter(!is.na(Species)) %>%
-#   mutate(group = paste(Species, Phenotype, sep = "_")) %>%
-#   rename(temp = Target_Temperature, rate = Net_Calcification_cm2)
 ```
 
-Fitting curves for each group
+Fit multiple models to find best fit for our data 
 ```{r}
-mod_pawar <- 'pawar_2018'
+safe_fit_aic_v2 <- function(d, mod_name) {
+  tryCatch({
+    sv <- get_start_vals(d$temp, d$rate_shifted, model_name = mod_name)
+    
+    # We use a formula approach for each model to ensure parameter names match
+    if(mod_name == 'pawar_2018'){
+       fit <- nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, topt, tref = 25),
+                            data = d, iter = 100, start_lower = sv - 10, start_upper = sv + 10, supp_errors = 'Y')
+    } 
+    else if(mod_name == 'sharpeschoolhigh_1981'){
+       fit <- nls_multstart(rate_shifted ~ sharpeschoolhigh_1981(temp, r_tref, e, eh, th, tref = 25),
+                            data = d, iter = 100, start_lower = sv - 10, start_upper = sv + 10, supp_errors = 'Y')
+    } 
+    else if(mod_name == 'gaussian_1987'){
+       fit <- nls_multstart(rate_shifted ~ gaussian_1987(temp, rmax, topt, a),
+                            data = d, iter = 100, start_lower = sv - 10, start_upper = sv + 10, supp_errors = 'Y')
+    } 
+    else if(mod_name == 'boatman_2017'){
+       fit <- nls_multstart(rate_shifted ~ boatman_2017(temp, rmax, tmin, tmax, topt, a),
+                            data = d, iter = 100, start_lower = sv - 10, start_upper = sv + 10, supp_errors = 'Y')
+    }
+    
+    return(MuMIn::AICc(fit))
+  }, error = function(e) return(NA))
+}
 
-fit_pawar <- calc_shifted %>%
+# Run all models 
+all_group_aic_2025 <- calc_shifted_2025 %>%
   group_by(Species, Phenotype) %>%
   nest() %>%
-  mutate(fit = map(data, ~nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, th, tref = 25),
-                                        data = .x,
-                                        iter = 500,
-                                        start_lower = get_start_vals(.x$temp, .x$rate_shifted, model_name = mod_pawar) - 1,
-                                        start_upper = get_start_vals(.x$temp, .x$rate_shifted, model_name = mod_pawar) + 1,
-                                        supp_errors = 'Y',
-                                        convergence_count = 100)))
-
-pawar_params <- fit_pawar %>%
-  mutate(params = map(fit, ~calc_params(.x))) %>%
-  unnest(params)
+  crossing(model_name = c('sharpeschoolhigh_1981', 'pawar_2018', 'boatman_2017', 'gaussian_1987')) %>%
+  mutate(aic_score = map2_dbl(data, model_name, ~safe_fit_aic_v2(.x, .y))) %>%
+  group_by(Species, Phenotype) %>%
+  mutate(delta_AICc = aic_score - min(aic_score, na.rm = TRUE)) %>%
+  arrange(Species, Phenotype, delta_AICc)
 ```
 
-Bootstrapping TPC metrics
+Still using Pawar 2018. 
+
+Fit the pawar 2018 function and run bootstrap across groups 
 ```{r}
-# Function to fit model and return a vector of parameters
-fit_n_calc <- function(x){
+# Define the Pawar-based bootstrap function
+fit_pawar_boot <- function(x) {
   mod <- 'pawar_2018'
-  fit <- nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, th, tref = 25),
+  
+  # Wider search range (+/- 10) for stability
+  fit <- nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, topt, tref = 25),
                        data = x,
-                       iter = 10, 
-                       start_lower = get_start_vals(x$temp, x$rate_shifted, model_name = mod) - 1,
-                       start_upper = get_start_vals(x$temp, x$rate_shifted, model_name = mod) + 1,
+                       iter = 50, 
+                       start_lower = get_start_vals(x$temp, x$rate_shifted, model_name = mod) - 10,
+                       start_upper = get_start_vals(x$temp, x$rate_shifted, model_name = mod) + 10,
+                       lower = get_lower_lims(x$temp, x$rate_shifted, model_name = mod),
+                       upper = get_upper_lims(x$temp, x$rate_shifted, model_name = mod),
                        supp_errors = 'Y')
-  return(calc_params(fit))
+  
+  # Calculate derived parameters
+  extra_params <- calc_params(fit)
+  
+  # Get the raw r_tref estimate from the model
+  r_tref_val <- broom::tidy(fit) %>% filter(term == "r_tref") %>% pull(estimate)
+  
+  # Return: rmax, topt, e, eh, r_tref_25
+  all_stats <- c(as.numeric(extra_params$rmax), 
+                 as.numeric(extra_params$topt), 
+                 as.numeric(extra_params$e), 
+                 as.numeric(extra_params$eh),
+                 as.numeric(r_tref_val))
+  
+  names(all_stats) <- c("rmax", "topt", "e", "eh", "r_tref_25")
+  return(all_stats)
 }
 
 # Run the bootstrap
-n_cores <- detectCores() - 1
-boot_results <- calc_shifted %>%
+boot_results_2025 <- calc_shifted_2025 %>%
   group_by(Species, Phenotype) %>%
   nest() %>%
   mutate(boot = map(data, ~boot(data = .x, 
-                                 statistic = function(d, i) as.numeric(fit_n_calc(d[i,])), 
+                                 statistic = function(d, i) as.numeric(fit_pawar_boot(d[i,])), 
                                  R = 1000,
                                  parallel = "multicore", 
                                  ncpus = n_cores)))
-```
 
-Unnest bootstrap results 
-```{r}
-boot_stats <- boot_results %>%
-  mutate(stats = map(boot, ~tidy(.x, conf.int = TRUE, conf.method = 'perc'))) %>%
+# Tidy the results for interpretation
+boot_stats_2025 <- boot_results_2025 %>%
+  mutate(stats = map(boot, ~broom::tidy(.x, conf.int = TRUE, conf.method = 'perc'))) %>%
   unnest(stats) %>%
-  ungroup() %>% 
-  mutate(term = rep(names(calc_params(fit_ss$fit[[1]])), 4))
+  ungroup() %>%
+  mutate(term = rep(c("rmax", "topt", "e", "eh", "r_tref_25"), 4))
 ```
 
-Look at specific metrics 
+Code not running...
 ```{r}
-# Filter for Topt to check for Phenotype differences
-topt_comparison <- boot_stats %>%
-  filter(term == "e") %>%
-  select(Species, Phenotype, statistic, std.error, conf.low, conf.high)
-
-ggplot(topt_comparison, aes(x = Phenotype, y = statistic, fill = Phenotype)) +
-  geom_point() +
-  #geom_bar(stat = "identity", width = 0.6, alpha = 0.8) + # Using bars to match your ref
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
-  facet_wrap(~Species) +
-  theme_classic() +
-  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
-  labs(y = "Acute Thermal Optimum (ºC)", 
-       title = "Thermal Optimum Comparison",
-       subtitle = "Error bars represent 95% Bootstrap Confidence Intervals")
+# Test run on just one group to see the actual error
+test_2025 <- calc_shifted_2025 %>%
+  filter(Species == "Montipora capitata", Phenotype == "Resistant") %>%
+  boot(data = ., 
+       statistic = function(d, i) as.numeric(fit_pawar_boot(d[i,])), 
+       R = 10) # Small R just to test
 ```
+
+Try again with updated code
+```{r}
+# 1. Ensure the v2 function is defined in your environment
+fit_pawar_boot_v2 <- function(x) {
+  mod <- 'pawar_2018'
+  result <- tryCatch({
+    fit <- nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, topt, tref = 25),
+                         data = x,
+                         iter = 50, 
+                         start_lower = get_start_vals(x$temp, x$rate_shifted, model_name = mod) - 10,
+                         start_upper = get_start_vals(x$temp, x$rate_shifted, model_name = mod) + 10,
+                         lower = get_lower_lims(x$temp, x$rate_shifted, model_name = mod),
+                         upper = get_upper_lims(x$temp, x$rate_shifted, model_name = mod),
+                         supp_errors = 'Y')
+    
+    extra_params <- calc_params(fit)
+    r_tref_val <- broom::tidy(fit) %>% filter(term == "r_tref") %>% pull(estimate)
+    
+    # Return numeric vector
+    c(rmax = as.numeric(extra_params$rmax), 
+      topt = as.numeric(extra_params$topt), 
+      e = as.numeric(extra_params$e), 
+      eh = as.numeric(extra_params$eh),
+      r_tref_25 = as.numeric(r_tref_val))
+    
+  }, error = function(e) {
+    # Returns numeric NAs so the bootstrap can still aggregate results
+    return(c(rmax = NA, topt = NA, e = NA, eh = NA, r_tref_25 = NA))
+  })
+  return(result)
+}
+
+# 2. Run the full 2025 Bootstrap
+boot_results_2025 <- calc_shifted_2025 %>%
+   group_by(Species, Phenotype) %>%
+   nest() %>%
+   mutate(boot = map(data, ~boot(data = .x,  
+                                  statistic = function(d, i) as.numeric(fit_pawar_boot_v2(d[i,])), 
+                                  R = 1000,
+                                  parallel = "multicore", 
+                                  ncpus = n_cores)))
+
+# 3. Tidy (This should now work without the 'non-numeric' error)
+boot_stats_2025 <- boot_results_2025 %>%
+   mutate(stats = map(boot, ~broom::tidy(.x, conf.int = TRUE, conf.method = 'perc'))) %>%
+   unnest(stats) %>%
+   ungroup() %>%
+   mutate(term = rep(c("rmax", "topt", "e", "eh", "r_tref_25"), 4))
+```
+
+lean up data and create 5 panel plot
+```{r}
+# Clean up the NAs by using the average of the confidence intervals where statistic is NA
+boot_stats_cleaned_2025 <- boot_stats_2025 %>%
+  mutate(statistic = ifelse(is.na(statistic), (conf.low + conf.high) / 2, statistic))
+
+# Define the 5 traits we want to plot
+traits <- c("r_tref_25", "rmax", "topt", "e", "eh")
+
+# Create a list to store the plots
+plot_list <- list()
+
+for (i in 1:length(traits)) {
+  trait_name <- traits[i]
+  df_sub <- subset(boot_stats_cleaned_2025, term == trait_name)
+  
+  # Set specific labels for each trait
+  y_label <- case_when(
+    trait_name == "r_tref_25" ~ "Rate at 25°C (log)",
+    trait_name == "rmax"      ~ "Rmax (log)",
+    trait_name == "topt"      ~ "Topt (°C)",
+    trait_name == "e"         ~ "Activation (e)",
+    trait_name == "eh"        ~ "Deactivation (eh)"
+  )
+  
+  # Build the plot using your specific style
+  p <- ggplot(df_sub, aes(x = Phenotype, y = statistic, color = Phenotype)) +
+    geom_errorbar(aes(ymin = statistic - std.error, ymax = statistic + std.error), 
+                  width = 0.15, linewidth = 1) +
+    geom_point(size = 4) +
+    facet_grid(~Species) + # Species side-by-side in each row
+    scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+    theme_bw(base_size = 12) +
+    theme(
+      legend.position = "none",
+      strip.background = element_rect(fill = "gray95"),
+      strip.text = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    ) +
+    labs(y = y_label, x = NULL)
+  
+  # Hide x-axis text for all except the bottom-most plot
+  if (i < length(traits)) {
+    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  }
+  
+  plot_list[[i]] <- p
+}
+
+# Combine all 5 plots into one tall column
+final_5_panel <- wrap_plots(plot_list, ncol = 1)
+print(final_5_panel)
+```
+
+Plot log scale calcification rates across temps 
+```{r}
+calc_plot_2025 <- calc_2025 %>%
+  filter(!is.na(Phenotype),
+         !is.na(Species),
+         ColonyID != "blank")
+
+ggplot(calc_plot_2025, aes(
+  x = Target_Temperature,
+  y = log_calc,
+  color = Phenotype,
+  fill = Phenotype
+)) +
+  geom_point(size = 3, alpha = 0.5) +
+  geom_smooth(method = "loess", se = TRUE, span = 0.6, alpha = 0.25) +
+  facet_wrap(~Species, scales = "fixed") +
+  theme_classic(base_size = 14) +
+  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  scale_fill_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
+  labs(
+    x = "Target Temperature (°C)",
+    y = expression("log(Net Calcification ("*cm^-2*"))"),
+    color = "Phenotype",
+    fill = "Phenotype")
+```
+
+Plot as PCA
+```{r}
+# 1. Extract all 1000 replicates for all 5 traits from the 'boot' column
+pca_prep_clean <- boot_results_2025 %>%
+  mutate(reps = map(boot, ~as.data.frame(.x$t))) %>%
+  unnest(reps) %>%
+  ungroup() %>%
+  # Rename based on your specific column order
+  rename(rmax = V1, topt = V2, e = V3, eh = V4, r_tref_25 = V5) %>%
+  # REMOVE THE NAs
+  drop_na(rmax, topt, e, eh, r_tref_25)
+
+# 2. Perform PCA (Scaling is vital because Topt and Rmax have different magnitudes)
+pca_fit <- prcomp(pca_prep_clean[, c("rmax", "topt", "e", "eh", "r_tref_25")], scale. = TRUE)
+
+# 3. Plot with Loadings (Arrows)
+autoplot(pca_fit, data = pca_prep_clean, colour = 'Phenotype', 
+         shape = 'Species', frame = TRUE, frame.type = 'norm',
+         loadings = TRUE, loadings.label = TRUE, 
+         loadings.label.size = 3, loadings.colour = "black", loadings.label.colour = "black") +
+  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  scale_fill_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  theme_bw() +
+  labs(title = "Multivariate Thermal Phenotype PCA",
+       subtitle = "Bootstrap cloud showing separation of coral groups",
+       caption = "Arrows indicate the direction of trait influence.")
+```
+
+Determine differences 
+```{r}
+# Function to get p-value from two bootstrap objects
+get_p_value <- function(boot_a, boot_b, index) {
+  # index: 1=rmax, 2=topt, 3=e, 4=eh, 5=r_tref_25
+  diffs <- boot_a$t[, index] - boot_b$t[, index]
+  # Calculate proportion of differences that cross zero
+  p_val <- 2 * min(mean(diffs > 0, na.rm=TRUE), mean(diffs < 0, na.rm=TRUE))
+  return(p_val)
+}
+
+# Example: Comparing Topt (index 2) for Montipora Phenotypes
+p_val <- get_p_value(boot_results_2025$boot[[1]], boot_results_2025$boot[[2]], 2)
+```
+
+```{r}
+# Define the trait names for the output
+trait_names <- c("rmax", "topt", "e", "eh", "r_tref_25")
+
+# Initialize a results table
+comparison_results <- data.frame()
+
+# Define the pairs we want to compare (based on the row indices of boot_results_2025)
+# 1 vs 2: Phenotype effect in Montipora
+# 3 vs 4: Phenotype effect in Porites
+# 1 vs 3: Species effect in Resistant corals
+comparisons <- list(
+  "M.cap_Phenotype" = c(1, 2),
+  "P.com_Phenotype" = c(3, 4),
+  "Resistant_Species" = c(1, 3)
+)
+
+for(comp_name in names(comparisons)){
+  idx_a <- comparisons[[comp_name]][1]
+  idx_b <- comparisons[[comp_name]][2]
+  
+  for(i in 1:5){
+    p_val <- get_p_value(boot_results_2025$boot[[idx_a]], 
+                         boot_results_2025$boot[[idx_b]], i)
+    
+    comparison_results <- rbind(comparison_results, data.frame(
+      Comparison = comp_name,
+      Trait = trait_names[i],
+      P_Value = p_val,
+      Significant = ifelse(p_val < 0.05, "Yes", "No")
+    ))
+  }
+}
+
+print(comparison_results)
+```
+
+
+## Comparing 2023 and 2025
+
+```{r}
+# Create a list for year-over-year comparisons
+# Assuming row order is the same in both (Montipora-R, Montipora-S, Porites-R, Porites-S)
+year_comparison_results <- data.frame()
+
+for(group_idx in 1:4) {
+  # Identify which group we are looking at
+  group_info <- boot_results_2025[group_idx, c("Species", "Phenotype")]
+  group_label <- paste(group_info$Species, group_info$Phenotype, sep="_")
+  
+  for(trait_idx in 1:5) {
+    # Compare 2023 (boot_results_final) vs 2025 (boot_results_2025)
+    p_val <- get_p_value(boot_results_final$boot[[group_idx]], 
+                         boot_results_2025$boot[[group_idx]], 
+                         trait_idx)
+    
+    year_comparison_results <- rbind(year_comparison_results, data.frame(
+      Group = group_label,
+      Trait = trait_names[trait_idx],
+      P_Value = p_val,
+      Significant_Shift = ifelse(p_val < 0.05, "Yes", "No")
+    ))
+  }
+}
+
+print(year_comparison_results)
+
+# Compare the actual means between years
+comparison_check <- bind_rows(
+  boot_stats_cleaned_2023 %>% filter(term == "rmax") %>% mutate(Year = "2023"),
+  boot_stats_cleaned_2025 %>% filter(term == "rmax") %>% mutate(Year = "2025")
+) %>% 
+  select(Year, Species, Phenotype, statistic, conf.low, conf.high)
+
+print(comparison_check)
+```
+
+Plot
+```{r}
+# 1. Combine the datasets
+plot_data <- bind_rows(
+  boot_stats_cleaned_2023 %>% mutate(Year = "2023"),
+  boot_stats_cleaned_2025 %>% mutate(Year = "2025")
+) #%>%
+  #filter(term %in% c("rmax", "topt")) # Focus on the most important shifts
+
+# 2. Create the Slope Chart
+ggplot(plot_data, aes(x = Year, y = statistic, group = interaction(Species, Phenotype), color = Phenotype)) +
+  geom_line(size = 1, alpha = 0.7) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.1) +
+  facet_grid(term ~ Species, scales = "free_y") +
+  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  theme_bw() +
+  labs(title = "Interannual Physiological Shifts (2023 vs 2025)",
+       y = "Parameter Value (Bootstrap Mean ± 95% CI)",
+       x = "Experimental Year") +
+  theme(strip.background = element_rect(fill = "white"),
+        legend.position = "bottom")
+```
+
+Check for outliers:
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# 1. Define a function to generate curve points based on your parameters
+get_tpc_curve <- function(params, temp_range = seq(16, 40, length.out = 100)) {
+  # Extract parameters from your tidy table
+  r_tref <- params %>% filter(term == "r_tref_25") %>% pull(statistic)
+  e <- params %>% filter(term == "e") %>% pull(statistic)
+  eh <- params %>% filter(term == "eh") %>% pull(statistic)
+  topt <- params %>% filter(term == "topt") %>% pull(statistic)
+  
+  # Pawar 2018 formula (ensure this matches your environment's function)
+  k <- 8.62e-05
+  tref <- 25 + 273.15
+  temp_k <- temp_range + 273.15
+  topt_k <- topt + 273.15
+  
+  # Calculate rates
+  term1 <- r_tref * exp(e * ((1/(k * tref)) - (1/(k * temp_k))))
+  term2 <- 1 + (e / (eh - e)) * exp((eh / k) * ((1 / topt_k) - (1 / temp_k)))
+  prediction <- term1 / term2
+  
+  return(data.frame(temp = temp_range, rate = prediction))
+}
+
+# 2. Loop through groups to create a "Predictions" dataframe
+# Example for 2025 data (repeat for 2023)
+groups <- boot_stats_cleaned_2025 %>% distinct(Species, Phenotype)
+all_preds <- data.frame()
+
+for(i in 1:nrow(groups)){
+  s <- groups$Species[i]
+  p <- groups$Phenotype[i]
+  
+  params_subset <- boot_stats_cleaned_2025 %>% filter(Species == s, Phenotype == p)
+  preds <- get_tpc_curve(params_subset) %>%
+    mutate(Species = s, Phenotype = p)
+  
+  all_preds <- rbind(all_preds, preds)
+}
+
+# 3. Plot Raw Data + Predictions
+ggplot() +
+  # Raw data points
+  geom_point(data = calc_shifted_2025, aes(x = temp, y = rate_shifted, color = Phenotype), 
+             alpha = 0.4, size = 1.5) +
+  # Fitted TPC lines
+  geom_line(data = all_preds, aes(x = temp, y = rate, color = Phenotype), size = 1.2) +
+  facet_wrap(~Species + Phenotype, scales = "free") +
+  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  theme_bw() +
+  labs(title = "Diagnostic TPC Fits: 2025 Raw Data vs. Bootstrap Mean Models",
+       x = "Temperature (°C)", y = "Log Net Calcification")
+```
+
+
 
 
