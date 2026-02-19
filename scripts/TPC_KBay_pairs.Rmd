@@ -289,6 +289,416 @@ ggplot(all_int_tpc, aes(x = Temperature, y = log.rate, color = Phenotype)) +
   labs(x = "Temperature (C)", y = "log(umol O2 cm-2 h-1)", color = "Phenotype")
 ```
 
+## Fit TPC curve
+
+Set target temperature to numeric and convert temperature to Kelvin
+```{r}
+photo_2023 <- all_int_tpc %>%
+  mutate(Temperature = as.numeric(Temperature),
+         Temperature.K = Temperature + 273.15)
+```
+
+Fit curves for all colonies using `sharpe_schoolfield` function defined above
+```{r}
+fits_2023 <- photo_2023 %>%
+  group_by(Phenotype,Species,Colony_ID) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(Slope_norm ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = Temperature.K, Tc = 27),
+                                                data = .x,
+                                                iter = 1000,
+                                                start_lower = c(lnc = -10, E = 0.1, Eh = 0.2, Th = 285),
+                                                start_upper = c(lnc = 10, E = 2, Eh = 5, Th = 330),
+                                                supp_errors = 'Y',
+                                                na.action = na.omit,
+                                                lower = c(lnc = -10, E = 0, Eh = 0, Th = 0))))
+```
+
+Get TPC parameters for each colony 
+```{r}
+params_2023 <- fits_2023 %>%
+  unnest_legacy(fit %>% purrr::map(tidy))
+```
+
+Calculate Topt and Rmax for each colony 
+```{r}
+Topt_Rmax_2023 <- params_2023 %>%
+  dplyr::select(Colony_ID, Phenotype, Species, term, estimate) %>%
+  tidyr::pivot_wider(names_from = term, values_from = estimate) %>%
+  mutate(
+    Topt_K = get_topt(E, Th, Eh),
+    Topt_C = Topt_K - 273.15,
+    Rmax_log = sharpe_schoolfield(lnc, E, Eh, Th, temp = Topt_K, Tc = 27),
+    Rmax_linear = exp(Rmax_log) - 1)
+```
+
+Pivot data so that each trait is a row 
+```{r}
+traits_long_2023 <- Topt_Rmax_2023 %>%
+  dplyr::select(Colony_ID, Phenotype, Species, lnc, E, Eh, Topt_C, Rmax_log) %>%
+  pivot_longer(cols = c(lnc, E, Eh, Topt_C, Rmax_log), 
+               names_to = "trait", 
+               values_to = "estimate")
+```
+
+## lnc (r_tref) - 2023
+
+Subset by lnc data
+```{r}
+lnc_long_2023 <- traits_long_2023 %>%
+  filter(trait == "lnc")
+```
+
+Check for normality
+```{r}
+hist(lnc_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(lnc_long_2023$estimate)
+qqline(lnc_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(lnc_long_2023$estimate)
+```
+
+Data is normal! 
+
+Run linear mixed effects model 
+```{r}
+lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony_ID, data=lnc_long_2023, na.action=na.exclude)
+summary(lnc.lme)
+anova(lnc.lme)
+```
+
+Species and Phenotpye are significant. 
+
+## E - 2023
+
+Subset by E data
+```{r}
+e_long_2023 <- traits_long_2023 %>%
+  filter(trait == "E")
+```
+
+Check for normality
+```{r}
+hist(e_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(e_long_2023$estimate)
+qqline(e_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(e_long_2023$estimate)
+```
+
+Data is normal! 
+
+Run linear mixed effects model 
+```{r}
+e.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony_ID, data=e_long_2023, na.action=na.exclude)
+summary(e.lme)
+anova(e.lme)
+```
+
+Species and Phenotype are significant. 
+
+## Eh - 2023
+
+Subset by Eh data
+```{r}
+eh_long_2023 <- traits_long_2023 %>%
+  filter(trait == "Eh")
+```
+
+Check for normality
+```{r}
+hist(eh_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(eh_long_2023$estimate)
+qqline(eh_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(eh_long_2023$estimate)
+```
+
+Data is normal!
+
+Run linear mixed effects model 
+```{r}
+eh.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony_ID, data=eh_long_2023, na.action=na.exclude)
+summary(eh.lme)
+anova(eh.lme)
+```
+
+Species is significant. 
+
+## Topt - 2023
+
+Subset by Topt data
+```{r}
+topt_long_2023 <- traits_long_2023 %>%
+  filter(trait == "Topt_C")
+```
+
+Check for normality
+```{r}
+hist(topt_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(topt_long_2023$estimate)
+qqline(topt_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(topt_long_2023$estimate)
+```
+
+Data is not normal, come back to this. 
+
+Run linear mixed effects model 
+```{r}
+topt.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony_ID, data=topt_long_2023, na.action=na.exclude)
+summary(topt.lme)
+anova(topt.lme)
+```
+
+No significant differences. 
+
+## Rmax_log - 2023
+
+Subset by Rmax_log data
+```{r}
+rmax_long_2023 <- traits_long_2023 %>%
+  filter(trait == "Rmax_log")
+```
+
+Check for normality
+```{r}
+hist(rmax_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(rmax_long_2023$estimate)
+qqline(rmax_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(rmax_long_2023$estimate)
+```
+
+Data is normal! 
+
+Run linear mixed effects model 
+```{r}
+rmax.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony_ID, data=rmax_long_2023, na.action=na.exclude)
+summary(rmax.lme)
+anova(rmax.lme)
+```
+
+Species and Phenotype are significant. 
+
+## Visualization for 2023
+
+Plot
+```{r}
+# Create the point plot with Mean and SE
+ggplot(traits_long_2023, aes(x = Phenotype, y = estimate, color = Phenotype)) +
+  # Add raw colony data as small, transparent points to show the spread
+  geom_jitter(width = 0.1, alpha = 0.3, size = 1.5) +
+  stat_summary(fun = mean, geom = "point", size = 4) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.2, linewidth = 1) +
+  facet_grid(trait ~ Species, scales = "free_y") +
+  scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(face = "bold", size = 11),
+    axis.text = element_text(color = "black", size = 10),
+    axis.title = element_text(face = "bold", size = 13),
+    panel.grid.minor = element_blank()
+  ) +
+  labs(
+    title = "2023 Thermal Performance Traits",
+    y = "Estimate (Mean ± SE)",
+    x = "Phenotype"
+  )
+
+## Box plot 
+ggplot(traits_long_2023, aes(x = Phenotype, y = estimate, fill = Phenotype)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7, width = 0.6, color = "black") +
+  geom_jitter(width = 0.2, alpha = 0.5, size = 1.2, color = "black") +
+  facet_grid(trait ~ Species, scales = "free_y") +
+  scale_fill_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  theme_bw() +
+  theme(
+    legend.position = "none",
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(face = "bold", size = 11),
+    axis.text = element_text(color = "black", size = 10),
+    axis.title = element_text(face = "bold", size = 13),
+    panel.grid.major.x = element_blank() # Clean up vertical lines
+  ) +
+  labs(
+    y = "Estimated Parameter Value",
+    x = "Phenotype"
+  )
+```
+
+Multidimensional visualization via PCA
+```{r}
+# Select only numeric traits for PCA
+pca_prep <- Topt_Rmax_2023 %>%
+  ungroup() %>%
+  dplyr::select(lnc, E, Eh, Topt_C, Rmax_log)
+
+# Run PCA (scale = TRUE is essential here)
+pca_fit <- prcomp(pca_prep, scale. = TRUE)
+
+# Plot
+autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype', 
+         shape = 'Species', frame = TRUE, frame.type = 'norm',
+         loadings = TRUE, loadings.label = TRUE, 
+         loadings.label.size = 3, loadings.colour = "black", loadings.label.colour = "black") +
+  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  scale_fill_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  theme_bw() +
+  labs(title = "Multivariate Thermal Phenotype PCA",
+       caption = "Arrows indicate the direction of trait influence.")
+```
+
+## Plot with confidence intervals 
+
+Generate and aggregate predictions
+```{r}
+# 1. Define the temperature range for the smooth curves
+new_data <- data.frame(
+  Temperature.K = seq(18 + 273.15 - 1,  # 17°C
+                      38 + 273.15 + 1,  # 39°C
+                      length.out = 200))
+
+# 2. Generate predictions for every colony model
+# This creates a "long" dataframe of all potential curves
+preds_all <- fits_2023 %>%
+  mutate(preds = map(fit, ~{
+    # We use a safe predict call in case some models didn't converge
+    p <- try(predict(.x, newdata = new_data), silent = TRUE)
+    if(inherits(p, "try-error")) return(NULL)
+    data.frame(Temperature.K = new_data$Temperature.K, pred_val = p)
+  })) %>%
+  filter(!map_lgl(preds, is.null)) %>% # Remove failed fits
+  unnest(preds)
+
+# 3. Calculate the MEAN and CI of the curves per group
+# At each temperature step, find the mean performance across all colonies
+preds_mean_summary <- preds_all %>%
+  group_by(Phenotype, Species, Temperature.K) %>%
+  dplyr::summarise(
+    mean_val = mean(pred_val, na.rm = TRUE),
+    sd_val = sd(pred_val, na.rm = TRUE),
+    n = n(),
+    se_val = sd_val / sqrt(n),
+    # 95% Confidence Interval of the Mean
+    lower = mean_val - (1.96 * se_val),
+    upper = mean_val + (1.96 * se_val),
+    .groups = "drop"
+  )
+```
+
+Plot TPC with fitted curves 
+```{r}
+ggplot(preds_mean_summary, aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype, fill = Phenotype)) +
+  geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.5, color = NA) +
+  geom_line(linewidth = 1.5) +
+  scale_x_continuous(
+    breaks = seq(18, 40, by = 2), 
+    limits = c(17, 40)) +
+  geom_point(data = photo_2023, aes(x = Temperature.K - 273.15, y = Slope_norm), 
+             alpha = 0.2, size = 1, inherit.aes = TRUE) +
+  facet_wrap(~ Species) +
+  scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  scale_fill_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = "white"),
+    strip.text = element_text(face = "bold", size = 12),
+    panel.grid = element_blank()
+  ) +
+  labs(
+    x = "Temperature (°C)", 
+    y = expression(bold("Net photosynthesis (log(" *mu*"mol " *cm^-2 *hr^-1*"))")),
+    title = "Photosynthesis Fitted Thermal Performance Curves (2023)"
+  )
+```
+
+## Plot with confidence intervals and the environmental data 
+
+```{r}
+temps <- read.csv("../output/environmental/NSF_CAREER_KBay_PR13_Temps.csv")
+```
+
+Subset for the year prior to Sept 23, 2023
+```{r}
+temps_sub <- temps %>%
+  filter(DateTime <= "2023-09-23 01:00:00")
+```
+
+```{r}
+temp_freq <- temps_sub %>%
+  # Rounding to the nearest whole degree centers the bar on that number
+  mutate(temp_bin = round(Temp_C, 0)) %>% 
+  group_by(temp_bin) %>%
+  dplyr::summarise(count = n(), .groups = "drop") %>%
+  # Calculate the percentage of total time spent at that temperature
+  mutate(percent = (count / sum(count)) * 100)
+```
+
+Plot with temp bars
+```{r}
+# 1. Final Axis Parameters
+p_min <- -0.5  # Hard floor of the plot
+p_max <- 2.3   # Peak of the Y-axis
+p_total <- p_max - p_min
+s_max <- 40    # Max percent on the right axis
+scale_factor <- p_total / s_max
+
+ggplot() +
+  geom_rect(data = temp_freq, 
+            aes(xmin = temp_bin - 0.45, xmax = temp_bin + 0.45, 
+                ymin = p_min, ymax = p_min + (percent * scale_factor)), 
+            fill = "#8DBBCC", color = "#727E8B", linewidth = 0.2) +
+  geom_point(data = photo_2023, 
+             aes(x = Temperature.K - 273.15, y = Slope_norm, color = Phenotype), 
+             alpha = 0.5, size = 1.2, position = position_jitter(width = 0.1)) +
+  geom_ribbon(data = preds_mean_summary, 
+              aes(x = Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
+              alpha = 0.3, color = NA) +
+  geom_hline(yintercept = 0, color = "grey", linewidth = 0.5, linetype = "dashed") +
+  geom_line(data = preds_mean_summary, 
+            aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype), 
+            linewidth = 1.3) +
+  scale_y_continuous(
+    name = expression(bold("Performance Rate")),
+    limits = c(p_min, p_max),
+    expand = c(0, 0),
+    sec.axis = sec_axis(~ (. - p_min) / scale_factor, name = "Percent days", breaks = seq(0, 80, 20))
+  ) +
+  scale_x_continuous(breaks = seq(18, 40, by = 2), limits = c(17.5, 40.5), expand = c(0,0)) +
+  facet_wrap(~ Species, nrow = 1) +
+  scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  scale_fill_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  theme_classic() +
+  theme(
+    legend.position = "top",
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold", size = 13),
+    axis.line = element_line(color = "black"),
+    panel.spacing = unit(2, "lines")
+  ) +
+  labs(x = "Temperature (°C)")
+```
+
+
+
 
 
 
