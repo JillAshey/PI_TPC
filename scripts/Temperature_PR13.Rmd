@@ -193,19 +193,19 @@ sept22_apr23_21152005 <- read.csv("../data/environmental/2022-Sept_2023-April_Re
 sept22_apr23_21152005 <- sept22_apr23_21152005 %>%
   mutate(DateTime = dmy_hms(paste(Date, Time..GMT.10.00)),
          Temp_C = Temp...C) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 sept22_apr23_21152007 <- read.csv("../data/environmental/2022-Sept_2023-April_Reef13_1m_21152007.csv")
 sept22_apr23_21152007 <- sept22_apr23_21152007 %>%
   mutate(DateTime = dmy_hms(paste(Date, Time..GMT.10.00)),
          Temp_C = Temp...C) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 sept22_apr23_21152009 <- read.csv("../data/environmental/2022-Sept_2023-April_Reef13_3m_21152009.csv")
 sept22_apr23_21152009 <- sept22_apr23_21152009 %>%
   mutate(DateTime = dmy_hms(paste(Date, Time..GMT.10.00)),
          Temp_C = Temp...C) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 sept22_apr23 <- rbind(sept22_apr23_21152005, sept22_apr23_21152007, sept22_apr23_21152009)
 ggplot(sept22_apr23, aes(x = DateTime, y = Temp_C)) +
@@ -219,13 +219,13 @@ apr23_sept_23_21152007_3m <- read.csv("../data/environmental/2023-04-14_to_2023-
 apr23_sept_23_21152007_3m <- apr23_sept_23_21152007_3m %>%
   mutate(DateTime = ymd_hms(paste(Date, Time..GMT.10.00)),
          Temp_C = Temp...C) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 apr23_sept_23_21152007_1m <- read.csv("../data/environmental/2023-04-14_to_2023-09-19_21152007_Reef13_1m.csv", header = F, skip = 1)
 apr23_sept_23_21152007_1m <- apr23_sept_23_21152007_1m %>%
   mutate(DateTime = ymd_hms(paste(V1, V2)),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 apr23_sept23 <- rbind(apr23_sept_23_21152007_3m, apr23_sept_23_21152007_1m)
 ggplot(apr23_sept23, aes(x = DateTime, y = Temp_C)) +
@@ -240,21 +240,21 @@ sept23_jan24_21152005 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13
 sept23_jan24_21152005 <- sept23_jan24_21152005 %>%
   mutate(DateTime = dmy_hms(paste(V1, V2)),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 sept23_jan24_21152007 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_21152007_1m.csv", header = F, skip = 1) %>%
   na.omit()
 sept23_jan24_21152007 <- sept23_jan24_21152007 %>%
   mutate(DateTime = dmy_hms(paste(V1, V2)),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 sept23_jan24_21152009 <- read.csv("../data/environmental/Sept2023_Jan2024_Reef13_insitu_temp_21152009_1m.csv", header = F, skip = 1) %>%
   na.omit()
 sept23_jan24_21152009 <- sept23_jan24_21152009 %>%
   mutate(DateTime = dmy_hms(paste(V1, V2)),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 sept23_jan24 <- rbind(sept23_jan24_21152005, sept23_jan24_21152007, sept23_jan24_21152009)
 ggplot(sept23_jan24, aes(x = DateTime, y = Temp_C)) +
@@ -269,21 +269,21 @@ jan24_may24_21152005 <- read.csv("../data/environmental/2024-05-09_Kbay_21152005
 jan24_may24_21152005 <- jan24_may24_21152005 %>%
   mutate(DateTime = mdy_hm(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 jan24_may24_21152007 <- read.csv("../data/environmental/2024-05-08_Kbay_21152007.csv", header = F, skip = 1) %>%
   na.omit()
 jan24_may24_21152007 <- jan24_may24_21152007 %>%
   mutate(DateTime = mdy_hm(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 jan24_may24_21152009 <- read.csv("../data/environmental/2024-05-09_Kbay_21152009.csv", header = F, skip = 1) %>%
   na.omit()
 jan24_may24_21152009 <- jan24_may24_21152009 %>%
   mutate(DateTime = mdy_hm(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 jan24_may24 <- rbind(jan24_may24_21152005, jan24_may24_21152007, jan24_may24_21152009)
 ggplot(jan24_may24, aes(x = DateTime, y = Temp_C)) +
@@ -297,19 +297,19 @@ may24_sept24_21152005 <- read.csv("../data/environmental/2024-09-30_Reef13_21152
 may24_sept24_21152005 <- may24_sept24_21152005 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 may24_sept24_21152007 <- read.csv("../data/environmental/2024-09-30_Reef13_21152007.csv", skip = 2, header = F)
 may24_sept24_21152007 <- may24_sept24_21152007 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 may24_sept24_21152009 <- read.csv("../data/environmental/2024-09-30_Reef13_21152009.csv", skip = 2, header = F)
 may24_sept24_21152009 <- may24_sept24_21152009 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 may24_sept24 <- rbind(may24_sept24_21152005, may24_sept24_21152007, may24_sept24_21152009)
 ggplot(may24_sept24, aes(x = DateTime, y = Temp_C)) +
@@ -323,19 +323,19 @@ oct24_jan25_21152005 <- read.csv("../data/environmental/Jan2025_KBay_21152005.cs
 oct24_jan25_21152005 <- oct24_jan25_21152005 %>%
   mutate(DateTime = mdy_hm(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 oct24_jan25_21152007 <- read.csv("../data/environmental/Jan2025_KBay_21152007.csv", header = F, skip = 1)
 oct24_jan25_21152007 <- oct24_jan25_21152007 %>%
   mutate(DateTime = mdy_hm(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 oct24_jan25_21152009 <- read.csv("../data/environmental/Jan2025_KBay_21152009.csv", header = F, skip = 1)
 oct24_jan25_21152009 <- oct24_jan25_21152009 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 oct24_jan25 <- rbind(oct24_jan25_21152005, oct24_jan25_21152007, oct24_jan25_21152009)
 ggplot(oct24_jan25, aes(x = DateTime, y = Temp_C)) +
@@ -349,19 +349,19 @@ jan25_may25_21152005 <- read.csv("../data/environmental/21152005.csv", header = 
 jan25_may25_21152005 <- jan25_may25_21152005 %>%
   mutate(DateTime = mdy_hms(paste(Date, Time..GMT.10.00)),
          Temp_C = Temp...C) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 jan25_may25_21152007 <- read.csv("../data/environmental/21152007.csv", header = T)
 jan25_may25_21152007 <- jan25_may25_21152007 %>%
   mutate(DateTime = mdy_hms(paste(Date, Time..GMT.10.00)),
          Temp_C = Temp...C) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 jan25_may25_21152009 <- read.csv("../data/environmental/21152009.csv", header = T)
 jan25_may25_21152009 <- jan25_may25_21152009 %>%
   mutate(DateTime = mdy_hms(paste(Date, Time..GMT.10.00)),
          Temp_C = Temp...C) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 jan25_may25 <- rbind(jan25_may25_21152005, jan25_may25_21152007, jan25_may25_21152009)
 ggplot(oct24_jan25, aes(x = DateTime, y = Temp_C)) +
@@ -375,13 +375,13 @@ may25_oct25_21152007 <- read.csv("../data/environmental/Oct2025_21152007.csv", s
 may25_oct25_21152007 <- may25_oct25_21152007 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 may25_oct25_21152009 <- read.csv("../data/environmental/Oct2025_21152009.csv", skip = 2, header = F)
 may25_oct25_21152009 <- may25_oct25_21152009 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 may25_oct25 <- rbind(may25_oct25_21152007, may25_oct25_21152009)
 may25_oct25 <- may25_oct25 %>% # remove times when logger was out of water 
@@ -399,19 +399,19 @@ oct25_jan26_21152007 <- read.csv("../data/environmental/Jan2026_21152007.csv", s
 oct25_jan26_21152007 <- oct25_jan26_21152007 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 oct25_jan26_21152009 <- read.csv("../data/environmental/Jan2026_21152009.csv", skip = 2, header = F)
 oct25_jan26_21152009 <- oct25_jan26_21152009 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 oct25_jan26_20947172 <- read.csv("../data/environmental/Jan2026_20947172.csv", skip = 2, header = F)
 oct25_jan26_20947172 <- oct25_jan26_20947172 %>%
   mutate(DateTime = mdy_hms(V2),
          Temp_C = V3) %>%
-  select(DateTime, Temp_C)
+  dplyr::select(DateTime, Temp_C)
 
 oct25_jan26 <- rbind(oct25_jan26_21152007, oct25_jan26_21152009, oct25_jan26_20947172)
 oct25_jan26 <- oct25_jan26 %>% # remove times when logger was out of water 
@@ -425,9 +425,13 @@ ggplot(oct25_jan26, aes(x = DateTime, y = Temp_C)) +
   labs(y = "Temperature (°C)", x = "Time")
 ```
 
-Bind all data together and plot 
+Bind all data together, save and plot 
 ```{r}
 all_data <- rbind(sept22_apr23, apr23_sept23, sept23_jan24, jan24_may24, may24_sept24, oct24_jan25, jan25_may25, may25_oct25, oct25_jan26)
+
+# Write csv
+write.csv(all_data, "../output/environmental/NSF_CAREER_KBay_PR13_Temps.csv")
+
 ggplot(all_data, aes(x = DateTime, y = Temp_C)) +
   geom_point() +
   scale_x_datetime( date_breaks = "1 month", date_labels = "%b") + 
