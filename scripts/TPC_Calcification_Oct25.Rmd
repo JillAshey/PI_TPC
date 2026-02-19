@@ -98,62 +98,200 @@ Topt_Rmax_2023 <- params_2023 %>%
     Rmax_linear = exp(Rmax_log) - 1)
 ```
 
-
-
-
-
-
-
-
-Look at normality
+Pivot data so that each trait is a row 
 ```{r}
-library(lme4)
-library(lmerTest)
-library(car)
-library(broom.mixed)
-
-# List of variables to test
-traits <- c("lnc", "E", "Eh", "Th", "Topt_C", "Rmax_log")
-
-# 1. Assess Normality (Shapiro-Wilk Test)
-normality_results <- lapply(traits, function(x) {
-  shapiro.test(Topt_Rmax_2023[[x]])
-})
-names(normality_results) <- traits
-print(normality_results) # If p < 0.05, data is not normal
-
-# 2. Run Linear Mixed Effects Models
-# Formula: Trait ~ Phenotype * Species + (1|Colony.ID)
-lme_results <- lapply(traits, function(x) {
-  # We use the 'reformulate' function to loop through variable names
-  form <- reformulate(c("Phenotype * Species", "(1|Colony.ID)"), response = x)
-  model <- lme(form, data = Topt_Rmax_2023)
-  return(anova(model))
-})
-
-lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=lnc_data_cal, na.action=na.exclude)
-
-names(lme_results) <- traits
-lmm_results
+traits_long_2023 <- Topt_Rmax_2023 %>%
+  select(Colony.ID, Phenotype, Species, lnc, E, Eh, Topt_C, Rmax_log) %>%
+  pivot_longer(cols = c(lnc, E, Eh, Topt_C, Rmax_log), 
+               names_to = "trait", 
+               values_to = "estimate")
+  
 ```
 
-```{r}
-library(ggfortify)
+## lnc (r_tref) - 2023
 
+Subset by lnc data
+```{r}
+lnc_long_2023 <- traits_long_2023 %>%
+  filter(trait == "lnc")
+```
+
+Check for normality
+```{r}
+hist(lnc_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(lnc_long_2023$estimate)
+qqline(lnc_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(lnc_long_2023$estimate)
+```
+
+Data is normal! 
+
+Run linear mixed effects model 
+```{r}
+lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=lnc_long_2023, na.action=na.exclude)
+summary(lnc.lme)
+anova(lnc.lme)
+```
+
+Species is significant. Species x Phenotype is moderately significant (p=0.054)
+
+## E - 2023
+
+Subset by E data
+```{r}
+e_long_2023 <- traits_long_2023 %>%
+  filter(trait == "E")
+```
+
+Check for normality
+```{r}
+hist(e_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(e_long_2023$estimate)
+qqline(e_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(e_long_2023$estimate)
+```
+
+Data is normal! 
+
+Run linear mixed effects model 
+```{r}
+e.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=e_long_2023, na.action=na.exclude)
+summary(e.lme)
+anova(e.lme)
+```
+
+Species is significant. 
+
+## Eh - 2023
+
+Subset by Eh data
+```{r}
+eh_long_2023 <- traits_long_2023 %>%
+  filter(trait == "Eh")
+```
+
+Check for normality
+```{r}
+hist(eh_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(eh_long_2023$estimate)
+qqline(eh_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(eh_long_2023$estimate)
+```
+
+Data is not normal, apply transformations. 
+```{r}
+# Log10
+eh_long_2023$eh_log <- log10(eh_long_2023$estimate +1) # add 1 to avoid log10(0)
+hist(eh_long_2023$eh_log)
+qqnorm(eh_long_2023$eh_log)
+qqline(eh_long_2023$eh_log, col = "red")
+shapiro.test(eh_long_2023$eh_log)
+```
+
+Run linear mixed effects model 
+```{r}
+eh.lme <- lme(eh_log~Species*Phenotype, random = ~1|Colony.ID, data=eh_long_2023, na.action=na.exclude)
+summary(eh.lme)
+anova(eh.lme)
+```
+
+No significant differences. 
+
+## Topt - 2023
+
+Subset by Topt data
+```{r}
+topt_long_2023 <- traits_long_2023 %>%
+  filter(trait == "Topt_C")
+```
+
+Check for normality
+```{r}
+hist(topt_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(topt_long_2023$estimate)
+qqline(topt_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(topt_long_2023$estimate)
+```
+
+Data is normal! 
+
+Run linear mixed effects model 
+```{r}
+topt.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=topt_long_2023, na.action=na.exclude)
+summary(topt.lme)
+anova(topt.lme)
+```
+
+No significant differences. 
+
+## Rmax_log - 2023
+
+Subset by Rmax_log data
+```{r}
+rmax_long_2023 <- traits_long_2023 %>%
+  filter(trait == "Rmax_log")
+```
+
+Check for normality
+```{r}
+hist(rmax_long_2023$estimate)
+
+# Q-Q Plot
+qqnorm(rmax_long_2023$estimate)
+qqline(rmax_long_2023$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(rmax_long_2023$estimate)
+```
+
+Data is normal! 
+
+Run linear mixed effects model 
+```{r}
+rmax.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=rmax_long_2023, na.action=na.exclude)
+summary(rmax.lme)
+anova(rmax.lme)
+```
+
+Species is significant. 
+
+## Visualization for 2023
+
+```{r}
 # Select only numeric traits for PCA
 pca_prep <- Topt_Rmax_2023 %>%
   ungroup() %>%
-  select(lnc, E, Eh, Th, Topt_C, Rmax_log)
+  select(lnc, E, Eh, Topt_C, Rmax_log)
 
 # Run PCA (scale = TRUE is essential here)
 pca_fit <- prcomp(pca_prep, scale. = TRUE)
 
 # Plot
 autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype', 
-         shape = 'Species', loadings = TRUE, loadings.label = TRUE) +
-  theme_minimal() +
-  scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
-  labs(title = "Physiological Space PCA (2023)")
+         shape = 'Species', frame = TRUE, frame.type = 'norm',
+         loadings = TRUE, loadings.label = TRUE, 
+         loadings.label.size = 3, loadings.colour = "black", loadings.label.colour = "black") +
+  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  scale_fill_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
+  theme_bw() +
+  labs(title = "Multivariate Thermal Phenotype PCA",
+       caption = "Arrows indicate the direction of trait influence.")
 ```
 
 
@@ -163,183 +301,6 @@ autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype',
 
 
 
-
-
-
-
-Kristen already manually calculated the calcification rates in excel. 
-
-Kristen code
-```{r}
-CalSept23 <- read.csv("../data/TPC_calcification/TPC_calcification_all_standardized_without_blanks_2023_KB.csv")
-CalSept23$Target.Temperature<-as.numeric(CalSept23$Target.Temperature)
-CalSept23$log.rate <- log(CalSept23$umol.CaCO3h.1.cm.2 + 1)  #logging and adding 0.1 because a log of zero does not exist
-# convert temp to K
-CalSept23$K<-CalSept23$Target.Temperature + 273.15
-
-sharpe_schoolfield <- function(lnc, E, Eh, Th, temp, Tc) {
-  Tc <- 273.15 + Tc
-  k <- 8.62e-5
-  boltzmann.term <- lnc + log(exp(E/k*(1/Tc - 1/temp))) # units are eV/K, electrovolts/Kelvin
-  inactivation.term <- log(1/(1 + exp(Eh/k*(1/Th - 1/temp))))
-  return(boltzmann.term + inactivation.term)
-}
-
-# fit over each set of groupings
-fits <- CalSept23 %>%
-  group_by(Phenotype,Species,Colony.ID) %>%
-  nest() %>%
-  mutate(fit = purrr::map(data, ~ nls_multstart(log.rate ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = K, Tc = 27),
-                                                data = .x,
-                                                iter = 1000,
-                                                start_lower = c(lnc = -10, E = 0.1, Eh = 0.2, Th = 285),
-                                                start_upper = c(lnc = 10, E = 2, Eh = 5, Th = 330),
-                                                supp_errors = 'Y',
-                                                na.action = na.omit,
-                                                lower = c(lnc = -10, E = 0, Eh = 0, Th = 0))))
-
-# look at a single fit
-summary(fits$fit[[1]])
-
-# look at output object
-dplyr::select(fits, Colony.ID, data, fit)  
-
-# get summary info
-info <- fits_2023 %>%
-  unnest_legacy(fit %>% purrr::map(glance))
-info
-
-# get params
-params_cal <- fits %>%
-  unnest_legacy(fit %>% purrr::map(tidy))
-params_cal
-
-## lnc
-lnc_data_cal<- params_cal %>%
-  filter(term=="lnc")
-lnc_data_cal
-hist(lnc_data_cal$estimate)
-lnc.lm<- lm(estimate~Species*Phenotype, data=lnc_data_cal) #Gaussian
-par(mfrow=c(2,3))
-plot(lnc.lm, ask=FALSE, which=1:6)
-lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=lnc_data_cal, na.action=na.exclude)
-car::Anova(lnc.lme, type=3)
-lnc_sum<-summarySE(lnc_data_cal, measurevar='estimate', groupvars=c('Species', 'Phenotype'), na.rm=TRUE, conf.interval = 0.95)
-lnc_sum
-lncfig_cal_box<-ggplot(lnc_data_cal, aes(y=estimate, x=Species, color=Phenotype, fill=Phenotype))+ 
-  geom_boxplot(aes(group = interaction(Species,Phenotype), stat="identity"), alpha=0.7,  outlier.shape = NA, color="black")+
-  geom_point(data=lnc_data_cal, aes(y=estimate, x=Species,label=Colony.ID), alpha=0.8,position=position_dodge(0.75))+
-  #geom_linerange(aes(ymin=estimate-se, ymax=estimate+se), width= 0.7,  position=position_dodge(0.3),stat="identity") +
-  scale_y_continuous(expression(lnc), limits=c(0,0.6))+
-  scale_fill_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
-  scale_color_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
-  theme_classic()+
-  theme(axis.text.x=element_text(vjust=0.5, size=12, face="italic"),
-        axis.text.y=element_text(vjust=0.5, size=12),
-        axis.title.x=element_text(size=12),
-        axis.title.y=element_text(size=12),
-        legend.text = element_text(vjust=0.5, size=12),
-        legend.position="none",
-        panel.background= element_rect(fill=NA, color='black'),
-        strip.text = element_text(size=12, face="italic")); lncfig_cal_box
-
-## E - Activation energy (electron volts, eV)
-E_data_cal<- params_cal %>%
-  filter(term=="E")
-E_data_cal
-hist(E_data_cal$estimate)
-E.lm<- lm(estimate~Species*Phenotype, data=E_data_cal) #Gaussian
-par(mfrow=c(2,3))
-plot(E.lm, ask=FALSE, which=1:6)
-E.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=E_data_cal, na.action=na.exclude)
-anova(E.lme)
-E_sum<-summarySE(E_data_cal, measurevar='estimate', groupvars=c('Species', 'Phenotype'), na.rm=TRUE, conf.interval = 0.95)
-E_sum
-Efig_cal_box<-ggplot(E_data_cal, aes(y=estimate, x=Species, color=Phenotype, fill=Phenotype))+ 
-  geom_boxplot(aes(group = interaction(Species,Phenotype), stat="identity"), alpha=0.7,  outlier.shape = NA, color="black")+
-  geom_point(data=E_data_cal, aes(y=estimate, x=Species,label=Colony.ID), alpha=0.8,position=position_dodge(0.75))+
-  #geom_linerange(aes(ymin=estimate-se, ymax=estimate+se), width= 0.7,  position=position_dodge(0.3),stat="identity") +
-  scale_y_continuous(expression(E))+
-  scale_fill_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
-  scale_color_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
-  theme_classic()+
-  theme(axis.text.x=element_text(vjust=0.5, size=12, face="italic"),
-        axis.text.y=element_text(vjust=0.5, size=12),
-        axis.title.x=element_text(size=12),
-        axis.title.y=element_text(size=12),
-        legend.text = element_text(vjust=0.5, size=12),
-        legend.position="none",
-        panel.background= element_rect(fill=NA, color='black'),
-        strip.text = element_text(size=12, face="italic")); Efig_cal_box
-
-# Calculate rmax and topt
-# 1. Define the Topt function (from TPC.R)
-get_topt <- function(E, Th, Eh){
-  k <- 8.62e-05
-  return((Eh * Th) / (Eh + (k * Th * log((Eh / E) - 1))))
-}
-
-# 2. Calculate the metrics for all colonies
-Topt_Rmax_data <- params_cal %>%
-  # Spread the terms (lnc, E, Eh, Th) into their own columns
-  dplyr::select(Colony.ID, Phenotype, Species, term, estimate) %>%
-  tidyr::pivot_wider(names_from = term, values_from = estimate) %>%
-  mutate(
-    # Calculate Topt in Kelvin
-    Topt_K = get_topt(E, Th, Eh),
-    # Convert Topt to Celsius
-    Topt_C = Topt_K - 273.15,
-    # Calculate Rmax by plugging Topt_K back into your SS function
-    # Tc must match the reference temp used in your fits (e.g., 27)
-    Rmax_log = sharpe_schoolfield(lnc, E, Eh, Th, temp = Topt_K, Tc = 27),
-    # Back-transform from log(x + 1) to linear units
-    Rmax_linear = exp(Rmax_log) - 1)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Plot raw data 
-```{r}
-calc_plot_2023 <- calc_2023 %>%
-  filter(!is.na(Phenotype),
-         !is.na(Species),
-         Colony.ID != "blank")
-
-ggplot(calc_plot_2023, aes(
-  x = Target.Temperature,
-  y = umol.CaCO3h.1.cm.2,
-  color = Phenotype,
-  fill = Phenotype
-)) +
-  geom_point(size = 3, alpha = 0.8) +
-  geom_smooth(method = "loess", se = TRUE, span = 0.6, alpha = 0.25) +
-  facet_wrap(~Species, scales = "fixed") +
-  theme_classic(base_size = 14) +
-  scale_color_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
-  scale_fill_manual(values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
-  labs(
-    x = "Target Temperature (°C)",
-    y = expression("Net Calcification ("*cm^-2*")"),
-    color = "Phenotype",
-    fill = "Phenotype")
-```
 
 
 ## rTPC for 2023 
