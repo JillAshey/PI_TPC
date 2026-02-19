@@ -30,12 +30,142 @@ library(nlme)
 n_cores <- detectCores() - 1
 ```
 
+# Functions for analysis 
+
+```{r}
+sharpe_schoolfield <- function(lnc, E, Eh, Th, temp, Tc) {
+  Tc <- 273.15 + Tc
+  k <- 8.62e-5
+  boltzmann.term <- lnc + log(exp(E/k*(1/Tc - 1/temp))) # units are eV/K, electrovolts/Kelvin
+  inactivation.term <- log(1/(1 + exp(Eh/k*(1/Th - 1/temp))))
+  return(boltzmann.term + inactivation.term)}
+
+get_topt <- function(E, Th, Eh){
+  k <- 8.62e-05
+  return((Eh * Th) / (Eh + (k * Th * log((Eh / E) - 1))))}
+```
+
 # 2023
 
 Read in data 
 ```{r}
 calc_2023 <- read.csv("../data/TPC_calcification/TPC_calcification_all_standardized_without_blanks_2023_KB.csv")
 ```
+
+Set target temperature to numeric, convert temperature to Kelvin and log transform the calcification data 
+```{r}
+calc_2023 <- calc_2023 %>%
+  mutate(Target.Temperature = as.numeric(Target.Temperature),
+         Target.Temperature.K = Target.Temperature + 273.15,
+         log.rate = log(umol.CaCO3h.1.cm.2 + 1))
+```
+
+Fit curves for all colonies using `sharpe_schoolfield` function defined above
+```{r}
+fits_2023 <- calc_2023 %>%
+  group_by(Phenotype,Species,Colony.ID) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(log.rate ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = Target.Temperature.K, Tc = 27),
+                                                data = .x,
+                                                iter = 1000,
+                                                start_lower = c(lnc = -10, E = 0.1, Eh = 0.2, Th = 285),
+                                                start_upper = c(lnc = 10, E = 2, Eh = 5, Th = 330),
+                                                supp_errors = 'Y',
+                                                na.action = na.omit,
+                                                lower = c(lnc = -10, E = 0, Eh = 0, Th = 0))))
+```
+
+Get TPC parameters for each colony 
+```{r}
+params_2023 <- fits_2023 %>%
+  unnest_legacy(fit %>% purrr::map(tidy))
+
+# Remove Colonies 202 and 242 
+params_2023 <- params_2023 %>%
+  filter(!Colony.ID == "202") %>%
+  filter(!Colony.ID == "242")
+```
+
+Calculate Topt and Rmax for each colony 
+```{r}
+Topt_Rmax_2023 <- params_2023 %>%
+  dplyr::select(Colony.ID, Phenotype, Species, term, estimate) %>%
+  tidyr::pivot_wider(names_from = term, values_from = estimate) %>%
+  mutate(
+    Topt_K = get_topt(E, Th, Eh),
+    Topt_C = Topt_K - 273.15,
+    Rmax_log = sharpe_schoolfield(lnc, E, Eh, Th, temp = Topt_K, Tc = 27),
+    Rmax_linear = exp(Rmax_log) - 1)
+```
+
+
+
+
+
+
+
+
+Look at normality
+```{r}
+library(lme4)
+library(lmerTest)
+library(car)
+library(broom.mixed)
+
+# List of variables to test
+traits <- c("lnc", "E", "Eh", "Th", "Topt_C", "Rmax_log")
+
+# 1. Assess Normality (Shapiro-Wilk Test)
+normality_results <- lapply(traits, function(x) {
+  shapiro.test(Topt_Rmax_2023[[x]])
+})
+names(normality_results) <- traits
+print(normality_results) # If p < 0.05, data is not normal
+
+# 2. Run Linear Mixed Effects Models
+# Formula: Trait ~ Phenotype * Species + (1|Colony.ID)
+lme_results <- lapply(traits, function(x) {
+  # We use the 'reformulate' function to loop through variable names
+  form <- reformulate(c("Phenotype * Species", "(1|Colony.ID)"), response = x)
+  model <- lme(form, data = Topt_Rmax_2023)
+  return(anova(model))
+})
+
+lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=lnc_data_cal, na.action=na.exclude)
+
+names(lme_results) <- traits
+lmm_results
+```
+
+```{r}
+library(ggfortify)
+
+# Select only numeric traits for PCA
+pca_prep <- Topt_Rmax_2023 %>%
+  ungroup() %>%
+  select(lnc, E, Eh, Th, Topt_C, Rmax_log)
+
+# Run PCA (scale = TRUE is essential here)
+pca_fit <- prcomp(pca_prep, scale. = TRUE)
+
+# Plot
+autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype', 
+         shape = 'Species', loadings = TRUE, loadings.label = TRUE) +
+  theme_minimal() +
+  scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  labs(title = "Physiological Space PCA (2023)")
+```
+
+
+
+
+
+
+
+
+
+
+
 
 Kristen already manually calculated the calcification rates in excel. 
 
@@ -75,7 +205,7 @@ summary(fits$fit[[1]])
 dplyr::select(fits, Colony.ID, data, fit)  
 
 # get summary info
-info <- fits %>%
+info <- fits_2023 %>%
   unnest_legacy(fit %>% purrr::map(glance))
 info
 
