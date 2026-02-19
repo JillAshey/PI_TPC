@@ -201,16 +201,6 @@ blank_summary <- map2_dfr(
 )
 ```
 
-
-
-
-
-
-
-
-
-
-
 Read in interval data 
 ```{r}
 all_int_tpc <- read_csv("../output/TPC/Sept2023/all_interval_summaries_Sept2023_TPC.csv")
@@ -240,6 +230,11 @@ all_int_tpc <- all_int_tpc %>%
     Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
     Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / Surface_Area_cm2) * 60) # units are umol O2 cm-2 h-1
 write.csv(all_int_tpc, "../output/TPC/Sept2023/all_interval_summaries_normalized_Sept2023_TPC.csv")
+```
+
+Read data back in so I don't have to run above code again
+```{r}
+all_int_tpc <- read.csv("../output/TPC/Sept2023/all_interval_summaries_normalized_Sept2023_TPC.csv")
 ```
 
 Plot curves across temperatures
@@ -293,60 +288,6 @@ ggplot(all_int_tpc, aes(x = Temperature, y = log.rate, color = Phenotype)) +
   theme_classic(base_size = 14) +
   labs(x = "Temperature (C)", y = "log(umol O2 cm-2 h-1)", color = "Phenotype")
 ```
-
-Try to do TPCs with Kristen code 
-
-Convert temp to K 
-```{r}
-all_int_tpc$K<-all_int_tpc$Temperature + 273.15
-```
-
-Define the function 
-```{r}
-# Define the Sharpe-Schoolfield model function
-sharpe_schoolfield <- function(lnc, E, Eh, Th, temp, Tc) {
-  Tc <- 273.15 + Tc
-  k <- 8.62e-5
-  boltzmann.term <- lnc + log(exp(E/k*(1/Tc - 1/temp))) # units are eV/K, electrovolts/Kelvin
-  inactivation.term <- log(1/(1 + exp(Eh/k*(1/Th - 1/temp))))
-  return(boltzmann.term + inactivation.term)
-}
-```
-
-Fit over groupings 
-```{r}
-# fit over each set of groupings
-fits <- all_int_tpc %>%
-  group_by(Phenotype,Species,Colony_ID) %>%
-  nest() %>%
-  mutate(fit = purrr::map(data, ~ nls_multstart(log.rate ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = K, Tc = 27),
-                                                data = .x,
-                                                iter = 1000,
-                                                start_lower = c(lnc = -10, E = 0.1, Eh = 0.2, Th = 285),
-                                                start_upper = c(lnc = 10, E = 2, Eh = 5, Th = 330),
-                                                supp_errors = 'Y',
-                                                na.action = na.omit,
-                                                lower = c(lnc = -10, E = 0, Eh = 0, Th = 0))))
-
-# look at a single fit
-summary(fits$fit[[1]])
-
-# look at output object
-dplyr::select(fits, Colony_ID, data, fit)  
-
-# get summary info
-info <- fits %>%
-  unnest_legacy(fit %>% purrr::map(glance))
-
-# get params
-params <- fits %>%
-  unnest_legacy(fit %>% purrr::map(tidy))
-```
-
-Th is insanely high...
-
-
-
 
 
 
