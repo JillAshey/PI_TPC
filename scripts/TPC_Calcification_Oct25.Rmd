@@ -8,17 +8,24 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+library(dplyr)
+library(car)
 library(tidyverse)
-library(rTPC)
 library(broom)
-library(nls.multstart)
-library(boot)
-library(patchwork) 
-library(parallel)
-library(MuMIn)
+library(readr)
+library(lubridate)
 library(purrr)
-library(ggfortify)
-library(job)
+library(furrr)
+library(fuzzyjoin)
+library(future)
+library(rTPC)
+library(nls.multstart)
+library(emmeans)
+library(lme4)
+library(nlme)
+library(Rmisc)
+library(boot)
+library(nlme)
 
 n_cores <- detectCores() - 1
 ```
@@ -31,6 +38,152 @@ calc_2023 <- read.csv("../data/TPC_calcification/TPC_calcification_all_standardi
 ```
 
 Kristen already manually calculated the calcification rates in excel. 
+
+Kristen code
+```{r}
+CalSept23 <- read.csv("../data/TPC_calcification/TPC_calcification_all_standardized_without_blanks_2023_KB.csv")
+CalSept23$Target.Temperature<-as.numeric(CalSept23$Target.Temperature)
+CalSept23$log.rate <- log(CalSept23$umol.CaCO3h.1.cm.2 + 1)  #logging and adding 0.1 because a log of zero does not exist
+# convert temp to K
+CalSept23$K<-CalSept23$Target.Temperature + 273.15
+
+sharpe_schoolfield <- function(lnc, E, Eh, Th, temp, Tc) {
+  Tc <- 273.15 + Tc
+  k <- 8.62e-5
+  boltzmann.term <- lnc + log(exp(E/k*(1/Tc - 1/temp))) # units are eV/K, electrovolts/Kelvin
+  inactivation.term <- log(1/(1 + exp(Eh/k*(1/Th - 1/temp))))
+  return(boltzmann.term + inactivation.term)
+}
+
+# fit over each set of groupings
+fits <- CalSept23 %>%
+  group_by(Phenotype,Species,Colony.ID) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(log.rate ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = K, Tc = 27),
+                                                data = .x,
+                                                iter = 1000,
+                                                start_lower = c(lnc = -10, E = 0.1, Eh = 0.2, Th = 285),
+                                                start_upper = c(lnc = 10, E = 2, Eh = 5, Th = 330),
+                                                supp_errors = 'Y',
+                                                na.action = na.omit,
+                                                lower = c(lnc = -10, E = 0, Eh = 0, Th = 0))))
+
+# look at a single fit
+summary(fits$fit[[1]])
+
+# look at output object
+dplyr::select(fits, Colony.ID, data, fit)  
+
+# get summary info
+info <- fits %>%
+  unnest_legacy(fit %>% purrr::map(glance))
+info
+
+# get params
+params_cal <- fits %>%
+  unnest_legacy(fit %>% purrr::map(tidy))
+params_cal
+
+## lnc
+lnc_data_cal<- params_cal %>%
+  filter(term=="lnc")
+lnc_data_cal
+hist(lnc_data_cal$estimate)
+lnc.lm<- lm(estimate~Species*Phenotype, data=lnc_data_cal) #Gaussian
+par(mfrow=c(2,3))
+plot(lnc.lm, ask=FALSE, which=1:6)
+lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=lnc_data_cal, na.action=na.exclude)
+car::Anova(lnc.lme, type=3)
+lnc_sum<-summarySE(lnc_data_cal, measurevar='estimate', groupvars=c('Species', 'Phenotype'), na.rm=TRUE, conf.interval = 0.95)
+lnc_sum
+lncfig_cal_box<-ggplot(lnc_data_cal, aes(y=estimate, x=Species, color=Phenotype, fill=Phenotype))+ 
+  geom_boxplot(aes(group = interaction(Species,Phenotype), stat="identity"), alpha=0.7,  outlier.shape = NA, color="black")+
+  geom_point(data=lnc_data_cal, aes(y=estimate, x=Species,label=Colony.ID), alpha=0.8,position=position_dodge(0.75))+
+  #geom_linerange(aes(ymin=estimate-se, ymax=estimate+se), width= 0.7,  position=position_dodge(0.3),stat="identity") +
+  scale_y_continuous(expression(lnc), limits=c(0,0.6))+
+  scale_fill_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  scale_color_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  theme_classic()+
+  theme(axis.text.x=element_text(vjust=0.5, size=12, face="italic"),
+        axis.text.y=element_text(vjust=0.5, size=12),
+        axis.title.x=element_text(size=12),
+        axis.title.y=element_text(size=12),
+        legend.text = element_text(vjust=0.5, size=12),
+        legend.position="none",
+        panel.background= element_rect(fill=NA, color='black'),
+        strip.text = element_text(size=12, face="italic")); lncfig_cal_box
+
+## E - Activation energy (electron volts, eV)
+E_data_cal<- params_cal %>%
+  filter(term=="E")
+E_data_cal
+hist(E_data_cal$estimate)
+E.lm<- lm(estimate~Species*Phenotype, data=E_data_cal) #Gaussian
+par(mfrow=c(2,3))
+plot(E.lm, ask=FALSE, which=1:6)
+E.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=E_data_cal, na.action=na.exclude)
+anova(E.lme)
+E_sum<-summarySE(E_data_cal, measurevar='estimate', groupvars=c('Species', 'Phenotype'), na.rm=TRUE, conf.interval = 0.95)
+E_sum
+Efig_cal_box<-ggplot(E_data_cal, aes(y=estimate, x=Species, color=Phenotype, fill=Phenotype))+ 
+  geom_boxplot(aes(group = interaction(Species,Phenotype), stat="identity"), alpha=0.7,  outlier.shape = NA, color="black")+
+  geom_point(data=E_data_cal, aes(y=estimate, x=Species,label=Colony.ID), alpha=0.8,position=position_dodge(0.75))+
+  #geom_linerange(aes(ymin=estimate-se, ymax=estimate+se), width= 0.7,  position=position_dodge(0.3),stat="identity") +
+  scale_y_continuous(expression(E))+
+  scale_fill_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  scale_color_manual("Phenotype", values=c("Susceptible"= '#F0A07C',"Resistant"='#4A274F'))+ #Manually choose the colors
+  theme_classic()+
+  theme(axis.text.x=element_text(vjust=0.5, size=12, face="italic"),
+        axis.text.y=element_text(vjust=0.5, size=12),
+        axis.title.x=element_text(size=12),
+        axis.title.y=element_text(size=12),
+        legend.text = element_text(vjust=0.5, size=12),
+        legend.position="none",
+        panel.background= element_rect(fill=NA, color='black'),
+        strip.text = element_text(size=12, face="italic")); Efig_cal_box
+
+# Calculate rmax and topt
+# 1. Define the Topt function (from TPC.R)
+get_topt <- function(E, Th, Eh){
+  k <- 8.62e-05
+  return((Eh * Th) / (Eh + (k * Th * log((Eh / E) - 1))))
+}
+
+# 2. Calculate the metrics for all colonies
+Topt_Rmax_data <- params_cal %>%
+  # Spread the terms (lnc, E, Eh, Th) into their own columns
+  dplyr::select(Colony.ID, Phenotype, Species, term, estimate) %>%
+  tidyr::pivot_wider(names_from = term, values_from = estimate) %>%
+  mutate(
+    # Calculate Topt in Kelvin
+    Topt_K = get_topt(E, Th, Eh),
+    # Convert Topt to Celsius
+    Topt_C = Topt_K - 273.15,
+    # Calculate Rmax by plugging Topt_K back into your SS function
+    # Tc must match the reference temp used in your fits (e.g., 27)
+    Rmax_log = sharpe_schoolfield(lnc, E, Eh, Th, temp = Topt_K, Tc = 27),
+    # Back-transform from log(x + 1) to linear units
+    Rmax_linear = exp(Rmax_log) - 1)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Plot raw data 
 ```{r}
@@ -193,7 +346,7 @@ for (i in 1:length(traits)) {
   
   # Build the plot using your specific style
   p <- ggplot(df_sub, aes(x = Phenotype, y = statistic, color = Phenotype)) +
-    geom_errorbar(aes(ymin = statistic - std.error, ymax = statistic + std.error), 
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
                   width = 0.15, linewidth = 1) +
     geom_point(size = 4) +
     facet_grid(~Species) + # Species side-by-side in each row
@@ -273,6 +426,151 @@ autoplot(pca_fit, data = pca_prep_clean, colour = 'Phenotype',
        subtitle = "Bootstrap cloud showing separation of coral groups",
        caption = "Arrows indicate the direction of trait influence.")
 ```
+
+Determine differences 
+```{r}
+# Function to get p-value from two bootstrap objects
+get_p_value <- function(boot_a, boot_b, index) {
+  # index: 1=rmax, 2=topt, 3=e, 4=eh, 5=r_tref_25
+  diffs <- boot_a$t[, index] - boot_b$t[, index]
+  # Calculate proportion of differences that cross zero
+  p_val <- 2 * min(mean(diffs > 0, na.rm=TRUE), mean(diffs < 0, na.rm=TRUE))
+  return(p_val)
+}
+
+# Example: Comparing Topt (index 2) for Montipora Phenotypes
+p_val <- get_p_value(boot_results_final$boot[[1]], boot_results_final$boot[[2]], 2)
+```
+
+```{r}
+# Define the trait names for the output
+trait_names <- c("rmax", "topt", "e", "eh", "r_tref_25")
+
+# Initialize a results table
+comparison_results <- data.frame()
+
+# Define the pairs we want to compare (based on the row indices of boot_results_2025)
+# 1 vs 2: Phenotype effect in Montipora
+# 3 vs 4: Phenotype effect in Porites
+# 1 vs 3: Species effect in Resistant corals
+comparisons <- list(
+  "M.cap_Phenotype" = c(1, 2),
+  "P.com_Phenotype" = c(3, 4))
+
+for(comp_name in names(comparisons)){
+  idx_a <- comparisons[[comp_name]][1]
+  idx_b <- comparisons[[comp_name]][2]
+  
+  for(i in 1:5){
+    p_val <- get_p_value(boot_results_final$boot[[idx_a]], 
+                         boot_results_final$boot[[idx_b]], i)
+    
+    comparison_results <- rbind(comparison_results, data.frame(
+      Comparison = comp_name,
+      Trait = trait_names[i],
+      P_Value = p_val,
+      Significant = ifelse(p_val < 0.05, "Yes", "No")
+    ))
+  }
+}
+
+print(comparison_results)
+```
+
+Fit data by individual colony instead of groups 
+```{r}
+# Run the fit per colony
+colony_fits <- calc_shifted_2023 %>%
+  group_by(Species, Phenotype, Colony.ID) %>%
+  nest() %>%
+  mutate(fit = map(data, ~nls_multstart(rate_shifted ~ pawar_2018(temp, r_tref, e, eh, topt, tref = 25),
+                                        data = .x,
+                                        iter = 1000,
+                                        start_lower = get_start_vals(.x$temp, .x$rate_shifted, model_name = 'pawar_2018') - 10,
+                                        start_upper = get_start_vals(.x$temp, .x$rate_shifted, model_name = 'pawar_2018') + 10,
+                                        lower = get_lower_lims(.x$temp, .x$rate_shifted, model_name = 'pawar_2018'),
+                                        upper = get_upper_lims(.x$temp, .x$rate_shifted, model_name = 'pawar_2018'),
+                                        supp_errors = 'Y')))
+
+# Create a "safe" version of the tidy extraction. If it fails, it returns NA instead of crashing the loop
+safe_extract_tref <- possibly(function(x) {
+  broom::tidy(x) %>% 
+    filter(term == "r_tref") %>% 
+    pull(estimate)
+}, otherwise = NA_real_)
+
+# Run the metrics extraction
+colony_metrics <- colony_fits %>%
+   mutate(params = map(fit, ~calc_params(.x))) %>%
+   unnest(params) %>%
+   # Use the safe function with explicit naming
+   mutate(r_tref_25 = map_dbl(fit, safe_extract_tref)) %>%
+   select(-data, -fit) %>%
+   ungroup()
+```
+
+Run using sharp shoefield model
+```{r}
+# Prepare your data (ensure K is present and filter for 6+ points)
+calc_prepared_2023 <- calc_shifted_2023 %>%
+  group_by(Colony.ID) %>%
+  filter(n_distinct(temp) >= 6) %>%
+  mutate(K = temp + 273.15) %>% # Conversion to Kelvin
+  ungroup()
+
+# Run the fit using Sharpe-Schoolfield
+colony_fits_ss <- calc_prepared_2023 %>%
+  group_by(Species, Phenotype, Colony.ID) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(rate_shifted ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = K, Tc = 25),
+                                                data = .x,
+                                                iter = 1000, # Increased iterations for better convergence
+                                                start_lower = c(lnc = -10, E = 0.1, Eh = 0.2, Th = 285), # ~25C
+                                                start_upper = c(lnc = 10, E = 2, Eh = 5, Th = 330),    # ~45C
+                                                #lower = c(lnc = -10, E = 0, Eh = 0, Th = 273),
+                                                #upper = c(lnc = 10, E = 5, Eh = 20, Th = 373),
+                                                supp_errors = 'Y',
+                                                na.action = na.omit)))
+summary(colony_fits_ss$fit[[1]])
+```
+
+Try something else 
+```{r}
+library(nls.multstart)
+library(rTPC)
+library(dplyr)
+library(purrr)
+
+# 1. Prepare your data: Ensure Kelvin and filter for enough points
+calc_prepared <- calc_shifted_2023 %>%
+  mutate(K = temp + 273.15) %>%
+  group_by(Colony.ID) %>%
+  filter(n_distinct(temp) >= 6) %>%
+  ungroup()
+
+# 2. Run the fit using the log-transformed version of the model
+# We use schoolfield_high because your Y variable (rate_shifted) is already logged.
+colony_fits_log <- calc_prepared %>%
+  group_by(Phenotype, Species, Colony.ID) %>%
+  nest() %>%
+  mutate(fit = purrr::map(data, ~ nls_multstart(
+    rate_shifted ~ schoolfield_high(lnc, E, Eh, Th, temp = K, Tc = 27),
+    data = .x,
+    iter = 1000,
+    # Adjusting start values to be in log-space (lnc is now the log-rate at 27C)
+    # Since your rates are ~0.1, log(0.1) is ~ -2.3
+    start_lower = c(lnc = -5, E = 0.1, Eh = 0.5, Th = 285), 
+    start_upper = c(lnc = 2,  E = 2.0, Eh = 10,  Th = 315),
+    lower = c(lnc = -15, E = 0, Eh = 0, Th = 273),
+    upper = c(lnc = 15, E = 10, Eh = 20, Th = 373),
+    supp_errors = 'Y',
+    na.action = na.omit
+  )))
+```
+
+
+
+
 
 # 2025
 
@@ -662,6 +960,7 @@ get_p_value <- function(boot_a, boot_b, index) {
 p_val <- get_p_value(boot_results_2025$boot[[1]], boot_results_2025$boot[[2]], 2)
 ```
 
+Compute pvalues for differences 
 ```{r}
 # Define the trait names for the output
 trait_names <- c("rmax", "topt", "e", "eh", "r_tref_25")
@@ -698,7 +997,6 @@ for(comp_name in names(comparisons)){
 
 print(comparison_results)
 ```
-
 
 ## Comparing 2023 and 2025
 
@@ -763,63 +1061,7 @@ ggplot(plot_data, aes(x = Year, y = statistic, group = interaction(Species, Phen
         legend.position = "bottom")
 ```
 
-Check for outliers:
-```{r}
-library(ggplot2)
-library(dplyr)
-library(tidyr)
 
-# 1. Define a function to generate curve points based on your parameters
-get_tpc_curve <- function(params, temp_range = seq(16, 40, length.out = 100)) {
-  # Extract parameters from your tidy table
-  r_tref <- params %>% filter(term == "r_tref_25") %>% pull(statistic)
-  e <- params %>% filter(term == "e") %>% pull(statistic)
-  eh <- params %>% filter(term == "eh") %>% pull(statistic)
-  topt <- params %>% filter(term == "topt") %>% pull(statistic)
-  
-  # Pawar 2018 formula (ensure this matches your environment's function)
-  k <- 8.62e-05
-  tref <- 25 + 273.15
-  temp_k <- temp_range + 273.15
-  topt_k <- topt + 273.15
-  
-  # Calculate rates
-  term1 <- r_tref * exp(e * ((1/(k * tref)) - (1/(k * temp_k))))
-  term2 <- 1 + (e / (eh - e)) * exp((eh / k) * ((1 / topt_k) - (1 / temp_k)))
-  prediction <- term1 / term2
-  
-  return(data.frame(temp = temp_range, rate = prediction))
-}
-
-# 2. Loop through groups to create a "Predictions" dataframe
-# Example for 2025 data (repeat for 2023)
-groups <- boot_stats_cleaned_2025 %>% distinct(Species, Phenotype)
-all_preds <- data.frame()
-
-for(i in 1:nrow(groups)){
-  s <- groups$Species[i]
-  p <- groups$Phenotype[i]
-  
-  params_subset <- boot_stats_cleaned_2025 %>% filter(Species == s, Phenotype == p)
-  preds <- get_tpc_curve(params_subset) %>%
-    mutate(Species = s, Phenotype = p)
-  
-  all_preds <- rbind(all_preds, preds)
-}
-
-# 3. Plot Raw Data + Predictions
-ggplot() +
-  # Raw data points
-  geom_point(data = calc_shifted_2025, aes(x = temp, y = rate_shifted, color = Phenotype), 
-             alpha = 0.4, size = 1.5) +
-  # Fitted TPC lines
-  geom_line(data = all_preds, aes(x = temp, y = rate, color = Phenotype), size = 1.2) +
-  facet_wrap(~Species + Phenotype, scales = "free") +
-  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  theme_bw() +
-  labs(title = "Diagnostic TPC Fits: 2025 Raw Data vs. Bootstrap Mean Models",
-       x = "Temperature (°C)", y = "Log Net Calcification")
-```
 
 
 
