@@ -1,0 +1,2 @@
+Colony_ID,Run,Interval,Temperature,N_points,O2_start,O2_end,DeltaT_min,DeltaT_max,O2_min,O2_max,Slope,Avg_Blank_Slope,Blank_Corrected_Slope
+221,26,1,31,122,194.686,217.796,Inf,-Inf,194.686,217.796,0.41356051037327585,-0.10550145681020541,0.5190619671834813
