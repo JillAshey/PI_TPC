@@ -11,8 +11,7 @@ Interesting: https://www.nature.com/articles/s41467-024-53046-2
 knitr::opts_chunk$set(echo = TRUE)
 
 library(dplyr)
-library(purrr)
-library(minpack.lm)  # for nlsLM
+library(car)
 library(tidyverse)
 library(broom)
 library(readr)
@@ -21,65 +20,36 @@ library(purrr)
 library(furrr)
 library(fuzzyjoin)
 library(future)
-library(LoLinR)
 library(rTPC)
 library(nls.multstart)
+library(emmeans)
+library(lme4)
+library(nlme)
+library(Rmisc)
+library(boot)
+library(nlme)
+library(propagate)
 ```
 
-Testing use of rTPC package from [vignette](https://padpadpadpad.github.io/rTPC/articles/rTPC.html)
+# Functions for analysis 
+
 ```{r}
-# load in data
-data("chlorella_tpc")
+sharpe_schoolfield <- function(lnc, E, Eh, Th, temp, Tc) {
+  Tc <- 273.15 + Tc
+  k <- 8.62e-5
+  boltzmann.term <- lnc + log(exp(E/k*(1/Tc - 1/temp))) # units are eV/K, electrovolts/Kelvin
+  inactivation.term <- log(1/(1 + exp(Eh/k*(1/Th - 1/temp))))
+  return(boltzmann.term + inactivation.term)}
 
-# keep just a single curve
-d <- filter(chlorella_tpc, curve_id == 1)
+get_topt <- function(E, Th, Eh){
+  k <- 8.62e-05
+  return((Eh * Th) / (Eh + (k * Th * log((Eh / E) - 1))))}
 
-# choose model
-mod = 'pawar_2018'
-
-# get start vals
-start_vals <- get_start_vals(d$temp, d$rate, model_name = 'pawar_2018')
-
-# get limits
-low_lims <- get_lower_lims(d$temp, d$rate, model_name = 'pawar_2018')
-upper_lims <- get_upper_lims(d$temp, d$rate, model_name = 'pawar_2018')
-
-start_vals
-low_lims
-upper_lims
-
-# fit model
-fit <- nls_multstart(rate~pawar_2018(temp = temp, r_tref,e,eh,th, tref = 15),
-                                                     data = d,
-                                                     iter = 500,
-                                                     start_lower = start_vals - 10,
-                                                     start_upper = start_vals + 10,
-                                                     lower = low_lims,
-                                                     upper = upper_lims,
-                                                     supp_errors = 'Y')
-
-fit
-
-# calculate additional traits
-calc_params(fit) %>%
-  # round for easy viewing
-  mutate_all(round, 2)
-
-# predict new data
-new_data <- data.frame(temp = seq(min(d$temp), max(d$temp), 0.5))
-preds <- augment(fit, newdata = new_data)
-
-# plot data and model fit
-ggplot(d, aes(temp, rate)) +
-  geom_point() +
-  geom_line(aes(temp, .fitted), preds, col = 'blue') +
-  theme_bw(base_size = 12) +
-  labs(x = 'Temperature (ºC)',
-       y = 'Metabolic rate',
-       title = 'Respiration across temperatures')
+get_tpc_ci <- function(model, new_data) {
+  # predictNLS calculates the intervals based on the Taylor expansion (Delta Method)
+  pred <- predictNLS(model, newdata = new_data, interval = "confidence", alpha = 0.05)
+  return(as.data.frame(pred$summary))}
 ```
-
-
 
 # Photosynthesis
 ## Sept 2023
@@ -303,7 +273,7 @@ Fit curves for all colonies using `sharpe_schoolfield` function defined above
 fits_2023 <- photo_2023 %>%
   group_by(Phenotype,Species,Colony_ID) %>%
   nest() %>%
-  mutate(fit = purrr::map(data, ~ nls_multstart(Slope_norm ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = Temperature.K, Tc = 27),
+  mutate(fit = purrr::map(data, ~ nls_multstart(log.rate ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = Temperature.K, Tc = 27),
                                                 data = .x,
                                                 iter = 1000,
                                                 start_lower = c(lnc = -10, E = 0.1, Eh = 0.2, Th = 285),
@@ -316,7 +286,8 @@ fits_2023 <- photo_2023 %>%
 Get TPC parameters for each colony 
 ```{r}
 params_2023 <- fits_2023 %>%
-  unnest_legacy(fit %>% purrr::map(tidy))
+  unnest_legacy(fit %>% purrr::map(tidy)) %>%
+  filter(!Colony_ID == "233")
 ```
 
 Calculate Topt and Rmax for each colony 
@@ -391,7 +362,7 @@ qqline(e_long_2023$estimate, col = "red")
 shapiro.test(e_long_2023$estimate)
 ```
 
-Data is normal! 
+Data is not normal. Deal with this!
 
 Run linear mixed effects model 
 ```{r}
@@ -400,7 +371,7 @@ summary(e.lme)
 anova(e.lme)
 ```
 
-Species and Phenotype are significant. 
+Phenotype is significant. 
 
 ## Eh - 2023
 
@@ -654,11 +625,11 @@ temp_freq <- temps_sub %>%
 
 Plot with temp bars
 ```{r}
-# 1. Final Axis Parameters
+# Axis Parameters
 p_min <- -0.5  # Hard floor of the plot
-p_max <- 2.3   # Peak of the Y-axis
+p_max <- 1.5   # Peak of the Y-axis
 p_total <- p_max - p_min
-s_max <- 40    # Max percent on the right axis
+s_max <- 30    # Max percent on the right axis
 scale_factor <- p_total / s_max
 
 ggplot() +
@@ -667,7 +638,7 @@ ggplot() +
                 ymin = p_min, ymax = p_min + (percent * scale_factor)), 
             fill = "#8DBBCC", color = "#727E8B", linewidth = 0.2) +
   geom_point(data = photo_2023, 
-             aes(x = Temperature.K - 273.15, y = Slope_norm, color = Phenotype), 
+             aes(x = Temperature.K - 273.15, y = log.rate, color = Phenotype), 
              alpha = 0.5, size = 1.2, position = position_jitter(width = 0.1)) +
   geom_ribbon(data = preds_mean_summary, 
               aes(x = Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
@@ -677,10 +648,10 @@ ggplot() +
             aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype), 
             linewidth = 1.3) +
   scale_y_continuous(
-    name = expression(bold("Performance Rate")),
+    name = expression("Net photosynthesis (log(" *mu*"mol " *cm^-2 *hr^-1*"))"),
     limits = c(p_min, p_max),
     expand = c(0, 0),
-    sec.axis = sec_axis(~ (. - p_min) / scale_factor, name = "Percent days", breaks = seq(0, 80, 20))
+    sec.axis = sec_axis(~ (. - p_min) / scale_factor, name = "Percent days (%)", breaks = seq(0, 40, 5))
   ) +
   scale_x_continuous(breaks = seq(18, 40, by = 2), limits = c(17.5, 40.5), expand = c(0,0)) +
   facet_wrap(~ Species, nrow = 1) +
