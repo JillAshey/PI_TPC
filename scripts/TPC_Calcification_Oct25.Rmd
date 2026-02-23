@@ -349,6 +349,10 @@ autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype',
        caption = "Arrows indicate the direction of trait influence.")
 ```
 
+
+
+
+
 # 2025
 
 ## Calculate calcification rates 
