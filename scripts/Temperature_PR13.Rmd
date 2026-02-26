@@ -452,11 +452,10 @@ all_data <- all_data %>%
 Calculate DHW
 ```{r}
 daily_mean_nsf <- all_data %>%
-  group_by(year, month, day) %>%
-  summarize(daily_temp_mean = mean(Temp_C, na.rm = T)) %>%
-  ungroup() %>%
-  arrange(year, month, day) %>%
-  mutate(
+  dplyr::group_by(year, month, day) %>%
+  dplyr::summarize(daily_temp_mean = mean(Temp_C, na.rm = TRUE), .groups = "drop") %>% 
+  dplyr::arrange(year, month, day) %>%
+  dplyr::mutate(
     date = as.Date(paste(year, month, day, sep = "-")),
     HS = ifelse(daily_temp_mean >= threshold, daily_temp_mean - MMM, 0)
   )
@@ -568,12 +567,146 @@ ggplot() +
     limits = c(20, 30),
     sec.axis = sec_axis(
       trans = ~ (. - 20) * 10 / (30 - 20),
-      name = "Degree Heating Weeks (°C wk⁻¹)",
+      name = "Degree Heating Weeks (°C/week)",
       breaks = seq(0, 10, 1)
     )
   ) +
   theme_minimal()
 ```
+
+Look at the years prior to TPC sampling specifically 
+```{r}
+# 2023
+temps_2023 <- all_data %>%
+  filter(DateTime <= "2023-09-23 01:00:00") %>%
+  filter(DateTime >= "2022-09-23 01:00:00")
+temps_2023_high <- temps_2023 %>%
+  dplyr::filter(Temp_C > 28.0)
+hours_above_28_2023 <- temps_2023 %>%
+  filter(Temp_C > 28.0) %>%
+  dplyr::summarise(hours = n() * 0.5) %>%
+  pull(hours)
+
+## How many hrs were above 28 in the month before collection?
+collection_time <- as.POSIXct("2023-09-23 00:00:00", tz = "UTC")
+start_window <- collection_time %m-% months(2)  # 2 month before
+end_window   <- collection_time                 # up to collection
+temps_month_before <- temps_2023_high %>%
+  filter(DateTime >= start_window,
+         DateTime <  end_window)
+hours_in_month_before <- nrow(temps_month_before) * 0.5
+hours_in_month_before
+
+# 2025
+temps_2025 <- all_data %>%
+  filter(DateTime <= "2025-10-01 01:00:00") %>%
+  filter(DateTime >= "2024-10-01 01:00:00")
+temps_2025_high <- temps_2025 %>%
+  dplyr::filter(Temp_C > 28.0)
+hours_above_28_2025 <- temps_2025 %>%
+  filter(Temp_C > 28.0) %>%
+  dplyr::summarise(hours = n() * 0.5) %>%
+  pull(hours)
+
+## How many hrs were above 28 in the month before collection?
+collection_time <- as.POSIXct("2025-10-01 00:00:00", tz = "UTC")
+start_window <- collection_time %m-% months(2)  # 2 month before
+end_window   <- collection_time                 # up to collection
+temps_month_before <- temps_2025_high %>%
+  filter(DateTime >= start_window,
+         DateTime <  end_window)
+hours_in_month_before <- nrow(temps_month_before) * 0.5
+hours_in_month_before
+```
+
+Plot 2023 and 2025
+```{r}
+# 1. Setup Collection Dates and Combine Data
+temps_2023$Collection_Date <- as.POSIXct("2023-09-23")
+temps_2025$Collection_Date <- as.POSIXct("2025-10-01")
+
+all_temps <- bind_rows(
+  temps_2023 %>% mutate(Sampling_Year = "2023"),
+  temps_2025 %>% mutate(Sampling_Year = "2025")
+) %>%
+  mutate(
+    DateTime = as.POSIXct(DateTime),
+    Days_Before = as.numeric(difftime(DateTime, Collection_Date, units = "days"))
+  ) %>%
+  filter(Days_Before >= -365 & Days_Before <= 0)
+
+# Define New Colors (Teal and Gold)
+env_colors <- c("2023" = "#008080", "2025" = "#D4AF37")
+
+# PANEL A 
+p_time <- ggplot(all_temps, aes(x = Days_Before, y = Temp_C, color = Sampling_Year)) +
+   geom_hline(yintercept = 28, linetype = "dashed", color = "grey40", alpha = 0.5) +
+   geom_line(alpha = 0.3, linewidth = 0.3) +
+   geom_smooth(method = "gam", linewidth = 1.4, se = FALSE) +
+   scale_color_manual(values = env_colors) +
+   
+   # ADD na.rm = TRUE here to handle missing data
+   scale_y_continuous(breaks = seq(floor(min(all_temps$Temp_C, na.rm = TRUE)), 
+                                   ceiling(max(all_temps$Temp_C, na.rm = TRUE)), by = 2)) +
+   
+   theme_classic() +
+   theme(
+     axis.text = element_text(size = 15, color = "black"),
+     axis.title = element_text(size = 16, face = "plain"),
+     legend.position = "none" 
+   ) +
+   labs(x = "Days Before Collection", y = "Temperature (°C)")
+
+# PANEL B: Frequency as Percentage (Right)
+freq_data <- all_temps %>%
+  mutate(temp_bin = round(Temp_C)) %>%
+  group_by(Sampling_Year, temp_bin) %>%
+  dplyr::summarise(count = n(), .groups = "drop_last") %>%
+  mutate(percent = (count / sum(count)) * 100)
+
+p_freq <- ggplot(freq_data, aes(x = temp_bin, y = percent, fill = Sampling_Year)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.85, color = "white") +
+  scale_fill_manual(values = env_colors) +
+  scale_x_continuous(breaks = seq(22, 32, 1)) +
+  theme_classic() +
+  theme(
+    axis.text = element_text(size = 15, color = "black"),
+    axis.title = element_text(size = 16, face = "plain"),
+    legend.position = "right", 
+    legend.background = element_blank(),
+    legend.text = element_text(size = 12)
+  ) +
+  labs(x = "Temperature Bin (°C)", 
+       y = "Percentage of Total Time (%)", 
+       fill = "Year")
+
+# 3. Assemble Side-by-Side and Label with Patchwork
+# plot_annotation(tag_levels = 'A') automatically labels the plots
+final_env_plot <- (p_time + p_freq) + 
+  plot_layout(widths = c(1.3, 1)) + 
+  plot_annotation(tag_levels = 'A') & 
+  theme(plot.tag = element_text(face = "bold", size = 14))
+
+# Save 
+ggsave("../output/environmental/Temperatures_2023_and_2025.pdf", 
+       plot = final_env_plot, 
+       width = 18, 
+       height = 6, 
+       units = "in", 
+       device = "pdf",
+       dpi = 300)
+ggsave("../output/environmental/Temperatures_2023_and_2025.png", 
+       plot = final_env_plot, 
+       width = 18, 
+       height = 6, 
+       units = "in", 
+       dpi = 300)
+```
+
+
+
+
+
 
 
 ### Combine 

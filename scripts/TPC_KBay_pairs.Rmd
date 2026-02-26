@@ -58,7 +58,7 @@ get_tpc_ci <- function(model, new_data) {
 
 Load run metadata 
 ```{r}
-run_meta <- read_csv("../data/TPC_Photosynthesis/TPC_metadata_run.csv") %>%
+run_meta <- read_csv("../data/TPC/TPC_metadata_run.csv") %>%
   mutate(
     Start = as_datetime(Date) + hours(hour(Start.time)) + minutes(minute(Start.time)),
     Stop  = as_datetime(Date) + hours(hour(Stop.time)) + minutes(minute(Stop.time)))
@@ -326,7 +326,7 @@ ggplot(all_int_tpc, aes(x = Temperature, y = log.rate, color = Phenotype)) +
   labs(x = "Temperature (C)", y = "log(umol O2 cm-2 h-1)", color = "Phenotype")
 ```
 
-## Fit TPC curve
+### Fit TPC curve
 
 Set target temperature to numeric and convert temperature to Kelvin
 ```{r}
@@ -378,7 +378,7 @@ traits_long_2023 <- Topt_Rmax_2023 %>%
                values_to = "estimate")
 ```
 
-## lnc (r_tref) - 2023
+### lnc (r_tref) - 2023
 
 Subset by lnc data
 ```{r}
@@ -409,7 +409,7 @@ anova(lnc.lme)
 
 Species and Phenotpye are significant. 
 
-## E - 2023
+### E - 2023
 
 Subset by E data
 ```{r}
@@ -440,7 +440,7 @@ anova(e.lme)
 
 Phenotype is significant. 
 
-## Eh - 2023
+### Eh - 2023
 
 Subset by Eh data
 ```{r}
@@ -471,7 +471,7 @@ anova(eh.lme)
 
 Species is significant. 
 
-## Topt - 2023
+### Topt - 2023
 
 Subset by Topt data
 ```{r}
@@ -502,7 +502,7 @@ anova(topt.lme)
 
 No significant differences. 
 
-## Rmax_log - 2023
+### Rmax_log - 2023
 
 Subset by Rmax_log data
 ```{r}
@@ -533,7 +533,7 @@ anova(rmax.lme)
 
 Species and Phenotype are significant. 
 
-## Visualization for 2023
+### Visualization for 2023
 
 Plot
 ```{r}
@@ -603,7 +603,7 @@ autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype',
        caption = "Arrows indicate the direction of trait influence.")
 ```
 
-## Plot with confidence intervals 
+### Plot with confidence intervals 
 
 Generate and aggregate predictions
 ```{r}
@@ -668,7 +668,7 @@ ggplot(preds_mean_summary, aes(x = Temperature.K - 273.15, y = mean_val, color =
   )
 ```
 
-## Plot with confidence intervals and the environmental data 
+### Plot with confidence intervals and the environmental data 
 
 ```{r}
 temps <- read.csv("../output/environmental/NSF_CAREER_KBay_PR13_Temps.csv")
@@ -741,7 +741,7 @@ ggplot() +
 
 Load run metadata 
 ```{r}
-run_meta <- read_csv("../data/TPC_Photosynthesis/TPC_metadata_run.csv") %>%
+run_meta <- read_csv("../data/TPC/TPC_metadata_run.csv") %>%
   mutate(
     Start = as_datetime(Date) + hours(hour(Start.time)) + minutes(minute(Start.time)),
     Stop  = as_datetime(Date) + hours(hour(Stop.time)) + minutes(minute(Stop.time)))
@@ -749,7 +749,7 @@ run_meta <- read_csv("../data/TPC_Photosynthesis/TPC_metadata_run.csv") %>%
 
 Load sample metadata 
 ```{r}
-sample_meta <- read_csv("../data/TPC_Photosynthesis/TPC_metadata_sample.csv")
+sample_meta <- read_csv("../data/TPC/TPC_metadata_sample.csv")
 
 # Make sure Chamber well # is numeric
 sample_meta <- sample_meta %>%
@@ -800,7 +800,7 @@ Look at joined data and save
 all_data %>% count(is.na(`Colony_ID`))
 all_data %>% count(is.na(Run))
 
-write_csv(all_data, "../output/TPC_Photosynthesis/Sept2023/TPC_all_joined_data_Sept2023.csv")
+write_csv(all_data, "../output/TPC_Photosynthesis/Oct2025/TPC_all_joined_data_Oct2025.csv")
 ```
 
 ### Run localized linear regressions 
@@ -1031,7 +1031,8 @@ fits_2025 <- photo_2025 %>%
 Get TPC parameters for each colony 
 ```{r}
 params_2025 <- fits_2025 %>%
-  unnest_legacy(fit %>% purrr::map(tidy))
+  unnest_legacy(fit %>% purrr::map(tidy)) %>%
+  filter(!Colony_ID == "206")
 ```
 
 Calculate Topt and Rmax for each colony 
@@ -1327,7 +1328,7 @@ ggplot(preds_mean_summary_2025, aes(x = Temperature.K - 273.15, y = mean_val, co
   scale_x_continuous(
     breaks = seq(18, 40, by = 2), 
     limits = c(17, 40)) +
-  geom_point(data = photo_2023, aes(x = Temperature.K - 273.15, y = Slope_norm), 
+  geom_point(data = photo_2025, aes(x = Temperature.K - 273.15, y = Slope_norm), 
              alpha = 0.2, size = 1, inherit.aes = TRUE) +
   facet_wrap(~ Species) +
   scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
@@ -1377,18 +1378,18 @@ s_max <- 30    # Max percent on the right axis
 scale_factor <- p_total / s_max
 
 ggplot() +
-  geom_rect(data = temp_freq, 
+  geom_rect(data = temp_freq_2025, 
             aes(xmin = temp_bin - 0.45, xmax = temp_bin + 0.45, 
                 ymin = p_min, ymax = p_min + (percent * scale_factor)), 
             fill = "#8DBBCC", color = "#727E8B", linewidth = 0.2) +
   geom_point(data = photo_2025, 
              aes(x = Temperature.K - 273.15, y = log.rate, color = Phenotype), 
              alpha = 0.5, size = 1.2, position = position_jitter(width = 0.1)) +
-  geom_ribbon(data = preds_mean_summary, 
+  geom_ribbon(data = preds_mean_summary_2025, 
               aes(x = Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
               alpha = 0.3, color = NA) +
   geom_hline(yintercept = 0, color = "grey", linewidth = 0.5, linetype = "dashed") +
-  geom_line(data = preds_mean_summary, 
+  geom_line(data = preds_mean_summary_2025, 
             aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype), 
             linewidth = 1.3) +
   scale_y_continuous(
@@ -1454,13 +1455,17 @@ qqline(lnc_long$estimate, col = "red")
 shapiro.test(lnc_long$estimate)
 ```
 
-Data is not normal, come back to this.
+Data is normal.
 
 Run linear mixed effects model 
 ```{r}
 lnc.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=lnc_long, na.action=na.exclude)
 summary(lnc.lme)
 anova(lnc.lme)
+
+# Run posthoc tests
+species_means <- emmeans(lnc.lme, "Species")
+pairs(species_means, adjust = "tukey")
 ```
 
 Species is significant. 
@@ -1485,16 +1490,28 @@ qqline(e_long$estimate, col = "red")
 shapiro.test(e_long$estimate)
 ```
 
-Data is not normal, come back to this.
+Data is normal.
 
 Run linear mixed effects model 
 ```{r}
 e.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=e_long, na.action=na.exclude)
 summary(e.lme)
 anova(e.lme)
+
+# Compare Phenotypes within each Year -- This tells you if Susceptible vs Resistant differed in 2023 vs 2025
+pt_year_posthoc <- emmeans(e.lme, pairwise ~ Phenotype | Year)
+pt_year_posthoc[[2]]
+
+# Compare Year changes within each Phenotype -- This tells you if Resistant corals changed more over time than Susceptible ones
+year_pt_posthoc <- emmeans(e.lme, pairwise ~ Year | Phenotype)
+year_pt_posthoc[[2]]
+
+# Compare Year changes within each Species
+year_spp_posthoc <- emmeans(e.lme, pairwise ~ Year | Species)
+year_spp_posthoc[[2]]
 ```
 
-Year and Species x Phenotype is significant. 
+Species, Year, Species x Phenotype, and Phenotype x Year is significant. 
 
 ### Eh
 
@@ -1516,13 +1533,32 @@ qqline(eh_long$estimate, col = "red")
 shapiro.test(eh_long$estimate)
 ```
 
-Data is not normal, come back to this.
+Data is not normal. Transform data to achieve normality 
+```{r}
+eh_long$log <- log(eh_long$estimate)
+hist(eh_long$log)
+qqnorm(eh_long$log)
+qqline(eh_long$log, col = "red")
+shapiro.test(eh_long$log)
+
+eh_long$sqrt <- sqrt(eh_long$estimate)
+hist(eh_long$sqrt)
+qqnorm(eh_long$sqrt)
+qqline(eh_long$sqrt, col = "red")
+shapiro.test(eh_long$sqrt)
+```
+
+Square root transformation produced normality. 
 
 Run linear mixed effects model 
 ```{r}
-eh.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=eh_long, na.action=na.exclude)
+eh.lme <- lme(sqrt~Species*Phenotype*Year, random = ~1|Colony_ID, data=eh_long, na.action=na.exclude)
 summary(eh.lme)
 anova(eh.lme)
+
+# Compare Species within each Year -- This tells you if Mcap vs Pcomp differed in 2023 vs 2025
+emmeans(eh.lme, pairwise ~ Species | Year)
+emmeans(eh.lme, pairwise ~ Year | Species)
 ```
 
 Year and Species x Year is significant. 
@@ -1547,13 +1583,18 @@ qqline(topt_long$estimate, col = "red")
 shapiro.test(topt_long$estimate)
 ```
 
-Data is not normal, come back to this.
+Data is normal.
 
 Run linear mixed effects model 
 ```{r}
 topt.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=topt_long, na.action=na.exclude)
 summary(topt.lme)
 anova(topt.lme)
+
+# Post hoc tests
+emmeans(topt.lme, pairwise ~ Year | Species)
+emmeans(topt.lme, pairwise ~ Phenotype)
+emmeans(topt.lme, pairwise ~ Phenotype | Species)
 ```
 
 Year and Species x Year is significant. 
@@ -1586,17 +1627,8 @@ rmax.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=rma
 summary(rmax.lme)
 anova(rmax.lme)
 
-# posthoc 
-emmeans(rmax.lme, pairwise ~ Year | Species)
-emmeans(rmax.lme, ~ Species * Year * Phenotype)
-
-library(performance)
-model_performance(rmax.lme)
-
-## compare full and reduced models 
-rmax.lme.full <- update(rmax.lme, method = "ML")
-rmax.lme.reduced <- update(rmax.lme, . ~ . - Species:Phenotype:Year, method = "ML")
-anova(rmax.lme.full, rmax.lme.reduced)
+# Post hoc tests
+emmeans(topt.lme, pairwise ~ Year | Species)
 ```
 
 Year and Species x Year is significant. 
@@ -1639,13 +1671,85 @@ Make the plot pretty
 ```{r}
 # Define a mapping for the Y-axis labels
 trait_labels <- c(
-  "E" = "Activation Energy (eV)",
-  "Eh" = "Deactivation Energy (eV)",
-  "lnc" = "Net photosynthesis at 27°C\nlog(umol hr-1 cm-2)",
-  "Rmax_log" = "Maximum photosynthesis\nlog(umol hr-1 cm-2)",
-  "Topt_C" = "Thermal optimum (°C)"
+  "E" = "Activation~Energy~(eV)",
+  "Eh" = "Deactivation~Energy~(eV)",
+  "lnc" = "atop(Net~photosynthesis~at~27*degree*C, log(mu*mol~hr^-1~cm^-2))",
+  "Rmax_log" = "atop(Maximum~photosynthesis, log(mu*mol~hr^-1~cm^-2))",
+  "Topt_C" = "Thermal~optimum~(degree*C)"
 )
 
+# Define the traits vector in the order you want them plotted
+traits <- c("E", "Eh", "lnc", "Topt_C", "Rmax_log")
+
+## Spp in same plot 
+create_combined_trait_plot <- function(data, tr, plot_letter, is_bottom_row = FALSE) {
+  
+  # Filter data for the specific trait but keep both species
+  plot_data <- data %>% filter(trait == tr)
+  
+  p <- ggplot(plot_data, aes(x = Year, y = estimate, 
+                             color = Phenotype, 
+                             linetype = Species, 
+                             group = interaction(Phenotype, Species))) +
+    # Error bars (Species-specific linetypes can apply here too if desired)
+    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, size = 0.6, linetype = "solid") +
+    stat_summary(fun = mean, geom = "line", size = 0.8) +
+    stat_summary(fun = mean, geom = "point", size = 2.5) +
+    # Custom Scales
+    scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+    scale_linetype_manual(values = c("Montipora capitata" = "solid", 
+                                     "Porites compressa" = "dashed")) +
+    theme_classic() + 
+    theme(
+      axis.text = element_text(size = 9, color = "black"),
+      axis.title.y = element_text(size = 9, face = "plain"),
+      plot.title = element_text(size = 10, face = "bold", hjust = 0)
+    ) +
+    labs(title = plot_letter, x = NULL, y = trait_labels[[tr]])
+
+  # Hide X-axis for all but the bottom plot
+  if (!is_bottom_row) {
+    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  }
+  
+  return(p)
+}
+
+# Generate the single column of combined plots
+combined_trait_plots <- lapply(1:5, function(i) {
+  create_combined_trait_plot(traits_long_all, traits[i], 
+                             LETTERS[i], is_bottom_row = (i == 5))
+})
+
+# Assemble the vertical stack
+final_trait_figure <- wrap_plots(combined_trait_plots, ncol = 1) + 
+  plot_layout(guides = "collect") +
+  plot_annotation(
+    theme = theme(plot.title = element_text(size = 14, face = "bold"))
+  ) & 
+  theme(legend.position = "right",
+        legend.box = "vertical") # Stacks Phenotype and Species legends
+final_trait_figure
+
+# Save 
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_2023_2025.pdf", 
+       plot = final_trait_figure, 
+       width = 8, 
+       height = 12, 
+       units = "in", 
+       device = "pdf",
+       dpi = 300)
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_2023_2025.png", 
+       plot = final_trait_figure, 
+       width = 8, 
+       height = 12, 
+       units = "in", 
+       dpi = 300)
+
+
+
+
+## Spp in separate cols 
 create_clean_plot <- function(data, spec, tr, plot_letter, is_left_col = TRUE, is_bottom_row = FALSE) {
   
   p <- ggplot(data %>% filter(Species == spec, trait == tr), 
@@ -1699,14 +1803,14 @@ final_plot <- (wrap_plots(mcap_plots, ncol = 1) | wrap_plots(pcomp_plots, ncol =
   theme(legend.position = "bottom")
 
 # Save 
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_2023_2025.pdf", 
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_species_separate_2023_2025.pdf", 
        plot = final_plot, 
        width = 8, 
        height = 12, 
        units = "in", 
        device = "pdf",
        dpi = 300)
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_2023_2025.png", 
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_species_separate_2023_2025.png", 
        plot = final_plot, 
        width = 8, 
        height = 12, 
@@ -1714,8 +1818,207 @@ ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_2023_2025.png",
        dpi = 300)
 ```
 
+Add significance data to plots
+```{r}
+# Add labels 
+sig_labels <- c(
+  "S*, Y***, PxY*",                 # for E
+  "Y***, SxY*",       # for Eh
+  "S***",         # for tref
+  "P*, Y***, SxY*", # for Topt_C
+  "S***, Y***, SxY*"                     # for Rmax_log 
+)
+
+create_combined_trait_plot <- function(data, tr, plot_letter, sig_text = "", is_bottom_row = FALSE) {
+  
+  plot_data <- data %>% filter(trait == tr)
+  p <- ggplot(plot_data, aes(x = Year, y = estimate, 
+                               color = Phenotype, 
+                               linetype = Species, 
+                               group = interaction(Phenotype, Species))) +
+     # Error bars - slightly thicker for publication
+     stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, size = 0.8, linetype = "solid") +
+     stat_summary(fun = mean, geom = "line", size = 1.0) +
+     stat_summary(fun = mean, geom = "point", size = 3.5) +
+     
+     # SIGNIFICANCE LABELS - Positioned in bottom right
+     annotate("text", x = Inf, y = -Inf, label = sig_text, 
+              hjust = 1.1, vjust = -1.2, size = 4, color = "black") +
+     
+     scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+     scale_linetype_manual(values = c("Montipora capitata" = "solid", 
+                                      "Porites compressa" = "dashed")) +
+     theme_classic() + 
+     theme(
+       # Larger text for readability in print
+       axis.text = element_text(size = 15, color = "black"),
+       axis.title.y = element_text(size = 15, face = "plain", margin = margin(r = 10)),
+       plot.title = element_text(size = 18, face = "bold", hjust = 0),
+       # Ensure panels have enough breathing room
+       plot.margin = margin(t = 5, r = 5, b = 5, l = 5)
+     ) +
+     labs(title = plot_letter, x = NULL, y = parse(text = trait_labels[[tr]]))
+
+  if (!is_bottom_row) {
+    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  } else {
+    # Bold the year labels on the bottom row
+    p <- p + theme(axis.text.x = element_text(size = 18))
+  }
+  
+  return(p)
+}
+
+# Define traits and your updated sig labels
+traits <- c("E", "Eh", "lnc", "Topt_C", "Rmax_log")
+
+# Apply the function across all traits
+combined_trait_plots <- lapply(1:5, function(i) {
+  create_combined_trait_plot(
+    data = traits_long_all, 
+    tr = traits[i], 
+    plot_letter = LETTERS[i], 
+    sig_text = sig_labels[i],
+    is_bottom_row = (i == 5)
+  )
+})
+
+# Assemble with Patchwork
+final_trait_figure <- wrap_plots(combined_trait_plots, ncol = 1) + 
+  plot_layout(guides = "collect") +
+  plot_annotation(
+    # Optional: add an overall title or leave NULL for publication
+    title = NULL 
+  ) & 
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11),
+    legend.key.width = unit(1.5, "cm"), # Makes linetypes easier to distinguish
+    legend.spacing.y = unit(0.5, "cm")
+  )
+
+# Save 
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_2023_2025.pdf", 
+       plot = final_trait_figure, 
+       width = 10, 
+       height = 16, 
+       units = "in", 
+       device = "pdf",
+       dpi = 300)
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_2023_2025.png", 
+       plot = final_trait_figure, 
+       width = 10, 
+       height = 16, 
+       units = "in", 
+       dpi = 300)
+```
+
+Add jitter
+```{r}
+# Add labels 
+sig_labels <- c(
+  "S*, Y***, PxY*",                 # for E
+  "Y***, SxY*",       # for Eh
+  "S***",         # for tref
+  "P*, Y***, SxY*", # for Topt_C
+  "S***, Y***, SxY*"                     # for Rmax_log 
+)
+
+create_combined_trait_plot <- function(data, tr, plot_letter, sig_text = "", is_bottom_row = FALSE) {
+  
+  plot_data <- data %>% filter(trait == tr)
+  pd <- position_dodge(width = 0.3)
+  p <- ggplot(plot_data, aes(x = Year, y = estimate, 
+                               color = Phenotype, 
+                               linetype = Species, 
+                               group = interaction(Phenotype, Species))) +
+     # Error bars - slightly thicker for publication
+     stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, size = 0.8, linetype = "solid", position = pd) +
+     stat_summary(fun = mean, geom = "line", size = 1.0, position = pd) +
+     stat_summary(fun = mean, geom = "point", size = 3.5, position = pd) +
+     
+     # SIGNIFICANCE LABELS - Positioned in bottom right
+     annotate("text", x = Inf, y = -Inf, label = sig_text, 
+              hjust = 1.1, vjust = -1.2, size = 4, color = "black") +
+     
+     scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+     scale_linetype_manual(values = c("Montipora capitata" = "solid", 
+                                      "Porites compressa" = "dashed")) +
+     theme_classic() + 
+     theme(
+       # Larger text for readability in print
+       axis.text = element_text(size = 15, color = "black"),
+       axis.title.y = element_text(size = 15, face = "plain", margin = margin(r = 10)),
+       plot.title = element_text(size = 18, face = "bold", hjust = 0),
+       # Ensure panels have enough breathing room
+       plot.margin = margin(t = 5, r = 5, b = 5, l = 5)
+     ) +
+     labs(title = plot_letter, x = NULL, y = parse(text = trait_labels[[tr]]))
+
+  if (!is_bottom_row) {
+    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  } else {
+    # Bold the year labels on the bottom row
+    p <- p + theme(axis.text.x = element_text(size = 18))
+  }
+  
+  return(p)
+}
+
+# Define traits and your updated sig labels
+traits <- c("E", "Eh", "lnc", "Topt_C", "Rmax_log")
+
+# Apply the function across all traits
+combined_trait_plots <- lapply(1:5, function(i) {
+  create_combined_trait_plot(
+    data = traits_long_all, 
+    tr = traits[i], 
+    plot_letter = LETTERS[i], 
+    sig_text = sig_labels[i],
+    is_bottom_row = (i == 5)
+  )
+})
+
+# Assemble with Patchwork
+final_trait_figure <- wrap_plots(combined_trait_plots, ncol = 1) + 
+  plot_layout(guides = "collect") +
+  plot_annotation(
+    # Optional: add an overall title or leave NULL for publication
+    title = NULL 
+  ) & 
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11),
+    legend.key.width = unit(1.5, "cm"), # Makes linetypes easier to distinguish
+    legend.spacing.y = unit(0.5, "cm")
+  )
+
+# Save 
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_jitter_2023_2025.pdf", 
+       plot = final_trait_figure, 
+       width = 10, 
+       height = 16, 
+       units = "in", 
+       device = "pdf",
+       dpi = 300)
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_jitter_2023_2025.png", 
+       plot = final_trait_figure, 
+       width = 10, 
+       height = 16, 
+       units = "in", 
+       dpi = 300)
+```
+
+
 Plot TPC photosynthesis curves with temp bars 
 ```{r}
+photo_2025 <- photo_2025 %>%
+  mutate(Colony_ID = as.character(Colony_ID)) %>%
+  mutate(Date = as.Date(Date)) #%>%
+  #dplyr::select(!X)
+
 # 1. Combine all data and create a unified "Header" for each plot
 all_photo <- bind_rows(
   photo_2023 %>% mutate(Year = "2023"),
@@ -1723,7 +2026,7 @@ all_photo <- bind_rows(
 ) %>% mutate(Plot_Header = paste(Species, Year))
 
 all_preds <- bind_rows(
-  preds_mean_summary %>% mutate(Year = "2023"),
+  preds_mean_summary_2023 %>% mutate(Year = "2023"),
   preds_mean_summary_2025 %>% mutate(Year = "2025")
 ) %>% mutate(Plot_Header = paste(Species, Year))
 
@@ -1756,7 +2059,7 @@ final_tpc_plot <- ggplot() +
   # Raw data points
   geom_point(data = all_photo, 
              aes(x = Temperature.K - 273.15, y = log.rate, color = Phenotype), 
-             alpha = 0.4, size = 1, position = position_jitter(width = 0.1)) +
+             alpha = 0.4, size = 1.5, position = position_jitter(width = 0.1)) +
   # Confidence ribbons
   geom_ribbon(data = all_preds, 
               aes(x = Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
@@ -1782,11 +2085,28 @@ final_tpc_plot <- ggplot() +
   scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
   scale_fill_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
   theme_classic() +
+theme_classic() +
   theme(
+    # --- INCREASED TEXT SIZES ---
+    axis.text = element_text(size = 12, color = "black"),
+    axis.title = element_text(size = 14),
+    
+    # Secondary axis styling (matches the blue bars)
+    axis.title.y.right = element_text(color = "black", size = 13, margin = margin(l = 15)),
+    axis.text.y.right = element_text(color = "black", size = 11),
+    
+    # Facet header styling
     strip.background = element_blank(),
-    strip.text = element_text(face = "bold", size = 11),
-    panel.spacing = unit(1.5, "lines"),
-    legend.position = "top"
+    strip.text = element_text(face = "bold", size = 14, hjust = 0),
+    
+    # Legend styling
+    legend.position = "top",
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 13, face = "bold"),
+    
+    # Spacing
+    panel.spacing = unit(2, "lines"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
   ) +
   labs(x = "Temperature (°C)")
 
