@@ -27,6 +27,7 @@ library(Rmisc)
 library(boot)
 library(nlme)
 library(propagate)
+library(patchwork)
 
 n_cores <- detectCores() - 1
 ```
@@ -1322,7 +1323,7 @@ emmeans(topt.lme, pairwise ~ Species | Year)
 emmeans(topt.lme, pairwise ~ Year | Species)
 ```
 
-Species and Year are significant. Species x Year is also marginally significant. 
+Species and Year are significant. Species x Year is also significant. 
 
 ## Visualize 2023 v. 2025 TPC photosynthesis 
 
@@ -1534,133 +1535,12 @@ ggsave("../output/TPC_Calcification/Calcification_TPC_metrics_stats_2023_2025.pn
        dpi = 300)
 ```
 
-Plot TPC photosynthesis curves with temp bars 
-```{r}
-photo_2025 <- photo_2025 %>%
-  mutate(Colony_ID = as.character(Colony_ID)) %>%
-  mutate(Date = as.Date(Date)) #%>%
-  #dplyr::select(!X)
-
-# 1. Combine all data and create a unified "Header" for each plot
-all_photo <- bind_rows(
-  photo_2023 %>% mutate(Year = "2023"),
-  photo_2025 %>% mutate(Year = "2025")
-) %>% mutate(Plot_Header = paste(Species, Year))
-
-all_preds <- bind_rows(
-  preds_mean_summary_2023 %>% mutate(Year = "2023"),
-  preds_mean_summary_2025 %>% mutate(Year = "2025")
-) %>% mutate(Plot_Header = paste(Species, Year))
-
-species_list <- c("Montipora capitata", "Porites compressa")
-
-# Rebuild all_freq by duplicating the year data for each species
-all_freq <- bind_rows(
-  # For 2023
-  map_dfr(species_list, ~temp_freq_2023 %>% mutate(Species = .x, Year = "2023")),
-  # For 2025
-  map_dfr(species_list, ~temp_freq_2025 %>% mutate(Year = "2025", Species = .x))
-) %>% 
-  mutate(Plot_Header = paste(Species, Year))
-
-# Ensure all_photo and all_preds also have the Plot_Header
-all_photo <- all_photo %>% mutate(Plot_Header = paste(Species, Year))
-all_preds <- all_preds %>% mutate(Plot_Header = paste(Species, Year))
-
-# 2. Axis Parameters
-p_min <- -0.5; p_max <- 1.5; p_total <- p_max - p_min
-s_max <- 30; scale_factor <- p_total / s_max
-
-# 3. Create the Plot
-final_tpc_plot <- ggplot() +
-  # Environmental bars
-  geom_rect(data = all_freq, 
-            aes(xmin = temp_bin - 0.45, xmax = temp_bin + 0.45, 
-                ymin = p_min, ymax = p_min + (percent * scale_factor)), 
-            fill = "#8DBBCC", color = "#727E8B", linewidth = 0.2) +
-  # Raw data points
-  geom_point(data = all_photo, 
-             aes(x = Temperature.K - 273.15, y = log.rate, color = Phenotype), 
-             alpha = 0.4, size = 1.5, position = position_jitter(width = 0.1)) +
-  # Confidence ribbons
-  geom_ribbon(data = all_preds, 
-              aes(x = Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
-              alpha = 0.3, color = NA) +
-  # Mean lines
-  geom_line(data = all_preds, 
-            aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype), 
-            linewidth = 1.2) +
-  geom_hline(yintercept = 0, color = "grey", linewidth = 0.5, linetype = "dashed") +
-  
-  # Scaling and Dual Axes
-  scale_y_continuous(
-    name = expression("Net photosynthesis (log(" *mu*"mol " *cm^-2 *hr^-1*"))"),
-    limits = c(p_min, p_max), expand = c(0, 0),
-    sec.axis = sec_axis(~ (. - p_min) / scale_factor, name = "Percent days (%)", breaks = seq(0, 30, 5))
-  ) +
-  scale_x_continuous(breaks = seq(18, 40, by = 2), limits = c(17.5, 40.5), expand = c(0,0)) +
-  
-  # FACET: This creates 4 distinct panels with your custom headers
-  facet_wrap(~ Plot_Header, ncol = 2) +
-  
-  # Styling
-  scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
-  scale_fill_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
-  theme_classic() +
-theme_classic() +
-  theme(
-    # --- INCREASED TEXT SIZES ---
-    axis.text = element_text(size = 12, color = "black"),
-    axis.title = element_text(size = 14),
-    
-    # Secondary axis styling (matches the blue bars)
-    axis.title.y.right = element_text(color = "black", size = 13, margin = margin(l = 15)),
-    axis.text.y.right = element_text(color = "black", size = 11),
-    
-    # Facet header styling
-    strip.background = element_blank(),
-    strip.text = element_text(face = "bold", size = 14, hjust = 0),
-    
-    # Legend styling
-    legend.position = "top",
-    legend.text = element_text(size = 12),
-    legend.title = element_text(size = 13, face = "bold"),
-    
-    # Spacing
-    panel.spacing = unit(2, "lines"),
-    plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
-  ) +
-  labs(x = "Temperature (°C)")
-
-final_labeled_tpc <- final_tpc_plot + 
-  #plot_annotation(tag_levels = 'A') & 
-  theme(plot.tag = element_text(face = "bold", size = 16))
-
-final_labeled_tpc
-
-# Save 
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_curve_2023_2025.pdf", 
-       plot = final_labeled_tpc, 
-       width = 12, 
-       height = 8, 
-       units = "in", 
-       device = "pdf",
-       dpi = 300)
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_curve_2023_2025.png", 
-       plot = final_labeled_tpc, 
-       width = 12, 
-       height = 8, 
-       units = "in", 
-       dpi = 300)
-```
-
 Plot TPC calcification curves with temp bars 
 ```{r}
 # Select specific cols from each df 
 calc_2023 <- calc_2023 %>%
-  dplyr::select(Colony.ID, Target.Temperature, umol.CaCO3h.1.cm.2, Species, Phenotype, log.rate, Target.Temperature.K) %>%
-  dplyr::rename(ColonyID = Colony.ID,
-         Target_Temperature = Target.Temperature,
+  dplyr::select(ColonyID, Target.Temperature, umol.CaCO3h.1.cm.2, Species, Phenotype, log.rate, Target.Temperature.K) %>%
+  dplyr::rename(Target_Temperature = Target.Temperature,
          Net_Calcification_cm2 = umol.CaCO3h.1.cm.2) %>%
   mutate(ColonyID = as.character(ColonyID))
 

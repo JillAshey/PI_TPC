@@ -29,6 +29,7 @@ library(Rmisc)
 library(boot)
 library(nlme)
 library(propagate)
+library(patchwork)
 ```
 
 # Functions for analysis 
@@ -1597,7 +1598,7 @@ emmeans(topt.lme, pairwise ~ Phenotype)
 emmeans(topt.lme, pairwise ~ Phenotype | Species)
 ```
 
-Year and Species x Year is significant. 
+Phenotype, Year and Species x Year is significant. 
 
 ### Rmax
 
@@ -2014,10 +2015,14 @@ ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_jitter_202
 
 Plot TPC photosynthesis curves with temp bars 
 ```{r}
+# Select specific cols 
+photo_2023 <- photo_2023 %>%
+  dplyr::select(Colony_ID, Temperature, Slope_norm, Species, Phenotype, log.rate, Temperature.K) %>%
+  mutate(Colony_ID = as.character(Colony_ID))
+
 photo_2025 <- photo_2025 %>%
   mutate(Colony_ID = as.character(Colony_ID)) %>%
-  mutate(Date = as.Date(Date)) #%>%
-  #dplyr::select(!X)
+  dplyr::select(Colony_ID, Temperature, Slope_norm, Species, Phenotype, log.rate, Temperature.K)
 
 # 1. Combine all data and create a unified "Header" for each plot
 all_photo <- bind_rows(
@@ -2062,11 +2067,11 @@ final_tpc_plot <- ggplot() +
              alpha = 0.4, size = 1.5, position = position_jitter(width = 0.1)) +
   # Confidence ribbons
   geom_ribbon(data = all_preds, 
-              aes(x = Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
+              aes(x = Target.Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
               alpha = 0.3, color = NA) +
   # Mean lines
   geom_line(data = all_preds, 
-            aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype), 
+            aes(x = Target.Temperature.K - 273.15, y = mean_val, color = Phenotype), 
             linewidth = 1.2) +
   geom_hline(yintercept = 0, color = "grey", linewidth = 0.5, linetype = "dashed") +
   
