@@ -28,8 +28,11 @@ library(boot)
 library(nlme)
 library(propagate)
 library(patchwork)
+library(lmerTest)
+library(performance)
+library(insight)
 
-n_cores <- detectCores() - 1
+#n_cores <- detectCores() - 1
 ```
 
 # Functions for analysis 
@@ -326,28 +329,6 @@ ggplot(traits_long_2023, aes(x = Phenotype, y = estimate, fill = Phenotype)) +
     y = "Estimated Parameter Value",
     x = "Phenotype"
   )
-```
-
-Multidimensional visualization via PCA
-```{r}
-# Select only numeric traits for PCA
-pca_prep <- Topt_Rmax_2023 %>%
-  ungroup() %>%
-  select(lnc, E, Eh, Topt_C, Rmax_log)
-
-# Run PCA (scale = TRUE is essential here)
-pca_fit <- prcomp(pca_prep, scale. = TRUE)
-
-# Plot
-autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype', 
-         shape = 'Species', frame = TRUE, frame.type = 'norm',
-         loadings = TRUE, loadings.label = TRUE, 
-         loadings.label.size = 3, loadings.colour = "black", loadings.label.colour = "black") +
-  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  scale_fill_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  theme_bw() +
-  labs(title = "Multivariate Thermal Phenotype PCA",
-       caption = "Arrows indicate the direction of trait influence.")
 ```
 
 ### Plot with confidence intervals 
@@ -921,28 +902,6 @@ ggplot(traits_long_2025, aes(x = Phenotype, y = estimate, fill = Phenotype)) +
     y = "Estimated Parameter Value",
     x = "Phenotype"
   )
-```
-
-Multidimensional visualization via PCA
-```{r}
-# Select only numeric traits for PCA
-pca_prep <- Topt_Rmax_2025 %>%
-  ungroup() %>%
-  select(lnc, E, Eh, Topt_C, Rmax_log)
-
-# Run PCA (scale = TRUE is essential here)
-pca_fit <- prcomp(pca_prep, scale. = TRUE)
-
-# Plot
-autoplot(pca_fit, data = Topt_Rmax_2025, colour = 'Phenotype', 
-         shape = 'Species', frame = TRUE, frame.type = 'norm',
-         loadings = TRUE, loadings.label = TRUE, 
-         loadings.label.size = 3, loadings.colour = "black", loadings.label.colour = "black") +
-  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  scale_fill_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  theme_bw() +
-  labs(title = "Multivariate Thermal Phenotype PCA",
-       caption = "Arrows indicate the direction of trait influence.")
 ```
 
 ## Plot with confidence intervals 
