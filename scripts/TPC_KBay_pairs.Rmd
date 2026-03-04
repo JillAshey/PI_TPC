@@ -30,6 +30,9 @@ library(boot)
 library(nlme)
 library(propagate)
 library(patchwork)
+library(lmerTest)
+library(performance)
+library(insight)
 ```
 
 # Functions for analysis 
@@ -1414,21 +1417,32 @@ shapiro.test(lnc_long$estimate)
 
 Data is normal.
 
-Run linear mixed effects model 
+Run linear-mixed effects model
 ```{r}
-lnc.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=lnc_long, na.action=na.exclude)
-summary(lnc.lme)
-car::Anova(lnc.lme, type = "III")
-performance::r2(lnc.lme)
-insight::get_variance_random(lnc.lme)
+lnc.model <- lmer(estimate ~ Year * Phenotype * Species + (1|Colony_ID), data = lnc_long)
+car::Anova(lnc.model, type = "III")
 
-# Post hoc tests
-emmeans(lnc.lme, list(pairwise ~ Species), adjust = "tukey")
-emmeans(lnc.lme, list(pairwise ~ Year), adjust = "tukey")
-emmeans(lnc.lme, list(pairwise ~ Phenotype:Year), adjust = "tukey")
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(lnc.model, which = 1) 
+lattice::qqmath(lnc.model)
+
+# Post-hoc tests
+emmeans(lnc.model, pairwise ~ Species)
+emmeans(lnc.model, pairwise ~ Phenotype)
+emmeans(lnc.model, pairwise ~ Year | Phenotype)
+emmeans(lnc.model, pairwise ~ Phenotype | Year)
+
+# Check plot to make sure results make sense
+ggplot(lnc_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
-Species, Year, and Phenotype x Year is significant. 
+Species, Phenotype, and Year x Phenotype is significant. 
 
 ### E
 
@@ -1469,20 +1483,31 @@ Square root achieved normality.
 
 Run linear mixed effects model 
 ```{r}
-e.lme <- lme(sqrt~Species*Phenotype*Year, random = ~1|Colony_ID, data=e_long, na.action=na.exclude)
-summary(e.lme)
-car::Anova(e.lme, type = "III")
-performance::r2(e.lme, tolerance = 0)
-insight::get_variance_random(e.lme, tolerance = 0)
+e.model <- lmer(sqrt ~ Year * Phenotype * Species + (1|Colony_ID), data = e_long)
+car::Anova(e.model, type = "III")
 
-# Post hoc tests 
-emmeans(e.lme, list(pairwise ~ Phenotype), adjust = "tukey")
-emmeans(e.lme, list(pairwise ~ Species:Phenotype), adjust = "tukey")
-emmeans(e.lme, list(pairwise ~ Phenotype:Year), adjust = "tukey")
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(e.model, which = 1) 
+lattice::qqmath(e.model)
 
+# Post-hoc tests
+emmeans(e.model, pairwise ~ Phenotype)
+emmeans(e.model, pairwise ~ Year | Phenotype)
+emmeans(e.model, pairwise ~ Phenotype | Year)
+emmeans(e.model, pairwise ~ Species | Phenotype)
+emmeans(e.model, pairwise ~ Phenotype | Species)
+
+# Check plot to make sure results make sense
+ggplot(e_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
-Species, Year, Phenotype (marginally), Species x Phenotype, and Phenotype x Year is significant. 
+Phenotype, Year x Phenotype, and Phenotype x Species is significant. 
 
 ### Eh
 
@@ -1523,17 +1548,27 @@ Square root transformation produced normality.
 
 Run linear mixed effects model 
 ```{r}
-eh.lme <- lme(sqrt~Species*Phenotype*Year, random = ~1|Colony_ID, data=eh_long, na.action=na.exclude)
-summary(eh.lme)
-anova(eh.lme)
+eh.model <- lmer(sqrt ~ Year * Phenotype * Species + (1|Colony_ID), data = eh_long)
+car::Anova(eh.model, type = "III")
 
-# Compare Species within each Year -- This tells you if Mcap vs Pcomp differed in 2023 vs 2025
-emmeans(eh.lme, pairwise ~ Year)
-emmeans(eh.lme, pairwise ~ Species | Year)
-emmeans(eh.lme, pairwise ~ Year | Species)
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(eh.model, which = 1) 
+lattice::qqmath(eh.model)
+
+# Post-hoc tests
+emmeans(eh.model, pairwise ~ Year)
+
+# Check plot to make sure results make sense
+ggplot(eh_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
-Year and Species x Year is significant. 
+Year is significant. 
 
 ### Topt
 
@@ -1572,18 +1607,32 @@ shapiro.test(topt_long$sqrt)
 
 Run linear mixed effects model 
 ```{r}
-topt.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=topt_long, na.action=na.exclude)
-summary(topt.lme)
-anova(topt.lme)
+topt.model <- lmer(estimate ~ Year * Phenotype * Species + (1|Colony_ID), data = topt_long)
+car::Anova(topt.model, type = "III")
 
-# Post hoc tests
-emmeans(topt.lme, pairwise ~ Year | Species)
-emmeans(topt.lme, pairwise ~ Species | Year)
-emmeans(topt.lme, pairwise ~ Year)
-emmeans(topt.lme, pairwise ~ Phenotype)
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(topt.model, which = 1) 
+lattice::qqmath(topt.model)
+
+# Post-hoc tests
+emmeans(topt.model, pairwise ~ Species | Year)
+emmeans(topt.model, pairwise ~ Year | Species)
+emmeans(topt.model, pairwise ~ Phenotype | Species)
+emmeans(topt.model, pairwise ~ Species | Phenotype)
+
+# Check plot to make sure results make sense
+ggplot(topt_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
-Phenotype, Year and Species x Year is significant. 
+Species x Year is significant. 
+
+How is there not a phenotype difference for Mcap?
 
 ### Rmax
 
@@ -1609,18 +1658,30 @@ Data is normal!
 
 Run linear mixed effects model 
 ```{r}
-rmax.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=rmax_long, na.action=na.exclude)
-summary(rmax.lme)
-anova(rmax.lme)
+rmax.model <- lmer(estimate ~ Year * Phenotype * Species + (1|Colony_ID), data = rmax_long)
+car::Anova(rmax.model, type = "III")
 
-# Post hoc tests
-emmeans(topt.lme, pairwise ~ Year)
-emmeans(topt.lme, pairwise ~ Species)
-emmeans(topt.lme, pairwise ~ Year | Phenotype)
-emmeans(topt.lme, pairwise ~ Phenotype | Year)
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(rmax.model, which = 1) 
+lattice::qqmath(rmax.model)
+
+# Post-hoc tests
+emmeans(e.model, pairwise ~ Phenotype)
+emmeans(e.model, pairwise ~ Species)
+emmeans(e.model, pairwise ~ Species | Phenotype)
+emmeans(e.model, pairwise ~ Phenotype | Species)
+
+# Check plot to make sure results make sense
+ggplot(rmax_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
-Year and Species x Year is significant. 
+Species and Phenotype are significant. 
 
 ## Visualize 2023 v. 2025 TPC photosynthesis 
 
@@ -1740,11 +1801,11 @@ Add significance data to plots
 ```{r}
 # Add labels 
 sig_labels <- c(
-  "S*, Y***, PxY*",                 # for E
-  "Y***, SxY*",       # for Eh
-  "S***",         # for tref
-  "P*, Y***, SxY*", # for Topt_C
-  "S***, Y***, SxY*"                     # for Rmax_log 
+  "P***, SxP*, PxY*",                 # for E
+  "Y***",       # for Eh
+  "S***, P*, PxY*",         # for tref
+  "SxY*", # for Topt_C
+  "S***, P*"                     # for Rmax_log 
 )
 
 create_combined_trait_plot <- function(data, tr, plot_letter, sig_text = "", is_bottom_row = FALSE) {
@@ -1832,104 +1893,6 @@ ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_2023_2025.
        dpi = 300)
 ```
 
-Add jitter
-```{r}
-# Add labels 
-sig_labels <- c(
-  "S*, Y***, PxY*",                 # for E
-  "Y***, SxY*",       # for Eh
-  "S***",         # for tref
-  "P*, Y***, SxY*", # for Topt_C
-  "S***, Y***, SxY*"                     # for Rmax_log 
-)
-
-create_combined_trait_plot <- function(data, tr, plot_letter, sig_text = "", is_bottom_row = FALSE) {
-  
-  plot_data <- data %>% filter(trait == tr)
-  pd <- position_dodge(width = 0.3)
-  p <- ggplot(plot_data, aes(x = Year, y = estimate, 
-                               color = Phenotype, 
-                               linetype = Species, 
-                               group = interaction(Phenotype, Species))) +
-     # Error bars - slightly thicker for publication
-     stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, size = 0.8, linetype = "solid", position = pd) +
-     stat_summary(fun = mean, geom = "line", size = 1.0, position = pd) +
-     stat_summary(fun = mean, geom = "point", size = 3.5, position = pd) +
-     
-     # SIGNIFICANCE LABELS - Positioned in bottom right
-     annotate("text", x = Inf, y = -Inf, label = sig_text, 
-              hjust = 1.1, vjust = -1.2, size = 4, color = "black") +
-     
-     scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
-     scale_linetype_manual(values = c("Montipora capitata" = "solid", 
-                                      "Porites compressa" = "dashed")) +
-     theme_classic() + 
-     theme(
-       # Larger text for readability in print
-       axis.text = element_text(size = 15, color = "black"),
-       axis.title.y = element_text(size = 15, face = "plain", margin = margin(r = 10)),
-       plot.title = element_text(size = 18, face = "bold", hjust = 0),
-       # Ensure panels have enough breathing room
-       plot.margin = margin(t = 5, r = 5, b = 5, l = 5)
-     ) +
-     labs(title = plot_letter, x = NULL, y = parse(text = trait_labels[[tr]]))
-
-  if (!is_bottom_row) {
-    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
-  } else {
-    # Bold the year labels on the bottom row
-    p <- p + theme(axis.text.x = element_text(size = 18))
-  }
-  
-  return(p)
-}
-
-# Define traits and your updated sig labels
-traits <- c("E", "Eh", "lnc", "Topt_C", "Rmax_log")
-
-# Apply the function across all traits
-combined_trait_plots <- lapply(1:5, function(i) {
-  create_combined_trait_plot(
-    data = traits_long_all, 
-    tr = traits[i], 
-    plot_letter = LETTERS[i], 
-    sig_text = sig_labels[i],
-    is_bottom_row = (i == 5)
-  )
-})
-
-# Assemble with Patchwork
-final_trait_figure <- wrap_plots(combined_trait_plots, ncol = 1) + 
-  plot_layout(guides = "collect") +
-  plot_annotation(
-    # Optional: add an overall title or leave NULL for publication
-    title = NULL 
-  ) & 
-  theme(
-    legend.position = "right",
-    legend.title = element_text(size = 12, face = "bold"),
-    legend.text = element_text(size = 11),
-    legend.key.width = unit(1.5, "cm"), # Makes linetypes easier to distinguish
-    legend.spacing.y = unit(0.5, "cm")
-  )
-
-# Save 
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_jitter_2023_2025.pdf", 
-       plot = final_trait_figure, 
-       width = 10, 
-       height = 16, 
-       units = "in", 
-       device = "pdf",
-       dpi = 300)
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_jitter_2023_2025.png", 
-       plot = final_trait_figure, 
-       width = 10, 
-       height = 16, 
-       units = "in", 
-       dpi = 300)
-```
-
-
 Plot TPC photosynthesis curves with temp bars 
 ```{r}
 # Select specific cols 
@@ -1984,11 +1947,11 @@ final_tpc_plot <- ggplot() +
              alpha = 0.4, size = 1.5, position = position_jitter(width = 0.1)) +
   # Confidence ribbons
   geom_ribbon(data = all_preds, 
-              aes(x = Target.Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
+              aes(x = Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
               alpha = 0.3, color = NA) +
   # Mean lines
   geom_line(data = all_preds, 
-            aes(x = Target.Temperature.K - 273.15, y = mean_val, color = Phenotype), 
+            aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype), 
             linewidth = 1.2) +
   geom_hline(yintercept = 0, color = "grey", linewidth = 0.5, linetype = "dashed") +
   
