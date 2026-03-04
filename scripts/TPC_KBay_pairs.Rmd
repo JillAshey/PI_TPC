@@ -255,7 +255,7 @@ sept_2023$Surface_Area_cm2 <- as.numeric(sept_2023$Surface_Area_cm2)
 Merge sample metadata with interval data 
 ```{r}
 all_int_tpc <- all_int_tpc %>%
-  inner_join(sample_meta, by = c("Colony_ID" = "Colony_ID", "Temperature" = "Target_Temperature")) %>%
+  inner_join(sept_2023, by = c("Colony_ID" = "Colony_ID", "Temperature" = "Target_Temperature")) %>%
   filter(!is.na(Phenotype))
 length(unique(all_int_tpc$Colony_ID))
 ```
@@ -582,28 +582,6 @@ ggplot(traits_long_2023, aes(x = Phenotype, y = estimate, fill = Phenotype)) +
   )
 ```
 
-Multidimensional visualization via PCA
-```{r}
-# Select only numeric traits for PCA
-pca_prep <- Topt_Rmax_2023 %>%
-  ungroup() %>%
-  dplyr::select(lnc, E, Eh, Topt_C, Rmax_log)
-
-# Run PCA (scale = TRUE is essential here)
-pca_fit <- prcomp(pca_prep, scale. = TRUE)
-
-# Plot
-autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype', 
-         shape = 'Species', frame = TRUE, frame.type = 'norm',
-         loadings = TRUE, loadings.label = TRUE, 
-         loadings.label.size = 3, loadings.colour = "black", loadings.label.colour = "black") +
-  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  scale_fill_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  theme_bw() +
-  labs(title = "Multivariate Thermal Phenotype PCA",
-       caption = "Arrows indicate the direction of trait influence.")
-```
-
 ### Plot with confidence intervals 
 
 Generate and aggregate predictions
@@ -644,7 +622,7 @@ preds_mean_summary_2023 <- preds_all_2023 %>%
 
 Plot TPC with fitted curves 
 ```{r}
-ggplot(preds_mean_summary, aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype, fill = Phenotype)) +
+ggplot(preds_mean_summary_2023, aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype, fill = Phenotype)) +
   geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.5, color = NA) +
   geom_line(linewidth = 1.5) +
@@ -701,18 +679,18 @@ s_max <- 30    # Max percent on the right axis
 scale_factor <- p_total / s_max
 
 ggplot() +
-  geom_rect(data = temp_freq, 
+  geom_rect(data = temp_freq_2023, 
             aes(xmin = temp_bin - 0.45, xmax = temp_bin + 0.45, 
                 ymin = p_min, ymax = p_min + (percent * scale_factor)), 
             fill = "#8DBBCC", color = "#727E8B", linewidth = 0.2) +
   geom_point(data = photo_2023, 
              aes(x = Temperature.K - 273.15, y = log.rate, color = Phenotype), 
              alpha = 0.5, size = 1.2, position = position_jitter(width = 0.1)) +
-  geom_ribbon(data = preds_mean_summary, 
+  geom_ribbon(data = preds_mean_summary_2023, 
               aes(x = Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
               alpha = 0.3, color = NA) +
   geom_hline(yintercept = 0, color = "grey", linewidth = 0.5, linetype = "dashed") +
-  geom_line(data = preds_mean_summary, 
+  geom_line(data = preds_mean_summary_2023, 
             aes(x = Temperature.K - 273.15, y = mean_val, color = Phenotype), 
             linewidth = 1.3) +
   scale_y_continuous(
@@ -933,7 +911,7 @@ oct_2025$Surface_Area_cm2 <- as.numeric(oct_2025$Surface_Area_cm2)
 Merge sample metadata with interval data 
 ```{r}
 all_int_tpc <- all_int_tpc %>%
-  inner_join(sample_meta, by = c("Colony_ID" = "Colony_ID", "Temperature" = "Target_Temperature")) %>%
+  inner_join(oct_2025, by = c("Colony_ID" = "Colony_ID", "Temperature" = "Target_Temperature")) %>%
   filter(!is.na(Phenotype))
 length(unique(all_int_tpc$Colony_ID))
 ```
@@ -1260,28 +1238,6 @@ ggplot(traits_long_2025, aes(x = Phenotype, y = estimate, fill = Phenotype)) +
   )
 ```
 
-Multidimensional visualization via PCA
-```{r}
-# Select only numeric traits for PCA
-pca_prep <- Topt_Rmax_2025 %>%
-  ungroup() %>%
-  dplyr::select(lnc, E, Eh, Topt_C, Rmax_log)
-
-# Run PCA (scale = TRUE is essential here)
-pca_fit <- prcomp(pca_prep, scale. = TRUE)
-
-# Plot
-autoplot(pca_fit, data = Topt_Rmax_2023, colour = 'Phenotype', 
-         shape = 'Species', frame = TRUE, frame.type = 'norm',
-         loadings = TRUE, loadings.label = TRUE, 
-         loadings.label.size = 3, loadings.colour = "black", loadings.label.colour = "black") +
-  scale_color_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  scale_fill_manual(values = c("Resistant" = "#4B294F", "Susceptible" = "#F3A17D")) +
-  theme_bw() +
-  labs(title = "Multivariate Thermal Phenotype PCA",
-       caption = "Arrows indicate the direction of trait influence.")
-```
-
 ## Plot with confidence intervals 
 
 Generate and aggregate predictions
@@ -1462,14 +1418,17 @@ Run linear mixed effects model
 ```{r}
 lnc.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=lnc_long, na.action=na.exclude)
 summary(lnc.lme)
-anova(lnc.lme)
+car::Anova(lnc.lme, type = "III")
+performance::r2(lnc.lme)
+insight::get_variance_random(lnc.lme)
 
-# Run posthoc tests
-species_means <- emmeans(lnc.lme, "Species")
-pairs(species_means, adjust = "tukey")
+# Post hoc tests
+emmeans(lnc.lme, list(pairwise ~ Species), adjust = "tukey")
+emmeans(lnc.lme, list(pairwise ~ Year), adjust = "tukey")
+emmeans(lnc.lme, list(pairwise ~ Phenotype:Year), adjust = "tukey")
 ```
 
-Species is significant. 
+Species, Year, and Phenotype x Year is significant. 
 
 ### E
 
@@ -1491,28 +1450,39 @@ qqline(e_long$estimate, col = "red")
 shapiro.test(e_long$estimate)
 ```
 
-Data is normal.
+Data is not normal. Transform data to achieve normality 
+```{r}
+e_long$log <- log(e_long$estimate)
+hist(e_long$log)
+qqnorm(e_long$log)
+qqline(e_long$log, col = "red")
+shapiro.test(e_long$log)
+
+e_long$sqrt <- sqrt(e_long$estimate)
+hist(e_long$sqrt)
+qqnorm(e_long$sqrt)
+qqline(e_long$sqrt, col = "red")
+shapiro.test(e_long$sqrt)
+```
+
+Square root achieved normality. 
 
 Run linear mixed effects model 
 ```{r}
-e.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|Colony_ID, data=e_long, na.action=na.exclude)
+e.lme <- lme(sqrt~Species*Phenotype*Year, random = ~1|Colony_ID, data=e_long, na.action=na.exclude)
 summary(e.lme)
-anova(e.lme)
+car::Anova(e.lme, type = "III")
+performance::r2(e.lme, tolerance = 0)
+insight::get_variance_random(e.lme, tolerance = 0)
 
-# Compare Phenotypes within each Year -- This tells you if Susceptible vs Resistant differed in 2023 vs 2025
-pt_year_posthoc <- emmeans(e.lme, pairwise ~ Phenotype | Year)
-pt_year_posthoc[[2]]
+# Post hoc tests 
+emmeans(e.lme, list(pairwise ~ Phenotype), adjust = "tukey")
+emmeans(e.lme, list(pairwise ~ Species:Phenotype), adjust = "tukey")
+emmeans(e.lme, list(pairwise ~ Phenotype:Year), adjust = "tukey")
 
-# Compare Year changes within each Phenotype -- This tells you if Resistant corals changed more over time than Susceptible ones
-year_pt_posthoc <- emmeans(e.lme, pairwise ~ Year | Phenotype)
-year_pt_posthoc[[2]]
-
-# Compare Year changes within each Species
-year_spp_posthoc <- emmeans(e.lme, pairwise ~ Year | Species)
-year_spp_posthoc[[2]]
 ```
 
-Species, Year, Species x Phenotype, and Phenotype x Year is significant. 
+Species, Year, Phenotype (marginally), Species x Phenotype, and Phenotype x Year is significant. 
 
 ### Eh
 
@@ -1558,6 +1528,7 @@ summary(eh.lme)
 anova(eh.lme)
 
 # Compare Species within each Year -- This tells you if Mcap vs Pcomp differed in 2023 vs 2025
+emmeans(eh.lme, pairwise ~ Year)
 emmeans(eh.lme, pairwise ~ Species | Year)
 emmeans(eh.lme, pairwise ~ Year | Species)
 ```
@@ -1584,7 +1555,20 @@ qqline(topt_long$estimate, col = "red")
 shapiro.test(topt_long$estimate)
 ```
 
-Data is normal.
+Data is not normal. Transform data to achieve normality 
+```{r}
+topt_long$log <- log(topt_long$estimate)
+hist(topt_long$log)
+qqnorm(topt_long$log)
+qqline(topt_long$log, col = "red")
+shapiro.test(topt_long$log)
+
+topt_long$sqrt <- sqrt(topt_long$estimate)
+hist(topt_long$sqrt)
+qqnorm(topt_long$sqrt)
+qqline(topt_long$sqrt, col = "red")
+shapiro.test(topt_long$sqrt)
+```
 
 Run linear mixed effects model 
 ```{r}
@@ -1594,8 +1578,9 @@ anova(topt.lme)
 
 # Post hoc tests
 emmeans(topt.lme, pairwise ~ Year | Species)
+emmeans(topt.lme, pairwise ~ Species | Year)
+emmeans(topt.lme, pairwise ~ Year)
 emmeans(topt.lme, pairwise ~ Phenotype)
-emmeans(topt.lme, pairwise ~ Phenotype | Species)
 ```
 
 Phenotype, Year and Species x Year is significant. 
@@ -1629,7 +1614,10 @@ summary(rmax.lme)
 anova(rmax.lme)
 
 # Post hoc tests
-emmeans(topt.lme, pairwise ~ Year | Species)
+emmeans(topt.lme, pairwise ~ Year)
+emmeans(topt.lme, pairwise ~ Species)
+emmeans(topt.lme, pairwise ~ Year | Phenotype)
+emmeans(topt.lme, pairwise ~ Phenotype | Year)
 ```
 
 Year and Species x Year is significant. 
@@ -1742,77 +1730,6 @@ ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_2023_2025.pdf",
        dpi = 300)
 ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_2023_2025.png", 
        plot = final_trait_figure, 
-       width = 8, 
-       height = 12, 
-       units = "in", 
-       dpi = 300)
-
-
-
-
-## Spp in separate cols 
-create_clean_plot <- function(data, spec, tr, plot_letter, is_left_col = TRUE, is_bottom_row = FALSE) {
-  
-  p <- ggplot(data %>% filter(Species == spec, trait == tr), 
-              aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
-    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, size = 0.6) +
-    stat_summary(fun = mean, geom = "line", size = 0.8) +
-    stat_summary(fun = mean, geom = "point", size = 2.5) +
-    scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
-    theme_classic() + 
-    theme(
-      legend.position = "none",
-      axis.text = element_text(size = 9, color = "black"),
-      axis.title.y = element_text(size = 9, face = "plain"), # Adjusted for long labels
-      plot.title = element_text(size = 10, face = "bold", hjust = 0)
-    ) +
-    labs(title = plot_letter, x = NULL)
-
-  # Apply the descriptive Y label only to the left column (A, C, E, G, I)
-  if (is_left_col) {
-    p <- p + labs(y = trait_labels[[tr]])
-  } else {
-    p <- p + labs(y = NULL)
-  }
-
-  # Only show '2023' and '2025' on the bottom row (I and J)
-  if (!is_bottom_row) {
-    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
-  }
-  
-  return(p)
-}
-
-# Generate the two columns
-mcap_plots <- lapply(1:5, function(i) {
-  create_clean_plot(traits_long_all, "Montipora capitata", traits[i], 
-                    letters_mcap[i], is_left_col = TRUE, is_bottom_row = (i == 5))
-})
-
-pcomp_plots <- lapply(1:5, function(i) {
-  create_clean_plot(traits_long_all, "Porites compressa", traits[i], 
-                    letters_pcomp[i], is_left_col = FALSE, is_bottom_row = (i == 5))
-})
-
-# Assemble
-final_plot <- (wrap_plots(mcap_plots, ncol = 1) | wrap_plots(pcomp_plots, ncol = 1)) + 
-  plot_layout(guides = "collect") +
-  plot_annotation(
-    title = "            Montipora capitata                             Porites compressa",
-    theme = theme(plot.title = element_text(size = 14, face = "bold"))
-  ) & 
-  theme(legend.position = "bottom")
-
-# Save 
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_species_separate_2023_2025.pdf", 
-       plot = final_plot, 
-       width = 8, 
-       height = 12, 
-       units = "in", 
-       device = "pdf",
-       dpi = 300)
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_species_separate_2023_2025.png", 
-       plot = final_plot, 
        width = 8, 
        height = 12, 
        units = "in", 
