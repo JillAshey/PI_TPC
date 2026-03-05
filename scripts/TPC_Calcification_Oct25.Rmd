@@ -55,6 +55,11 @@ get_tpc_ci <- function(model, new_data) {
   return(as.data.frame(pred$summary))}
 ```
 
+Run this before running any ANOVAs
+```{r}
+options(contrasts = c("contr.sum", "contr.poly"))
+```
+
 # 2023
 
 Read in data 
@@ -119,169 +124,6 @@ traits_long_2023 <- Topt_Rmax_2023 %>%
                values_to = "estimate")
   
 ```
-
-## lnc (r_tref) - 2023
-
-Subset by lnc data
-```{r}
-lnc_long_2023 <- traits_long_2023 %>%
-  filter(trait == "lnc")
-```
-
-Check for normality
-```{r}
-hist(lnc_long_2023$estimate)
-
-# Q-Q Plot
-qqnorm(lnc_long_2023$estimate)
-qqline(lnc_long_2023$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(lnc_long_2023$estimate)
-```
-
-Data is normal! 
-
-Run linear mixed effects model 
-```{r}
-lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=lnc_long_2023, na.action=na.exclude)
-summary(lnc.lme)
-anova(lnc.lme)
-```
-
-Species is significant. Species x Phenotype is moderately significant (p=0.054)
-
-## E - 2023
-
-Subset by E data
-```{r}
-e_long_2023 <- traits_long_2023 %>%
-  filter(trait == "E")
-```
-
-Check for normality
-```{r}
-hist(e_long_2023$estimate)
-
-# Q-Q Plot
-qqnorm(e_long_2023$estimate)
-qqline(e_long_2023$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(e_long_2023$estimate)
-```
-
-Data is normal! 
-
-Run linear mixed effects model 
-```{r}
-e.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=e_long_2023, na.action=na.exclude)
-summary(e.lme)
-anova(e.lme)
-```
-
-Species is significant. 
-
-## Eh - 2023
-
-Subset by Eh data
-```{r}
-eh_long_2023 <- traits_long_2023 %>%
-  filter(trait == "Eh")
-```
-
-Check for normality
-```{r}
-hist(eh_long_2023$estimate)
-
-# Q-Q Plot
-qqnorm(eh_long_2023$estimate)
-qqline(eh_long_2023$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(eh_long_2023$estimate)
-```
-
-Data is not normal, apply transformations. 
-```{r}
-# Log10
-eh_long_2023$eh_log <- log10(eh_long_2023$estimate +1) # add 1 to avoid log10(0)
-hist(eh_long_2023$eh_log)
-qqnorm(eh_long_2023$eh_log)
-qqline(eh_long_2023$eh_log, col = "red")
-shapiro.test(eh_long_2023$eh_log)
-```
-
-Run linear mixed effects model 
-```{r}
-eh.lme <- lme(eh_log~Species*Phenotype, random = ~1|Colony.ID, data=eh_long_2023, na.action=na.exclude)
-summary(eh.lme)
-anova(eh.lme)
-```
-
-No significant differences. 
-
-## Topt - 2023
-
-Subset by Topt data
-```{r}
-topt_long_2023 <- traits_long_2023 %>%
-  filter(trait == "Topt_C")
-```
-
-Check for normality
-```{r}
-hist(topt_long_2023$estimate)
-
-# Q-Q Plot
-qqnorm(topt_long_2023$estimate)
-qqline(topt_long_2023$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(topt_long_2023$estimate)
-```
-
-Data is normal! 
-
-Run linear mixed effects model 
-```{r}
-topt.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=topt_long_2023, na.action=na.exclude)
-summary(topt.lme)
-anova(topt.lme)
-```
-
-No significant differences. 
-
-## Rmax_log - 2023
-
-Subset by Rmax_log data
-```{r}
-rmax_long_2023 <- traits_long_2023 %>%
-  filter(trait == "Rmax_log")
-```
-
-Check for normality
-```{r}
-hist(rmax_long_2023$estimate)
-
-# Q-Q Plot
-qqnorm(rmax_long_2023$estimate)
-qqline(rmax_long_2023$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(rmax_long_2023$estimate)
-```
-
-Data is normal! 
-
-Run linear mixed effects model 
-```{r}
-rmax.lme <- lme(estimate~Species*Phenotype, random = ~1|Colony.ID, data=rmax_long_2023, na.action=na.exclude)
-summary(rmax.lme)
-anova(rmax.lme)
-```
-
-Species is significant. 
 
 ## Visualization for 2023
 
@@ -629,233 +471,6 @@ traits_long_2025 <- Topt_Rmax_2025 %>%
                values_to = "estimate")
 ```
 
-## lnc (r_tref) - 2025
-
-Subset by lnc data
-```{r}
-lnc_long_2025 <- traits_long_2025 %>%
-  filter(trait == "lnc")
-```
-
-Check for normality
-```{r}
-hist(lnc_long_2025$estimate)
-
-# Q-Q Plot
-qqnorm(lnc_long_2025$estimate)
-qqline(lnc_long_2025$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(lnc_long_2025$estimate)
-```
-
-Data is not normal, perform data transformation
-```{r}
-# Log10
-lnc_long_2025$lnc_log <- log10(lnc_long_2025$estimate + 1) # add 1 to avoid log10(0)
-hist(lnc_long_2025$lnc_log)
-qqnorm(lnc_long_2025$lnc_log)
-qqline(lnc_long_2025$lnc_log, col = "red")
-shapiro.test(lnc_long_2025$lnc_log)
-
-# Sqrt
-lnc_long_2025$calc_sqrt <- sqrt(lnc_long_2025$estimate)
-hist(lnc_long_2025$calc_sqrt)
-qqnorm(lnc_long_2025$calc_sqrt)
-qqline(lnc_long_2025$calc_sqrt, col = "red")
-shapiro.test(lnc_long_2025$calc_sqrt)
-
-# Inverse 
-lnc_long_2025$lnc_inv <- 1 / (lnc_long_2025$estimate +1) # add 1 to avoid division by zero
-hist(lnc_long_2025$lnc_inv)
-qqnorm(lnc_long_2025$lnc_inv)
-qqline(lnc_long_2025$lnc_inv, col = "red")
-shapiro.test(lnc_long_2025$lnc_inv)
-```
-
-Normality not produced. Come back to this. 
-
-Run linear mixed effects model 
-```{r}
-lnc.lme <- lme(estimate~Species*Phenotype, random = ~1|ColonyID, data=lnc_long_2025, na.action=na.exclude)
-summary(lnc.lme)
-anova(lnc.lme)
-```
-
-No significant differences.
-
-## E - 2025
-
-Subset by E data
-```{r}
-e_long_2025 <- traits_long_2025 %>%
-  filter(trait == "E")
-```
-
-Check for normality
-```{r}
-hist(e_long_2025$estimate)
-
-# Q-Q Plot
-qqnorm(e_long_2025$estimate)
-qqline(e_long_2025$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(e_long_2025$estimate)
-```
-
-Data is not normal, perform data transformation
-```{r}
-# Log10
-e_long_2025$e_log <- log10(e_long_2025$estimate + 1) # add 1 to avoid log10(0)
-hist(e_long_2025$e_log)
-qqnorm(e_long_2025$e_log)
-qqline(e_long_2025$e_log, col = "red")
-shapiro.test(e_long_2025$e_log)
-
-# Sqrt
-e_long_2025$e_sqrt <- sqrt(e_long_2025$estimate)
-hist(e_long_2025$e_sqrt)
-qqnorm(e_long_2025$e_sqrt)
-qqline(e_long_2025$e_sqrt, col = "red")
-shapiro.test(e_long_2025$e_sqrt)
-
-# Inverse 
-e_long_2025$e_inv <- 1 / (e_long_2025$estimate +1) # add 1 to avoid division by zero
-hist(e_long_2025$e_inv)
-qqnorm(e_long_2025$e_inv)
-qqline(e_long_2025$e_inv, col = "red")
-shapiro.test(e_long_2025$e_inv)
-```
-
-Normality not produced. Come back to this. 
-
-Run linear mixed effects model 
-```{r}
-e.lme <- lme(estimate~Species*Phenotype, random = ~1|ColonyID, data=e_long_2025, na.action=na.exclude)
-summary(e.lme)
-anova(e.lme)
-```
-
-No significant differences. 
-
-## Eh - 2025
-
-Subset by Eh data
-```{r}
-eh_long_2025 <- traits_long_2025 %>%
-  filter(trait == "Eh")
-```
-
-Check for normality
-```{r}
-hist(eh_long_2025$estimate)
-
-# Q-Q Plot
-qqnorm(eh_long_2025$estimate)
-qqline(eh_long_2025$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(eh_long_2025$estimate)
-```
-
-Data is not normal, perform data transformation
-```{r}
-# Log10
-eh_long_2025$eh_log <- log10(eh_long_2025$estimate + 1) # add 1 to avoid log10(0)
-hist(eh_long_2025$eh_log)
-qqnorm(eh_long_2025$eh_log)
-qqline(eh_long_2025$eh_log, col = "red")
-shapiro.test(eh_long_2025$eh_log)
-
-# Sqrt
-eh_long_2025$eh_sqrt <- sqrt(eh_long_2025$estimate)
-hist(eh_long_2025$eh_sqrt)
-qqnorm(eh_long_2025$eh_sqrt)
-qqline(eh_long_2025$eh_sqrt, col = "red")
-shapiro.test(eh_long_2025$eh_sqrt)
-
-# Inverse 
-eh_long_2025$eh_inv <- 1 / (eh_long_2025$estimate +1) # add 1 to avoid division by zero
-hist(eh_long_2025$eh_inv)
-qqnorm(eh_long_2025$eh_inv)
-qqline(eh_long_2025$eh_inv, col = "red")
-shapiro.test(eh_long_2025$eh_inv)
-```
-
-All produced normality. Move forward with log
-
-Run linear mixed effects model 
-```{r}
-eh.lme <- lme(eh_log~Species*Phenotype, random = ~1|ColonyID, data=eh_long_2025, na.action=na.exclude)
-summary(eh.lme)
-anova(eh.lme)
-```
-
-Phenotype signficant. 
-
-## Topt - 2025
-
-Subset by Topt data
-```{r}
-topt_long_2025 <- traits_long_2025 %>%
-  filter(trait == "Topt_C")
-```
-
-Check for normality
-```{r}
-hist(topt_long_2025$estimate)
-
-# Q-Q Plot
-qqnorm(topt_long_2025$estimate)
-qqline(topt_long_2025$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(topt_long_2025$estimate)
-```
-
-Data is normal! 
-
-Run linear mixed effects model 
-```{r}
-topt.lme <- lme(estimate~Species*Phenotype, random = ~1|ColonyID, data=topt_long_2025, na.action=na.exclude)
-summary(topt.lme)
-anova(topt.lme)
-```
-
-No significant differences. 
-
-## Rmax_log - 2025
-
-Subset by Rmax_log data
-```{r}
-rmax_long_2025 <- traits_long_2025 %>%
-  filter(trait == "Rmax_log")
-```
-
-Check for normality
-```{r}
-hist(rmax_long_2025$estimate)
-
-# Q-Q Plot
-qqnorm(rmax_long_2025$estimate)
-qqline(rmax_long_2025$estimate, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(rmax_long_2025$estimate)
-```
-
-Data is normal!
-
-Run linear mixed effects model 
-```{r}
-rmax.lme <- lme(estimate~Species*Phenotype, random = ~1|ColonyID, data=rmax_long_2025, na.action=na.exclude)
-summary(rmax.lme)
-anova(rmax.lme)
-```
-
-Species is significant. 
-
 ## Visualization for 2025
 
 Plot
@@ -1054,13 +669,19 @@ Bind dfs together
 traits_long_all <- rbind(traits_long_2023, traits_long_2025)
 ```
 
-## Statistics comparing 2023 v. 2025 TPC photosynthesis metrics 
+## MCAP Statistics comparing 2023 v. 2025 TPC photosynthesis metrics 
+
+Subset by Mcap only 
+```{r}
+traits_long_all_mcap <- traits_long_all %>%
+  filter(Species == "Montipora capitata")
+```
 
 ### lnc (r_tref)
 
 Subset by lnc data
 ```{r}
-lnc_long <- traits_long_all %>%
+lnc_long <- traits_long_all_mcap %>%
   filter(trait == "lnc")
 ```
 
@@ -1091,26 +712,38 @@ qqline(lnc_long$sqrt, col = "red")
 shapiro.test(lnc_long$sqrt)
 ```
 
-Square root transformation produced normality. 
+Log produced normality. 
 
 Run linear mixed effects model 
 ```{r}
-lnc.lme <- lme(sqrt~Species*Phenotype*Year, random = ~1|ColonyID, data=lnc_long, na.action=na.exclude)
-summary(lnc.lme)
-anova(lnc.lme)
+lnc.model <- lmer(log ~ Year * Phenotype + (1|ColonyID), data = lnc_long)
+car::Anova(lnc.model, type = 3)
 
-# Run posthoc tests
-emmeans(lnc.lme, pairwise ~ Species)
-emmeans(lnc.lme, pairwise ~ Year)
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(lnc.model, which = 1) 
+lattice::qqmath(lnc.model)
+
+# Post hoc tests (even though no sig diffs)
+emmeans(lnc.model, pairwise ~ Phenotype | Year)
+emmeans(lnc.model, pairwise ~ Year | Phenotype)
+
+# Check plot to make sure results make sense
+ggplot(lnc_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
-Species and Year are significant. 
+Year x Phenotype just above significant level. 
 
 ### E
 
 Subset by E data
 ```{r}
-e_long <- traits_long_all %>%
+e_long <- traits_long_all_mcap %>%
   filter(trait == "E")
 ```
 
@@ -1145,23 +778,34 @@ Square root transformation produced normality.
 
 Run linear mixed effects model 
 ```{r}
-e.lme <- lme(sqrt~Species*Phenotype*Year, random = ~1|ColonyID, data=e_long, na.action=na.exclude)
-summary(e.lme)
-anova(e.lme)
+e.model <- lmer(sqrt ~ Year * Phenotype + (1|ColonyID), data = e_long)
+car::Anova(e.model, type = "III")
 
-# Posthoc tests
-emmeans(e.lme, pairwise ~ Phenotype | Year | Species)
-emmeans(e.lme, pairwise ~ Year | Phenotype)
-emmeans(e.lme, pairwise ~ Species)
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(e.model, which = 1) 
+lattice::qqmath(e.model)
+
+# Post hoc tests
+emmeans(e.model, pairwise ~ Year | Phenotype)
+emmeans(e.model, pairwise ~ Phenotype | Year)
+
+# Check plot to make sure results make sense
+ggplot(e_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
-Species and Phenotype x Year are significant. 
+Phenotype x Year is significant. 
 
 ### Eh
 
 Subset by E data
 ```{r}
-eh_long <- traits_long_all %>%
+eh_long <- traits_long_all_mcap %>%
   filter(trait == "Eh")
 ```
 
@@ -1196,9 +840,21 @@ Log transformation produced normality.
 
 Run linear mixed effects model 
 ```{r}
-eh.lme <- lme(log~Species*Phenotype*Year, random = ~1|ColonyID, data=eh_long, na.action=na.exclude)
-summary(eh.lme)
-anova(eh.lme)
+eh.model <- lmer(log ~ Year * Phenotype + (1|ColonyID), data = eh_long)
+car::Anova(eh.model, type = "III")
+
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(eh.model, which = 1) 
+lattice::qqmath(eh.model)
+
+# Check plot to make sure results make sense
+ggplot(eh_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
 No significant differences. 
@@ -1207,7 +863,7 @@ No significant differences.
 
 Subset by Topt data
 ```{r}
-topt_long <- traits_long_all %>%
+topt_long <- traits_long_all_mcap %>%
   filter(trait == "Topt_C")
 ```
 
@@ -1227,9 +883,21 @@ Data is normal.
 
 Run linear mixed effects model 
 ```{r}
-topt.lme <- lme(estimate~Species*Phenotype*Year, random = ~1|ColonyID, data=topt_long, na.action=na.exclude)
-summary(topt.lme)
-anova(topt.lme)
+topt.model <- lmer(estimate ~ Year * Phenotype + (1|ColonyID), data = topt_long)
+car::Anova(topt.model, type = "III")
+
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(topt.model, which = 1) 
+lattice::qqmath(topt.model)
+
+# Check plot to make sure results make sense
+ggplot(topt_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
 No significant differences. 
@@ -1238,7 +906,7 @@ No significant differences.
 
 Subset by E data
 ```{r}
-rmax_long <- traits_long_all %>%
+rmax_long <- traits_long_all_mcap %>%
   filter(trait == "Rmax_log")
 ```
 
@@ -1254,35 +922,47 @@ qqline(rmax_long$estimate, col = "red")
 shapiro.test(rmax_long$estimate)
 ```
 
-Data is not normal. Transform data to achieve normality 
-```{r}
-rmax_long$log <- log(rmax_long$estimate)
-hist(rmax_long$log)
-qqnorm(rmax_long$log)
-qqline(rmax_long$log, col = "red")
-shapiro.test(rmax_long$log)
-
-rmax_long$sqrt <- sqrt(rmax_long$estimate)
-hist(rmax_long$sqrt)
-qqnorm(rmax_long$sqrt)
-qqline(rmax_long$sqrt, col = "red")
-shapiro.test(rmax_long$sqrt)
-```
-
-Both log and sqrt achieved normality. 
+Data is normal. 
 
 Run linear mixed effects model 
 ```{r}
-rmax.lme <- lme(sqrt~Species*Phenotype*Year, random = ~1|ColonyID, data=rmax_long, na.action=na.exclude)
-summary(rmax.lme)
-anova(rmax.lme)
+rmax.model <- lmer(estimate ~ Year * Phenotype + (1|ColonyID), data = rmax_long)
+car::Anova(rmax.model, type = "III")
 
-# Post hoc tests
-emmeans(topt.lme, pairwise ~ Species | Year)
-emmeans(topt.lme, pairwise ~ Year | Species)
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(rmax.model, which = 1) 
+lattice::qqmath(rmax.model)
+
+# Check plot to make sure results make sense
+ggplot(rmax_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
-Species and Year are significant. Species x Year is also significant. 
+No significant differences. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Visualize 2023 v. 2025 TPC photosynthesis 
 
@@ -1501,7 +1181,7 @@ calc_2023 <- calc_2023 %>%
   dplyr::select(ColonyID, Target.Temperature, umol.CaCO3h.1.cm.2, Species, Phenotype, log.rate, Target.Temperature.K) %>%
   dplyr::rename(Target_Temperature = Target.Temperature,
          Net_Calcification_cm2 = umol.CaCO3h.1.cm.2) %>%
-  mutate(ColonyID = as.character(ColonyID))
+  mutate(Colony.ID = as.character(Colony.ID))
 
 # 1. Combine all data and create a unified "Header" for each plot
 all_calc <- bind_rows(
