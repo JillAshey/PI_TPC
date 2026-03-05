@@ -55,6 +55,11 @@ get_tpc_ci <- function(model, new_data) {
   return(as.data.frame(pred$summary))}
 ```
 
+Run this before running any ANOVAs
+```{r}
+options(contrasts = c("contr.sum", "contr.poly"))
+```
+
 # Photosynthesis
 ## Sept 2023
 
@@ -1420,7 +1425,7 @@ Data is normal.
 Run linear-mixed effects model
 ```{r}
 lnc.model <- lmer(estimate ~ Year * Phenotype * Species + (1|Colony_ID), data = lnc_long)
-car::Anova(lnc.model, type = "III")
+car::Anova(lnc.model, type = 3)
 
 # Model normality 
 par(mfrow = c(1, 2)) 
@@ -1429,7 +1434,7 @@ lattice::qqmath(lnc.model)
 
 # Post-hoc tests
 emmeans(lnc.model, pairwise ~ Species)
-emmeans(lnc.model, pairwise ~ Phenotype)
+emmeans(lnc.model, pairwise ~ Year)
 emmeans(lnc.model, pairwise ~ Year | Phenotype)
 emmeans(lnc.model, pairwise ~ Phenotype | Year)
 
@@ -1442,7 +1447,7 @@ ggplot(lnc_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotyp
   theme_classic()
 ```
 
-Species, Phenotype, and Year x Phenotype is significant. 
+Species, Year, and Year x Phenotype is significant. 
 
 ### E
 
@@ -1484,7 +1489,7 @@ Square root achieved normality.
 Run linear mixed effects model 
 ```{r}
 e.model <- lmer(sqrt ~ Year * Phenotype * Species + (1|Colony_ID), data = e_long)
-car::Anova(e.model, type = "III")
+car::Anova(e.model, type = 3)
 
 # Model normality 
 par(mfrow = c(1, 2)) 
@@ -1492,7 +1497,6 @@ plot(e.model, which = 1)
 lattice::qqmath(e.model)
 
 # Post-hoc tests
-emmeans(e.model, pairwise ~ Phenotype)
 emmeans(e.model, pairwise ~ Year | Phenotype)
 emmeans(e.model, pairwise ~ Phenotype | Year)
 emmeans(e.model, pairwise ~ Species | Phenotype)
@@ -1507,7 +1511,7 @@ ggplot(e_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)
   theme_classic()
 ```
 
-Phenotype, Year x Phenotype, and Phenotype x Species is significant. 
+Species, Year, Phenotype, Year x Phenotype, and Phenotype x Species is significant. 
 
 ### Eh
 
@@ -1557,7 +1561,8 @@ plot(eh.model, which = 1)
 lattice::qqmath(eh.model)
 
 # Post-hoc tests
-emmeans(eh.model, pairwise ~ Year)
+emmeans(eh.model, pairwise ~ Year | Species)
+emmeans(eh.model, pairwise ~ Species | Year)
 
 # Check plot to make sure results make sense
 ggplot(eh_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
@@ -1568,7 +1573,7 @@ ggplot(eh_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype
   theme_classic()
 ```
 
-Year is significant. 
+Year and Species x Year is significant. 
 
 ### Topt
 
@@ -1630,9 +1635,8 @@ ggplot(topt_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenoty
   theme_classic()
 ```
 
-Species x Year is significant. 
-
-How is there not a phenotype difference for Mcap?
+Phenotype, Year, and Species x Year is significant. Phenotype 
+x Species is marginally significant. 
 
 ### Rmax
 
@@ -1667,10 +1671,10 @@ plot(rmax.model, which = 1)
 lattice::qqmath(rmax.model)
 
 # Post-hoc tests
-emmeans(e.model, pairwise ~ Phenotype)
-emmeans(e.model, pairwise ~ Species)
-emmeans(e.model, pairwise ~ Species | Phenotype)
-emmeans(e.model, pairwise ~ Phenotype | Species)
+emmeans(rmax.model, pairwise ~ Year)
+emmeans(rmax.model, pairwise ~ Species)
+emmeans(rmax.model, pairwise ~ Year | Phenotype)
+emmeans(rmax.model, pairwise ~ Phenotype | Year)
 
 # Check plot to make sure results make sense
 ggplot(rmax_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
@@ -1681,7 +1685,7 @@ ggplot(rmax_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenoty
   theme_classic()
 ```
 
-Species and Phenotype are significant. 
+Species, Year, and Phenotype x Year are significant. 
 
 ## Visualize 2023 v. 2025 TPC photosynthesis 
 
@@ -1801,11 +1805,11 @@ Add significance data to plots
 ```{r}
 # Add labels 
 sig_labels <- c(
-  "P***, SxP*, PxY*",                 # for E
-  "Y***",       # for Eh
-  "S***, P*, PxY*",         # for tref
-  "SxY*", # for Topt_C
-  "S***, P*"                     # for Rmax_log 
+  "S*, P*, Y***, SxP*, PxY*",                 # for E
+  "Y***, SxY*",       # for Eh
+  "S***, Y***, PxY*",         # for tref
+  "P*, Y***, SxP*, SxY*", # for Topt_C
+  "S***, Y*, PxY*"                     # for Rmax_log 
 )
 
 create_combined_trait_plot <- function(data, tr, plot_letter, sig_text = "", is_bottom_row = FALSE) {
