@@ -31,6 +31,7 @@ library(patchwork)
 library(lmerTest)
 library(performance)
 library(insight)
+library(ggtext)
 
 #n_cores <- detectCores() - 1
 ```
@@ -945,26 +946,288 @@ ggplot(rmax_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenoty
 
 No significant differences. 
 
+## PCOMP Statistics comparing 2023 v. 2025 TPC photosynthesis metrics 
 
+Subset by Pcomp only 
+```{r}
+traits_long_all_pcomp <- traits_long_all %>%
+  filter(Species == "Porites compressa")
+```
 
+### lnc (r_tref)
 
+Subset by lnc data
+```{r}
+lnc_long <- traits_long_all_pcomp %>%
+  filter(trait == "lnc")
+```
 
+Check for normality
+```{r}
+hist(lnc_long$estimate)
 
+# Q-Q Plot
+qqnorm(lnc_long$estimate)
+qqline(lnc_long$estimate, col = "red")
 
+# Shapiro-Wilk Test
+shapiro.test(lnc_long$estimate)
+```
 
+Data is not normal. Transform data to achieve normality 
+```{r}
+lnc_long$log <- log(lnc_long$estimate)
+hist(lnc_long$log)
+qqnorm(lnc_long$log)
+qqline(lnc_long$log, col = "red")
+shapiro.test(lnc_long$log)
 
+lnc_long$sqrt <- sqrt(lnc_long$estimate)
+hist(lnc_long$sqrt)
+qqnorm(lnc_long$sqrt)
+qqline(lnc_long$sqrt, col = "red")
+shapiro.test(lnc_long$sqrt)
+```
 
+Log produced normality. 
 
+Run linear mixed effects model 
+```{r}
+lnc.model <- lmer(log ~ Year * Phenotype + (1|ColonyID), data = lnc_long)
+car::Anova(lnc.model, type = 3)
 
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(lnc.model, which = 1) 
+lattice::qqmath(lnc.model)
 
+# Check plot to make sure results make sense
+ggplot(lnc_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
 
+Year is significant.
 
+### E
 
+Subset by E data
+```{r}
+e_long <- traits_long_all_pcomp %>%
+  filter(trait == "E")
+```
 
+Check for normality
+```{r}
+hist(e_long$estimate)
 
+# Q-Q Plot
+qqnorm(e_long$estimate)
+qqline(e_long$estimate, col = "red")
 
+# Shapiro-Wilk Test
+shapiro.test(e_long$estimate)
+```
 
-## Visualize 2023 v. 2025 TPC photosynthesis 
+Data is not normal. Transform data to achieve normality 
+```{r}
+e_long$log <- log(e_long$estimate)
+hist(e_long$log)
+qqnorm(e_long$log)
+qqline(e_long$log, col = "red")
+shapiro.test(e_long$log)
+
+e_long$sqrt <- sqrt(e_long$estimate)
+hist(e_long$sqrt)
+qqnorm(e_long$sqrt)
+qqline(e_long$sqrt, col = "red")
+shapiro.test(e_long$sqrt)
+```
+
+Square root transformation produced normality. 
+
+Run linear mixed effects model 
+```{r}
+e.model <- lmer(sqrt ~ Year * Phenotype + (1|ColonyID), data = e_long)
+car::Anova(e.model, type = "III")
+
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(e.model, which = 1) 
+lattice::qqmath(e.model)
+
+# Check plot to make sure results make sense
+ggplot(e_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
+
+Phenotype on the edge of significance. 
+
+### Eh
+
+Subset by E data
+```{r}
+eh_long <- traits_long_all_pcomp %>%
+  filter(trait == "Eh")
+```
+
+Check for normality
+```{r}
+hist(eh_long$estimate)
+
+# Q-Q Plot
+qqnorm(eh_long$estimate)
+qqline(eh_long$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(eh_long$estimate)
+```
+
+Data is not normal. Transform data to achieve normality 
+```{r}
+eh_long$log <- log(eh_long$estimate)
+hist(eh_long$log)
+qqnorm(eh_long$log)
+qqline(eh_long$log, col = "red")
+shapiro.test(eh_long$log)
+
+eh_long$sqrt <- sqrt(eh_long$estimate)
+hist(eh_long$sqrt)
+qqnorm(eh_long$sqrt)
+qqline(eh_long$sqrt, col = "red")
+shapiro.test(eh_long$sqrt)
+```
+
+Run linear mixed effects model 
+```{r}
+eh.model <- lmer(log ~ Year * Phenotype + (1|ColonyID), data = eh_long)
+car::Anova(eh.model, type = "III")
+
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(eh.model, which = 1) 
+lattice::qqmath(eh.model)
+
+# Check plot to make sure results make sense
+ggplot(eh_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
+
+No significant differences. 
+
+### Topt
+
+Subset by Topt data
+```{r}
+topt_long <- traits_long_all_pcomp %>%
+  filter(trait == "Topt_C")
+```
+
+Check for normality
+```{r}
+hist(topt_long$estimate)
+
+# Q-Q Plot
+qqnorm(topt_long$estimate)
+qqline(topt_long$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(topt_long$estimate)
+```
+
+Data is normal.
+
+Run linear mixed effects model 
+```{r}
+topt.model <- lmer(estimate ~ Year * Phenotype + (1|ColonyID), data = topt_long)
+car::Anova(topt.model, type = "III")
+
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(topt.model, which = 1) 
+lattice::qqmath(topt.model)
+
+# Check plot to make sure results make sense
+ggplot(topt_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
+
+No significant differences. 
+
+### Rmax
+
+Subset by E data
+```{r}
+rmax_long <- traits_long_all_pcomp %>%
+  filter(trait == "Rmax_log")
+```
+
+Check for normality
+```{r}
+hist(rmax_long$estimate)
+
+# Q-Q Plot
+qqnorm(rmax_long$estimate)
+qqline(rmax_long$estimate, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(rmax_long$estimate)
+```
+
+Data is not normal. Transform data to achieve normality 
+```{r}
+rmax_long$log <- log(rmax_long$estimate)
+hist(rmax_long$log)
+qqnorm(rmax_long$log)
+qqline(rmax_long$log, col = "red")
+shapiro.test(rmax_long$log)
+
+rmax_long$sqrt <- sqrt(rmax_long$estimate)
+hist(rmax_long$sqrt)
+qqnorm(rmax_long$sqrt)
+qqline(rmax_long$sqrt, col = "red")
+shapiro.test(rmax_long$sqrt)
+```
+
+Sqrt produces normality. 
+
+Run linear mixed effects model 
+```{r}
+rmax.model <- lmer(estimate ~ Year * Phenotype + (1|ColonyID), data = rmax_long)
+car::Anova(rmax.model, type = "III")
+
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(rmax.model, which = 1) 
+lattice::qqmath(rmax.model)
+
+# Check plot to make sure results make sense
+ggplot(rmax_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
+
+Year is significant. 
+
+## Visualize 2023 v. 2025 TPC calcification 
 
 Visualize differences between 2023 and 2025
 ```{r}
@@ -1103,7 +1366,7 @@ create_combined_trait_plot <- function(data, tr, plot_letter, sig_text = "", is_
      
      # SIGNIFICANCE LABELS - Positioned in bottom right
      annotate("text", x = Inf, y = -Inf, label = sig_text, 
-              hjust = 1.1, vjust = -1.2, size = 4, color = "black") +
+              hjust = 1.1, vjust = -1.2, size = 4, color = "black", face = "plain") +
      
      scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
      scale_linetype_manual(values = c("Montipora capitata" = "solid", 
@@ -1174,11 +1437,125 @@ ggsave("../output/TPC_Calcification/Calcification_TPC_metrics_stats_2023_2025.pn
        dpi = 300)
 ```
 
+Plot with species as separate columns
+```{r}
+# 1. Update/Verify Significance Labels (No changes needed here)
+sig_data <- data.frame(
+  trait = rep(c("E", "Eh", "lnc", "Topt_C", "Rmax_log"), each = 2),
+  Species = rep(c("Montipora capitata", "Porites compressa"), 5),
+  sig_label = c(
+    "PxY*", "P*",      # E (A, B)
+    "n.s.", "n.s.",    # Eh (C, D)
+    "n.s.", "Y*",      # lnc (E, F)
+    "n.s.", "n.s.",    # Topt_C (G, H)
+    "n.s.", "Y*"       # Rmax_log (I, J)
+  )
+)
+
+# 2. Updated Function for individual panels
+create_panel_plot <- function(data, tr, spp, plot_letter, is_bottom_row = FALSE, is_left_col = FALSE) {
+  
+  plot_data <- data %>% filter(trait == tr, Species == spp)
+  sig_text <- sig_data %>% filter(trait == tr, Species == spp) %>% pull(sig_label)
+  
+  # Construct the bold expression for the y-axis
+  # Note: wrapping the entire expression in bold()
+  y_label <- if(is_left_col) {
+    parse(text = paste0("bold(", trait_labels[[tr]], ")"))
+  } else {
+    NULL
+  }
+
+  p <- ggplot(plot_data, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
+    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, linewidth = 1.0) +
+    stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+    stat_summary(fun = mean, geom = "point", size = 4) +
+    
+    annotate("text", x = Inf, y = -Inf, label = sig_text, 
+             hjust = 1.1, vjust = -1.2, size = 6, color = "black", fontface = "plain") +
+    
+    scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+    theme_classic() + 
+    theme(
+      # Increased sizes for publication
+      axis.text = element_text(size = 16, color = "black"), 
+      axis.text.x = element_text(face = "bold"), # Bold x-axis labels (2023, 2025)
+      axis.title.y = element_text(size = 18),    # Boldness handled by parse() above
+      plot.title = element_text(size = 22, face = "bold"),
+      plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
+    ) +
+    labs(title = plot_letter, x = NULL, y = y_label)
+
+  if (!is_bottom_row) {
+    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  }
+  
+  return(p)
+}
+
+# 3. Create Species Header Labels (Increased size slightly)
+mcap_label <- ggplot() + 
+  annotate("text", x = 0.5, y = 0.5, label = "Montipora capitata", fontface = "bold.italic", size = 8) + 
+  theme_void()
+pcomp_label <- ggplot() + 
+  annotate("text", x = 0.5, y = 0.5, label = "Porites compressa", fontface = "bold.italic", size = 8) + 
+  theme_void()
+
+# 4. Generate the 10 panels (Logic remains same)
+traits <- c("E", "Eh", "lnc", "Topt_C", "Rmax_log")
+species_list <- c("Montipora capitata", "Porites compressa")
+all_plots <- list()
+letters_idx <- LETTERS[1:10]
+counter <- 1
+
+for (i in 1:length(traits)) {
+  for (j in 1:length(species_list)) {
+    all_plots[[counter]] <- create_panel_plot(
+      data = traits_long_all,
+      tr = traits[i],
+      spp = species_list[j],
+      plot_letter = letters_idx[counter],
+      is_bottom_row = (i == 5),
+      is_left_col = (j == 1)
+    )
+    counter <- counter + 1
+  }
+}
+
+# 5. Assemble and update Legend sizes
+final_trait_figure <- (mcap_label + pcomp_label) / 
+  wrap_plots(all_plots, ncol = 2) + 
+  plot_layout(heights = c(1, 15), guides = "collect") & 
+  theme(
+    legend.position = "top",
+    legend.title = element_text(size = 18, face = "bold"),
+    legend.text = element_text(size = 16),
+    legend.margin = margin(b = 20)
+  )
+
+# Save
+ggsave("../output/TPC_Calcification/Calcification_TPC_metrics_stats_separate_spp_2023_2025.pdf", 
+       plot = final_trait_figure, 
+       width = 11, 
+       height = 18, 
+       units = "in", 
+       device = "pdf",
+       dpi = 300)
+ggsave("../output/TPC_Calcification/Calcification_TPC_metrics_stats_separate_spp_2023_2025.png", 
+       plot = final_trait_figure, 
+       width = 11, 
+       height = 18, 
+       units = "in", 
+       dpi = 300)
+```
+
+
+
 Plot TPC calcification curves with temp bars 
 ```{r}
 # Select specific cols from each df 
 calc_2023 <- calc_2023 %>%
-  dplyr::select(ColonyID, Target.Temperature, umol.CaCO3h.1.cm.2, Species, Phenotype, log.rate, Target.Temperature.K) %>%
+  dplyr::select(Colony.ID, Target.Temperature, umol.CaCO3h.1.cm.2, Species, Phenotype, log.rate, Target.Temperature.K) %>%
   dplyr::rename(Target_Temperature = Target.Temperature,
          Net_Calcification_cm2 = umol.CaCO3h.1.cm.2) %>%
   mutate(Colony.ID = as.character(Colony.ID))
@@ -1281,6 +1658,87 @@ final_labeled_tpc <- final_tpc_plot +
 final_labeled_tpc
 
 # Save 
+ggsave("../output/TPC_Calcification/Calcification_TPC_curve_temp_bars_2023_2025.pdf", 
+       plot = final_labeled_tpc, 
+       width = 12, 
+       height = 8, 
+       units = "in", 
+       device = "pdf",
+       dpi = 300)
+ggsave("../output/TPC_Calcification/Calcification_TPC_curve_temp_bars_2023_2025.png", 
+       plot = final_labeled_tpc, 
+       width = 12, 
+       height = 8, 
+       units = "in", 
+       dpi = 300)
+```
+
+Plot curves w/o temp bars 
+```{r}
+# 1. Axis Parameters (Adjusted for single axis)
+p_min <- -0.5; p_max <- 0.75
+
+# 2. Create the Plot
+final_tpc_plot <- ggplot() +
+  # Raw data points
+  geom_point(data = all_calc, 
+             aes(x = Target.Temperature.K - 273.15, y = log.rate, color = Phenotype), 
+             alpha = 0.4, size = 1.5, position = position_jitter(width = 0.1)) +
+  # Confidence ribbons
+  geom_ribbon(data = all_preds, 
+              aes(x = Target.Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
+              alpha = 0.3, color = NA) +
+  # Mean lines
+  geom_line(data = all_preds, 
+            aes(x = Target.Temperature.K - 273.15, y = mean_val, color = Phenotype), 
+            linewidth = 1.2) +
+  geom_hline(yintercept = 0, color = "grey", linewidth = 0.5, linetype = "dashed") +
+  
+  # Simplified Single Axis
+  scale_y_continuous(
+    name = expression(bold("Net calcification (log(" *mu*"mol " *cm^-2 *hr^-1*"))")),
+    limits = c(p_min, p_max), 
+    expand = c(0, 0)
+  ) +
+  scale_x_continuous(breaks = seq(18, 40, by = 2), limits = c(17.5, 40.5), expand = c(0,0)) +
+  
+  # FACET: Using ggtext or a simple expression trick for italics is complex in facet_wrap.
+  # The easiest way for publication is to italicize the whole strip or use labeller.
+  facet_wrap(~ Plot_Header, ncol = 2) +
+  
+  # Styling
+  scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  scale_fill_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+  theme_classic() +
+  theme(
+    axis.text = element_text(size = 16, color = "black"),
+    axis.title = element_text(size = 18, face = "bold"),
+    
+    # Facet header styling - Italics applied here
+    strip.background = element_blank(),
+    strip.text = element_text(face = "italic", size = 18, hjust = 0),
+    
+    legend.position = "top",
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 15, face = "bold"),
+    
+    panel.spacing = unit(2, "lines"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
+  ) +
+  labs(x = "Temperature (°C)")
+
+# If you ONLY want the Species name italicized and not the Year:
+# Use element_markdown from library(ggtext) and wrap the species in "*"
+library(ggtext)
+ final_tpc_plot <- final_tpc_plot + 
+   theme(strip.text = element_markdown())
+
+final_labeled_tpc <- final_tpc_plot + 
+  theme(plot.tag = element_text(face = "bold", size = 20))
+
+final_labeled_tpc
+
+# Save 
 ggsave("../output/TPC_Calcification/Calcification_TPC_curve_2023_2025.pdf", 
        plot = final_labeled_tpc, 
        width = 12, 
@@ -1295,3 +1753,4 @@ ggsave("../output/TPC_Calcification/Calcification_TPC_curve_2023_2025.png",
        units = "in", 
        dpi = 300)
 ```
+
