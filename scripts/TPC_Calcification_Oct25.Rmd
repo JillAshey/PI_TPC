@@ -738,7 +738,7 @@ ggplot(lnc_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotyp
   theme_classic()
 ```
 
-Year x Phenotype just above significant level. 
+Year is significant. 
 
 ### E
 
@@ -800,7 +800,7 @@ ggplot(e_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)
   theme_classic()
 ```
 
-Phenotype x Year is significant. 
+Phenotype x Year is marginally significant. 
 
 ### Eh
 
@@ -1001,6 +1001,9 @@ par(mfrow = c(1, 2))
 plot(lnc.model, which = 1) 
 lattice::qqmath(lnc.model)
 
+# Post hoc tests 
+emmeans(lnc.model, pairwise ~ Year)
+
 # Check plot to make sure results make sense
 ggplot(lnc_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
   stat_summary(fun = mean, geom = "point") +
@@ -1058,6 +1061,9 @@ car::Anova(e.model, type = "III")
 par(mfrow = c(1, 2)) 
 plot(e.model, which = 1) 
 lattice::qqmath(e.model)
+
+# Post hoc tests 
+emmeans(lnc.model, pairwise ~ Phenotype)
 
 # Check plot to make sure results make sense
 ggplot(e_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
@@ -1215,6 +1221,9 @@ car::Anova(rmax.model, type = "III")
 par(mfrow = c(1, 2)) 
 plot(rmax.model, which = 1) 
 lattice::qqmath(rmax.model)
+
+# Post hoc tests 
+emmeans(rmax.model, pairwise ~ Year)
 
 # Check plot to make sure results make sense
 ggplot(rmax_long, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
@@ -1548,8 +1557,6 @@ ggsave("../output/TPC_Calcification/Calcification_TPC_metrics_stats_separate_spp
        units = "in", 
        dpi = 300)
 ```
-
-
 
 Plot TPC calcification curves with temp bars 
 ```{r}
