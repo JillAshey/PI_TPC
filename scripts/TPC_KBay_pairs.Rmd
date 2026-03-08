@@ -1093,6 +1093,11 @@ write.csv(traits_long_all, "../output/TPC_Photosynthesis/TPC_metrics.csv")
 
 ## MCAP Statistics comparing 2023 v. 2025 TPC photosynthesis metrics 
 
+Read in data again if needed
+```{r}
+traits_long_all <- read.csv("../output/TPC_Photosynthesis/TPC_metrics.csv")
+```
+
 Subset by Mcap only 
 ```{r}
 traits_long_all_mcap <- traits_long_all %>%
@@ -1853,24 +1858,54 @@ sig_data <- data.frame(
   )
 )
 
+trait_labels <- c(
+  "E" = "Activation~Energy~(eV)",
+  "Eh" = "Deactivation~Energy~(eV)",
+  "lnc" = "atop(Net~photosynthesis~at~bold(27)*degree*C, log(mu*mol~hr^-1~cm^-2))",
+  "Rmax_log" = "atop(Maximum~photosynthesis, log(mu*mol~hr^-1~cm^-2))",
+  "Topt_C" = "Thermal~optimum~(degree*C)"
+)
+
+# Calculate common Y-limits for each trait 
+# This ensures that both species share the same scale for a given trait row.
+# We calculate the mean +/- SE for every group to find the true extent of the data.
+trait_limits_df <- traits_long_all %>%
+  group_by(trait, Species, Year, Phenotype) %>%
+  dplyr::summarise(
+    m = mean(estimate, na.rm = TRUE),
+    se = sd(estimate, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  ) %>%
+  group_by(trait) %>%
+  dplyr::summarise(
+    ymin = min(m - se, na.rm = TRUE),
+    ymax = max(m + se, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  # Add padding to the top for significance labels and visibility
+  mutate(ymax = ymax + (ymax - ymin) * 0.05,
+         ymin = ymin - (ymax - ymin) * 0.05)
+
 # 2. Updated Function for individual panels
-create_panel_plot <- function(data, tr, spp, plot_letter, is_bottom_row = FALSE, is_left_col = FALSE) {
+# Added 'ylimits' argument
+create_panel_plot <- function(data, tr, spp, plot_letter, ylimits, is_bottom_row = FALSE, is_left_col = FALSE) {
   
   plot_data <- data %>% filter(trait == tr, Species == spp)
   sig_text <- sig_data %>% filter(trait == tr, Species == spp) %>% pull(sig_label)
   
-  # Construct the bold expression for the y-axis
-  # Note: wrapping the entire expression in bold()
   y_label <- if(is_left_col) {
     parse(text = paste0("bold(", trait_labels[[tr]], ")"))
   } else {
     NULL
   }
 
-  p <- ggplot(plot_data, aes(x = Year, y = estimate, color = Phenotype, group = Phenotype)) +
-    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, linewidth = 1.0) +
+p <- ggplot(plot_data, aes(x = factor(Year), y = estimate, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1, linewidth = 1.0) +
     stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
     stat_summary(fun = mean, geom = "point", size = 4) +
+    
+    # Apply the consistent y-limits here
+    coord_cartesian(ylim = ylimits) +
     
     annotate("text", x = Inf, y = -Inf, label = sig_text, 
              hjust = 1.1, vjust = -1.2, size = 6, color = "black", fontface = "plain") +
@@ -1878,14 +1913,27 @@ create_panel_plot <- function(data, tr, spp, plot_letter, is_bottom_row = FALSE,
     scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
     theme_classic() + 
     theme(
-      # Increased sizes for publication
       axis.text = element_text(size = 16, color = "black"), 
-      axis.text.x = element_text(face = "bold"), # Bold x-axis labels (2023, 2025)
-      axis.title.y = element_text(size = 18),    # Boldness handled by parse() above
+      axis.text.x = element_text(face = "bold"), 
+      axis.title.y = element_text(size = 18), 
       plot.title = element_text(size = 22, face = "bold"),
       plot.margin = margin(t = 10, r = 10, b = 10, l = 10)
     ) +
     labs(title = plot_letter, x = NULL, y = y_label)
+if (tr == "Topt_C") {
+    # Define the specific range and 0.5 increments you requested
+    # We expand the limits slightly if the data exceeds 30 or goes below 27.5
+    topt_min <- min(27.5, ylimits[1])
+    topt_max <- max(30, ylimits[2])
+    
+    p <- p + scale_y_continuous(
+      limits = c(topt_min, topt_max), 
+      breaks = seq(27.5, 30, by = 0.5)
+    )
+  } else {
+    # For all other traits, use the pre-calculated shared limits
+    p <- p + coord_cartesian(ylim = ylimits)
+  }
 
   if (!is_bottom_row) {
     p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
@@ -1894,7 +1942,7 @@ create_panel_plot <- function(data, tr, spp, plot_letter, is_bottom_row = FALSE,
   return(p)
 }
 
-# 3. Create Species Header Labels (Increased size slightly)
+# 3. Create Species Header Labels
 mcap_label <- ggplot() + 
   annotate("text", x = 0.5, y = 0.5, label = "Montipora capitata", fontface = "bold.italic", size = 8) + 
   theme_void()
@@ -1902,7 +1950,7 @@ pcomp_label <- ggplot() +
   annotate("text", x = 0.5, y = 0.5, label = "Porites compressa", fontface = "bold.italic", size = 8) + 
   theme_void()
 
-# 4. Generate the 10 panels (Logic remains same)
+# 4. Generate the 10 panels
 traits <- c("E", "Eh", "lnc", "Topt_C", "Rmax_log")
 species_list <- c("Montipora capitata", "Porites compressa")
 all_plots <- list()
@@ -1910,12 +1958,19 @@ letters_idx <- LETTERS[1:10]
 counter <- 1
 
 for (i in 1:length(traits)) {
+  # Get limits for this specific trait
+  current_limits <- trait_limits_df %>% 
+    filter(trait == traits[i]) %>% 
+    dplyr::select(ymin, ymax) %>% 
+    as.numeric()
+
   for (j in 1:length(species_list)) {
     all_plots[[counter]] <- create_panel_plot(
       data = traits_long_all,
       tr = traits[i],
       spp = species_list[j],
       plot_letter = letters_idx[counter],
+      ylimits = current_limits, # Pass the trait-specific common limits
       is_bottom_row = (i == 5),
       is_left_col = (j == 1)
     )
@@ -1935,18 +1990,19 @@ final_trait_figure <- (mcap_label + pcomp_label) /
   )
 
 # Save
+ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_separate_spp_2023_2025.png", 
+       plot = final_trait_figure, 
+       width = 11, 
+       height = 20, 
+       units = "in", 
+       dpi = 300)
+
 ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_separate_spp_2023_2025.pdf", 
        plot = final_trait_figure, 
        width = 11, 
        height = 20, 
        units = "in", 
        device = "pdf",
-       dpi = 300)
-ggsave("../output/TPC_Photosynthesis/Photosynthesis_TPC_metrics_stats_separate_spp_2023_2025.png", 
-       plot = final_trait_figure, 
-       width = 11, 
-       height = 20, 
-       units = "in", 
        dpi = 300)
 ```
 
