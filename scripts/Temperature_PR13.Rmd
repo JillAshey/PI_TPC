@@ -696,8 +696,8 @@ combined_data <- combined_data %>%
 
 # Make df of sampling dates to mark on plot 
 sample_dates <- data.frame(
-  datetime = as.POSIXct(c("2023-09-14 00:00", "2024-01-20 00:00", "2024-05-09 00:00", "2024-10-01 00:00", "2025-01-09 00:00", "2025-05-08 00:00", "2025-10-01 00:00", "2026-01-20 00:00")),
-  sample_id = c("Sept2023", "Jan2024", "May2024", "Oct2024", "Jan2025", "May2025", "Oct2025", "Jan2026"))
+  datetime = as.POSIXct(c("2023-09-14 00:00", "2025-10-01 00:00")),
+  sample_id = c("Sept2023", "Oct2025"))
 
 # Plot
 whole_plot <- ggplot() +
@@ -715,7 +715,7 @@ whole_plot <- ggplot() +
   # Horizontal lines for MMM and Bleaching Threshold
   geom_hline(yintercept = MMM, linetype = "dashed", color = "black", size = 2.5) +
   geom_hline(yintercept = threshold, linetype = "solid", color = "black", size = 2.5) +
-  geom_point(data = sample_dates, aes(x = datetime, y = 29), shape = 23, fill = "skyblue", color = "black", size = 8) +   # add stars at y = 29°C on the temperature axis
+  geom_point(data = sample_dates, aes(x = datetime, y = 29), shape = 23, fill = "blue", color = "black", size = 8) +   # add stars at y = 29°C on the temperature axis
 
   # Primary y-axis limits and secondary axis that maps 20-30 temp to 0-10 DHW
   scale_y_continuous(
@@ -1127,6 +1127,43 @@ ggsave("../output/environmental/Temperatures_Mar-Oct_2019_2023_2025.png",
        dpi = 300)
 ```
 
+Calculate numbers of days above MMM and MMM+1
+```{r}
+compare_temps <- combined_data %>%
+  filter(year %in% c(2019, 2023, 2025),
+         month >= 3 & month <= 10) 
+
+# Calculate hourly means first to normalize the frequency difference
+temp_summary <- compare_temps %>%
+  mutate(datetime = as.POSIXct(datetime)) %>%
+  # Create a 'date_hour' column to group by hour
+  mutate(date_hour = floor_date(datetime, "hour"),
+         date = as.Date(datetime)) %>%
+  group_by(year, date, date_hour) %>%
+  summarize(hourly_mean_temp = mean(Temperature, na.rm = TRUE), .groups = "drop")
+
+# Calculate "Hours Above" using the Hourly Means
+hours_above <- temp_summary %>%
+  group_by(year) %>%
+  summarize(
+    hours_above_MMM = sum(hourly_mean_temp > 27.3, na.rm = TRUE),
+    hours_above_Bleaching = sum(hourly_mean_temp > 28.3, na.rm = TRUE)
+  )
+
+# Calculate "Days Above" using Daily Maximums
+days_above <- temp_summary %>%
+  group_by(year, date) %>%
+  summarize(daily_max = max(hourly_mean_temp, na.rm = TRUE), .groups = "drop") %>%
+  group_by(year) %>%
+  summarize(
+    days_above_MMM = sum(daily_max > 27.3, na.rm = TRUE),
+    days_above_Bleaching = sum(daily_max > 28.3, na.rm = TRUE)
+  )
+
+# Combine and View Results
+final_results <- left_join(hours_above, days_above, by = "year")
+print(final_results)
+```
 
 
 
