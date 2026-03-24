@@ -5,13 +5,17 @@ date: "2026-02-26"
 output: html_document
 ---
 
-This script will calculate the surface area of the TPC 2025 fragments via the wax dipping method. Kristen calculated the TPC 2023 fragments via wax dipping. 
+Surface area calculations via the wax dipping method. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 ```
+
+## Oct 2025 TPC fragments 
+
+Calculate the surface area of the TPC 2025 fragments via the wax dipping method. Kristen calculated the TPC 2023 fragments via wax dipping. 
 
 Load wax data and calculate change in weight 
 ```{r}
@@ -64,4 +68,62 @@ wax_data_samp <- wax_data_samp %>%
 Save as csv 
 ```{r}
 write.csv(wax_data_samp, "../data/Surface_Area/Surface_Area_wax_TPC2025.csv")
+```
+
+## Sept 2023 and Oct 2025 sampling 
+
+Calculate the surface area of the Sept 2023 and Oct 2025 seasonal fragments via the wax dipping method.
+
+Load wax data and calculate change in weight 
+```{r}
+wax_data <- read.csv("../data/Surface_Area/wax_surface_area.csv")
+wax_data <- wax_data %>%
+  mutate(delta.mass.g = With_wax_weight_g - Without_wax_weight_g)
+```
+
+Subset standards and calculate the surface area 
+```{r}
+wax_data_std <- wax_data %>%
+  #group_by(Timepoint) %>%
+  filter(Sample == "Standard") %>%
+  mutate(radius = Diameter/2,
+         surface.area.cm2 = (pi * Diameter * Height) + (pi * radius^2))
+```
+
+Calculate curve coefficients for slope and intercept based on standards 
+```{r}
+std.curve <- lm(surface.area.cm2 ~ delta.mass.g + 0, data = wax_data_std)
+std.curve$coefficients
+summary(std.curve)$r.squared
+plot(surface.area.cm2 ~ delta.mass.g, data = wax_data_std, 
+     main="Standard Curve (Forced through Origin)", 
+     xlab="Wax Weight Gain (g)", ylab="Surface Area (cm2)")
+abline(std.curve, col="red")
+```
+
+Calculate the surface area of samples using the standard curve 
+```{r}
+wax_data_samp <- wax_data %>%
+  filter(Sample == "Coral") %>%
+  #mutate(surface.area.cm2 = std.curve$coefficients[2] * delta.mass.g + std.curve$coefficients[1]) %>%
+  mutate(surface.area.cm2 = predict(std.curve, newdata = .)) # predict automatically uses the slope from std curve
+```
+
+Make sure samples fall within range of stds 
+```{r}
+range(wax_data_samp$surface.area.cm2, na.rm = T)
+range(wax_data_std$surface.area.cm2)
+
+mean(wax_data_samp$surface.area.cm2, na.rm = T)
+```
+
+Keep only colony and surface area info
+```{r}
+wax_data_samp <- wax_data_samp %>%
+  dplyr::select(ColonyID, Species, Phenotype, Timepoint, Without_wax_weight_g, With_wax_weight_g, delta.mass.g, surface.area.cm2)
+```
+
+Save as csv 
+```{r}
+write.csv(wax_data_samp, "../data/Surface_Area/Surface_Area_wax_seasonal.csv")
 ```
