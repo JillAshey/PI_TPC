@@ -14,10 +14,12 @@ library(dplyr)
 library(readr)
 library(tidyverse)
 library(lubridate)
+library(naniar)
 library(purrr)
 library(zoo)
 library(scales)
 library(patchwork)
+library(ggridges)
 ```
 
 Read in data from 2013-2023 (data obtained from Brown et al. 2023 - https://www.bco-dmo.org/dataset/905047)
@@ -1013,157 +1015,193 @@ ggsave("../output/environmental/Temperatures_2023_and_2025.png",
        dpi = 300)
 ```
 
-Plot 2019, 2023, and 2025
+## Plotting for PI TPC paper 
+
+Subset by March-October for 2019, 2021, 2023, and 2025 
 ```{r}
 combined_data$datetime <- as.POSIXct(combined_data$datetime)
 
-#### PANEL A 
-# Filter for relevant years and the March-October window
-# Create a summary for the plot: Mean and SE per Day
-plot_summary <- combined_data %>%
-  filter(year %in% c(2019, 2023, 2025),
+subset_data <- combined_data %>%
+  filter(year %in% c(2019, 2021, 2023, 2025),
+         month >= 3 & month <= 10)
+```
+
+We have some data missing from 2019 and 2021. I am going to supplement this data with water temp data from the NOAA HIMB station (Station MOKH1 - 1612480). Read in data from 2019 and 2021 
+```{r}
+temp_2019 <- read.table("../data/environmental/mokh1h2019.txt", sep = "", skip = 0, header = F, na.strings = "NA")[,c(1:4, 15)]
+colnames(temp_2019) <- c("year", "month", "day", "hour", "Temperature")
+temp_2021 <- read.table("../data/environmental/mokh1h2021.txt", sep = "", skip = 0, header = F, na.strings = "NA")[,c(1:4, 15)]
+colnames(temp_2021) <- c("year", "month", "day", "hour", "Temperature")
+
+# Bind data together and subset for temps between March - October 
+mokh_temps <- bind_rows(temp_2019, temp_2021) %>%
+  replace_with_na(replace = list(Temperature = c("MM", "9   9.", ".0 999", "999", "0 999."))) %>%
+  filter(month >= 3 & month <= 10)
+```
+
+Identify missing rows 
+```{r}
+missing_rows <- mokh_temps %>%
+     anti_join(subset_data,
+               by = c("year", "month", "day", "hour"))
+```
+
+Append the subset data
+```{r}
+subset_filled <- subset_data %>%
+  bind_rows(
+    missing_rows %>%
+      transmute(
+        Temperature = Temperature,
+        hour        = hour,
+        year        = year,
+        month       = month,
+        day         = day,
+        datetime    = as.POSIXct(
+          sprintf("%d-%02d-%02d %02d:00:00", year, month, day, hour),
+          tz = "UTC"))) %>%
+  arrange(year, month, day, hour)
+
+```
+
+Plot 2019, 2021, 2023, and 2025
+```{r}
+subset_filled$datetime <- as.POSIXct(subset_filled$datetime)
+
+# Keep only one unique row per timestamp
+subset_cleaned <- subset_filled %>%
+  distinct(datetime, .keep_all = TRUE)
+
+#### PANEL A: Time Series
+plot_summary <- subset_cleaned %>%
+  filter(year %in% c(2019, 2021, 2023, 2025),
          month >= 3 & month <= 10) %>%
-  # Create a dummy date for the x-axis (e.g., 2024 to account for leap year)
   mutate(dummy_date = as.Date(paste0("2024-", month, "-", day))) %>%
-  # Group by year and day to calculate statistics
   group_by(year, dummy_date) %>%
   dplyr::summarise(
-    mean_temp = mean(Temperature, na.rm = TRUE),
-    sd_temp = sd(Temperature, na.rm = TRUE),
-    n = n(),
-    se_temp = sd_temp / sqrt(n),
-    .groups = "drop") %>%
-  mutate(se_temp = ifelse(is.na(se_temp), 0, se_temp))
+    # Use a custom check to prevent Inf if all values are NA
+    mean_temp = if(all(is.na(Temperature))) NA else mean(Temperature, na.rm = TRUE),
+    min_temp  = if(all(is.na(Temperature))) NA else min(Temperature, na.rm = TRUE),
+    max_temp  = if(all(is.na(Temperature))) NA else max(Temperature, na.rm = TRUE),
+    .groups = "drop")
 
-# Create the summary table with UNIQUE counts per year
-stats_labels <- plot_summary %>%
-  group_by(year) %>%
-  dplyr::summarise(
-    days_27.3 = sum(mean_temp > 27.3, na.rm = TRUE),
-    days_28.3 = sum(mean_temp > 28.3, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    label_text = paste0("Days > 27.3: ", days_27.3, "\nDays > 28.3: ", days_28.3),
-    # Set unique Y positions for each year's text block so they don't overlap
-    y_pos = c(23.8, 22.8, 21.8)) 
-
-# Plotting
 p_time <- ggplot(plot_summary, aes(x = dummy_date, color = as.factor(year), fill = as.factor(year))) +
-  geom_ribbon(aes(ymin = mean_temp - se_temp, ymax = mean_temp + se_temp), alpha = 0.3, color = NA) +
-  geom_line(aes(y = mean_temp), linewidth = 1.2) +
-  geom_hline(yintercept = 27.3, linetype = "dashed", color = "grey30") +
-  geom_hline(yintercept = 28.3, linetype = "dotdash", color = "grey30") +
-  # show.legend = FALSE here removes the 'a' from the legend
-  # geom_text(data = stats_labels, 
-  #           aes(x = as.Date("2024-10-28"), y = y_pos, label = label_text, color = as.factor(year)),
-  #           hjust = 1, size = 5.5, fontface = "bold", inherit.aes = FALSE, show.legend = FALSE) +
-  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
+  # Shading for Daily Min/Max (geom_ribbon handles NAs by leaving gaps)
+  geom_ribbon(aes(ymin = min_temp, ymax = max_temp), alpha = 0.2, color = NA) +
+  # All lines are now solid
+  geom_line(aes(y = mean_temp), linewidth = 1.5, linetype = "solid") +
+  geom_hline(yintercept = 27.3, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = 28.3, linetype = "dotted", color = "black") +
+  scale_x_date(date_labels = "%b", 
+               date_breaks = "1 month", 
+               limits = c(as.Date("2024-03-01"), as.Date("2024-11-01")),
+               expand = c(0,0)) +
   scale_y_continuous(breaks = seq(20, 32, by = 1)) +
   scale_color_brewer(palette = "Set1") +
   scale_fill_brewer(palette = "Set1") +
-  theme_classic(base_size = 18) +
+  theme_classic(base_size = 26) + # Massive base size
   theme(
-    axis.text = element_text(color = "black", size = 16),
-    axis.title = element_text(face = "bold"),
-    legend.title = element_text(face = "bold")
+    axis.text = element_text(color = "black", size = 22),
+    axis.title = element_text(face = "bold", size = 28),
+    legend.title = element_text(face = "bold", size = 24),
+    legend.text = element_text(size = 22),
+    legend.position = "right",
+    plot.margin = margin(10, 10, 10, 10)
   ) +
   labs(x = "", y = "Temperature (°C)", color = "Year", fill = "Year"); p_time
 
-#### PANEL B
-year_totals <- combined_data %>%
-  filter(year %in% c(2019, 2023, 2025), month >= 3 & month <= 10) %>%
-  group_by(year) %>%
-  dplyr::summarise(total_n = n(), .groups = "drop")
+#### PANEL B: Frequency
+# freq_data_clean <- subset_filled %>%
+#   filter(year %in% c(2019, 2021, 2023, 2025), month >= 3, month <= 10) %>%
+#   # Create 0.5 bins: multiplying by 2, rounding, then dividing by 2
+#   mutate(temp_bin = round(Temperature * 2) / 2) %>% 
+#   filter(!is.na(temp_bin), temp_bin >= 22, temp_bin <= 30.5) %>%
+#   group_by(year, temp_bin) %>%
+#   # 'count' here represents total hours since each row is an hour
+#   dplyr::summarise(total_hours = n(), .groups = "drop")
+# p_hours <- ggplot(freq_data_clean, aes(x = temp_bin, y = total_hours, fill = as.factor(year))) +
+#   # Keep your background shading
+#   annotate("rect", xmin = 26.5, xmax = 27.5, ymin = 0, ymax = Inf, fill = "grey70", alpha = 0.5) +
+#   annotate("rect", xmin = 27.5, xmax = Inf, ymin = 0, ymax = Inf, fill = "grey40", alpha = 0.5) +
+#   # Use position_dodge with a specified width so bars don't overlap strangely
+#   geom_bar(stat = "identity", position = position_dodge(width = 0.4), color = "black", linewidth = 0.4) +
+#   scale_y_continuous(expand = c(0, 0)) +
+#   # Update X axis to show half-degree breaks
+#   scale_x_continuous(breaks = seq(22, 30, 0.5), limits = c(21.5, 30.5)) +
+#   scale_fill_brewer(palette = "Set1") +
+#   theme_classic(base_size = 22) +
+#   theme(
+#     axis.text.x = element_text(angle = 45, hjust = 1), # Angle labels if they get crowded
+#     axis.text = element_text(color = "black"),
+#     axis.title = element_text(face = "bold"),
+#     legend.title = element_blank()
+#   ) +
+#   labs(x = "Temperature Bin (°C)", y = "Total Time (Hours)"); p_hours
 
-freq_data_clean <- combined_data %>%
-  filter(year %in% c(2019, 2023, 2025), month >= 3 & month <= 10) %>%
-  mutate(temp_bin = round(Temperature)) %>%
-  filter(!is.na(temp_bin)) %>%
-  group_by(year, temp_bin) %>%
-  dplyr::summarise(count = n(), .groups = "drop") %>%
-  # JOIN with the totals to force correct division
-  left_join(year_totals, by = "year") %>%
-  mutate(percent = (count / total_n) * 100)
-
-# Plot bin temps 
-p_freq <- ggplot(freq_data_clean, aes(x = temp_bin, y = percent, fill = as.factor(year))) +
-  annotate("rect", xmin = 26.5, xmax = 27.5, ymin = 0, ymax = Inf, 
-           fill = "grey70", alpha = 0.5) +
-  annotate("rect", xmin = 27.5, xmax = Inf, ymin = 0, ymax = Inf, 
-           fill = "grey40", alpha = 0.5) +
-  geom_bar(stat = "identity", position = "dodge", 
-           alpha = 1, color = "black", linewidth = 0.3) +
-  scale_y_continuous(expand = c(0, 0), limits = c(0, max(freq_data_clean$percent) + 5)) +
-  scale_x_continuous(breaks = seq(21, 31, 1)) +
-  scale_fill_brewer(palette = "Set1") +
-  theme_classic(base_size = 18) +
-  theme(
-    axis.text = element_text(size = 16, color = "black"),
-    axis.title = element_text(face = "bold"),
-    legend.position = "none" 
+ridge_freq <- ggplot(subset_cleaned, aes(x = Temperature, y = as.factor(year), 
+                          # Use cut to create 3 shading zones
+                          fill = after_stat(cut(x, 
+                                                breaks = c(-Inf, 27.3, 28.3, Inf), 
+                                                labels = c("Normal", "Warning", "Stress"))), 
+                          color = as.factor(year))) + 
+  geom_density_ridges_gradient(
+    scale = 0.9, 
+    rel_min_height = 0.01,
+    linewidth = 1.5) +
+  # Manual colors: Gray for normal, Light Red for warning, Dark Red for stress
+  scale_fill_manual(
+    values = c("Normal" = "gray80", "Warning" = "#fbb4ae", "Stress" = "#e41a1c"), 
+    guide = "none"
   ) +
-  labs(x = "Temperature Bin (°C)", y = "Total Time (%)"); p_freq
+  scale_color_brewer(palette = "Set1", guide = "none") + 
+  scale_x_continuous(breaks = seq(22, 32, 1), expand = c(0.01, 0)) +
+  scale_y_discrete(expand = expansion(mult = c(0.01, 0.4))) +
+  theme_classic(base_size = 26) + 
+  theme(
+    axis.text = element_text(color = "black", size = 22),
+    axis.title = element_text(face = "bold", size = 28), 
+    legend.position = "none",
+    plot.margin = margin(10, 10, 10, 10)) +
+  labs(x = "Temperature (°C)", y = "Year"); ridge_freq
 
-## Combine plots 
-final_plot <- (p_time + p_freq) + 
+## Combine and Save
+final_plot <- (p_time + ridge_freq) + 
   plot_layout(widths = c(1.8, 1), guides = "collect") + 
   plot_annotation(tag_levels = 'A') & 
-  theme(plot.tag = element_text(size = 24, face = "bold"))
+  theme(plot.tag = element_text(size = 32, face = "bold"))
 
 # Save 
-ggsave("../output/environmental/Temperatures_Mar-Oct_2019_2023_2025.pdf", 
+ggsave("../output/environmental/Temperatures_Mar-Oct_2019_2021_2023_2025.pdf", 
        plot = final_plot, 
-       width = 18, 
-       height = 6, 
+       width = 20, 
+       height = 8, 
        units = "in", 
        device = "pdf",
        dpi = 300)
-ggsave("../output/environmental/Temperatures_Mar-Oct_2019_2023_2025.png", 
+ggsave("../output/environmental/Temperatures_Mar-Oct_2019_2021_2023_2025.png", 
        plot = final_plot, 
-       width = 18, 
-       height = 6, 
+       width = 20, 
+       height = 8, 
        units = "in", 
        dpi = 300)
 ```
 
-Calculate numbers of days above MMM and MMM+1
+Calculate percentage of time "in the red" (ie above 28.3C) and above MMM (27.3)
 ```{r}
-compare_temps <- combined_data %>%
-  filter(year %in% c(2019, 2023, 2025),
-         month >= 3 & month <= 10) 
-
-# Calculate hourly means first to normalize the frequency difference
-temp_summary <- compare_temps %>%
-  mutate(datetime = as.POSIXct(datetime)) %>%
-  # Create a 'date_hour' column to group by hour
-  mutate(date_hour = floor_date(datetime, "hour"),
-         date = as.Date(datetime)) %>%
-  group_by(year, date, date_hour) %>%
-  summarize(hourly_mean_temp = mean(Temperature, na.rm = TRUE), .groups = "drop")
-
-# Calculate "Hours Above" using the Hourly Means
-hours_above <- temp_summary %>%
+coral_bleaching_summary <- subset_cleaned %>%
+  filter(month >= 3 & month <= 10) %>%
   group_by(year) %>%
-  summarize(
-    hours_above_MMM = sum(hourly_mean_temp > 27.3, na.rm = TRUE),
-    hours_above_Bleaching = sum(hourly_mean_temp > 28.3, na.rm = TRUE)
-  )
-
-# Calculate "Days Above" using Daily Maximums
-days_above <- temp_summary %>%
-  group_by(year, date) %>%
-  summarize(daily_max = max(hourly_mean_temp, na.rm = TRUE), .groups = "drop") %>%
+  dplyr::summarize(
+    total_hours = n(),
+    hours_above_28.3 = sum(Temperature > 28.3, na.rm = TRUE),
+    percent_stress = (hours_above_28.3 / total_hours) * 100)
+mmm_summary <- subset_cleaned %>%
+  filter(month >= 3 & month <= 10) %>%
   group_by(year) %>%
-  summarize(
-    days_above_MMM = sum(daily_max > 27.3, na.rm = TRUE),
-    days_above_Bleaching = sum(daily_max > 28.3, na.rm = TRUE)
-  )
-
-# Combine and View Results
-final_results <- left_join(hours_above, days_above, by = "year")
-print(final_results)
+  dplyr::summarize(
+    total_hours = n(),
+    hours_above_27.3 = sum(Temperature > 27.3, na.rm = TRUE),
+    percent_stress = (hours_above_27.3 / total_hours) * 100)
 ```
-
 
 

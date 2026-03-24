@@ -58,6 +58,16 @@ sample_meta <- sample_meta %>%
   mutate(`Chamber` = as.numeric(`Chamber`))
 ```
 
+Load surface area data and join w/ sample meta
+```{r}
+surface_area <- read.csv("../data/Surface_Area/Surface_Area_wax_seasonal.csv")
+surface_area$ColonyID <- as.character(surface_area$ColonyID)
+names(surface_area)[names(surface_area) == "ColonyID"] <- "Colony_ID"
+
+sample_meta <- sample_meta %>%
+  inner_join(surface_area, by = c("Timepoint", "Colony_ID", "Species", "Phenotype"))
+```
+
 ## Sept 2023 
 
 ### Prepare data 
@@ -254,7 +264,7 @@ Filter sample metadata for Sept 2023
 ```{r}
 sept_2023 <- sample_meta %>%
   filter(grepl("^2023-09", Date))
-sept_2023$Surface_Area_cm2 <- as.numeric(sept_2023$Surface_Area_cm2)
+sept_2023$surface.area.cm2 <- as.numeric(sept_2023$surface.area.cm2)
 ```
 
 Merge sample metadata with interval data 
@@ -271,7 +281,7 @@ Normalize interval data by chamber volume and surface area and save
 all_int <- all_int %>%
   mutate(
     Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
-    Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / Surface_Area_cm2) * 60) # units are umol O2 cm-2 h-1
+    Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / surface.area.cm2) * 60) # units are umol O2 cm-2 h-1
 write.csv(all_int, "../output/pi_curves/Sept2023/all_interval_summaries_normalized_Sept2023.csv")
 ```
 
@@ -290,7 +300,7 @@ ggplot(all_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
 
 Something is off with 237 at the 150 light level. The slope is -19. Remove for further analysis 
 ```{r}
-all_int_sub <- all_int %>%
+all_int <- all_int %>%
   filter(!Colony_ID == 237)
 ```
 
@@ -305,8 +315,8 @@ all_int_sub <- all_int %>%
 Nest by colony 
 ```{r}
 pi_nested <- all_int %>%
-  select(Colony_ID, Light_Value, Slope_norm) %>%  # or whatever your P column is
-  rename(I = Light_Value, P = Slope_norm) %>%
+  dplyr::select(Colony_ID, Light_Value, Slope_norm) %>%  # or whatever your P column is
+  dplyr::rename(I = Light_Value, P = Slope_norm) %>%
   group_by(Colony_ID) %>%
   nest()
 ```
