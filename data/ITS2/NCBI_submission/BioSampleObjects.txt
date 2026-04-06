@@ -1,0 +1,17 @@
+Accession	Sample Name	SPUID	Organism	Tax ID	Breed	Isolate	
+SAMN57105621	26_Pcomp	26_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105622	27_Pcomp	27_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105623	43_Pcomp	43_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105624	44_Pcomp	44_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105625	233_Pcomp	233_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105626	234_Pcomp	234_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105627	235_Pcomp	235_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105628	236_Pcomp	236_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105629	237_Pcomp	237_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105630	238_Pcomp	238_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105631	239_Pcomp	239_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105632	240_Pcomp	240_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105633	243_Pcomp	243_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105634	244_Pcomp	244_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105635	247_Pcomp	247_Pcomp	Porites compressa	46720	NA	Coral symbiont	
+SAMN57105636	248_Pcomp	248_Pcomp	Porites compressa	46720	NA	Coral symbiont	
