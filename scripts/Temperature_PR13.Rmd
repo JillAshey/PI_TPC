@@ -1137,7 +1137,8 @@ p_time <- ggplot(plot_summary, aes(x = dummy_date, color = as.factor(year), fill
 #     legend.title = element_blank()
 #   ) +
 #   labs(x = "Temperature Bin (°C)", y = "Total Time (Hours)"); p_hours
-
+subset_cleaned$year <- factor(subset_cleaned$year, levels = c("2025", "2023", "2021", "2019"))
+year_colors <- c("2019" = "#e41a1c", "2021" = "#377eb8", "2023" = "#4daf4a", "2025" = "#984ea3")
 ridge_freq <- ggplot(subset_cleaned, aes(x = Temperature, y = as.factor(year), 
                           # Use cut to create 3 shading zones
                           fill = after_stat(cut(x, 
@@ -1153,7 +1154,8 @@ ridge_freq <- ggplot(subset_cleaned, aes(x = Temperature, y = as.factor(year),
     values = c("Normal" = "gray80", "Warning" = "#fbb4ae", "Stress" = "#e41a1c"), 
     guide = "none"
   ) +
-  scale_color_brewer(palette = "Set1", guide = "none") + 
+  scale_color_manual(values = year_colors, guide = "none") +
+  #scale_color_brewer(palette = "Set1", guide = "none") + 
   scale_x_continuous(breaks = seq(22, 32, 1), expand = c(0.01, 0)) +
   scale_y_discrete(expand = expansion(mult = c(0.01, 0.4))) +
   theme_classic(base_size = 26) + 
@@ -1203,5 +1205,6 @@ mmm_summary <- subset_cleaned %>%
     hours_above_27.3 = sum(Temperature > 27.3, na.rm = TRUE),
     percent_stress = (hours_above_27.3 / total_hours) * 100)
 ```
+
 
 

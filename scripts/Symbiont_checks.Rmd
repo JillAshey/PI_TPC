@@ -1,0 +1,37 @@
+---
+title: "Symbiont counts check"
+author: "Jill Ashey"
+date: "2026-04-06"
+output: html_document
+---
+
+Checking manual sym count values vs guava counts
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Read in manual counts
+```{r}
+sym_manual <- read.csv("../data/Physiology/sym_counts/manual_sym_counts.csv", header = T)
+```
+
+Calculate cells per square cm
+```{r}
+blah <- sym_manual %>%
+  dplyr::select(Colony_ID, Squares.Counted, matches("Count[0-9]")) %>%
+  gather("rep", "count", -Colony_ID, -Squares.Counted)%>%
+  group_by(Colony_ID, Squares.Counted) %>%
+  dplyr::summarise(mean_count = mean(count, na.rm = TRUE))
+```
+
+Normalize count by homogenate vol and surface area 
+```{r}
+blah <- blah %>%
+  mutate(cells.mL = mean_count * 10000 / Squares.Counted,
+         cells = cells.mL * 50,
+         cells.cm2 = cells / 15, 
+         cells.cm2.M = cells.cm2 / 1e6)
+```
+
+Pretty high counts...need to compare to guava 
