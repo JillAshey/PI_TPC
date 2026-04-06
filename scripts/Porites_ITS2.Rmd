@@ -1,0 +1,617 @@
+---
+title: "Porites ITS2"
+author: "Jill Ashey"
+date: "2026-03-31"
+output: html_document
+---
+
+Porites compressa ITS2 analysis. Code from Ariana Huffmyer and Sarah Roderick.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("readxl")) install.packages("readxl")
+if (!require("phyloseq")) BiocManager::install("phyloseq")
+if (!require("janitor")) install.packages("janitor")
+if (!require("writexl")) install.packages("writexl")
+if (!require("microViz")) BiocManager::install("microViz")
+
+library("readxl")
+library("phyloseq")
+library("janitor")
+library("writexl")
+library("ggplot2")
+library('cowplot')
+library("janitor")
+library("car")
+library("phyloseq")
+library("stringr")
+library("ape")
+library("DESeq2")
+library("microViz")
+library("vegan")
+library("ComplexHeatmap")
+library("tidyverse")
+library("dplyr")
+library(emmeans)
+library(readxl)
+library(patchwork)
+```
+
+Load metadata.  
+```{r}
+#create metadata and load
+metadata <- read.csv("../data/ITS2/SymPortal_datasheet_Martynek.csv", header = TRUE, sep = ",")%>%dplyr::select(sample_name , Phenotype)
+
+keep<-c("26", "27", "43", "44", "233", "234", "235", "236", "237", "238", "239", "240", "243", "244", "247", "248")
+
+metadata <- metadata %>%
+  filter(sample_name %in% keep)
+
+rownames(metadata) <- metadata$sample_name
+
+metadata <- as.matrix(metadata)
+metadata <- sample_data(data.frame(metadata))
+```
+
+Load the data for strain level information.  
+```{r}
+#gather the taxonomy names  
+taxnames <- read_tsv(
+  file  = "../data/ITS2/20251021T032609_martyma1/post_med_seqs/638_20251021T051401_DBV_20251021T231108.seqs.absolute.abund_only.txt",
+  n_max = 0) %>%
+  dplyr::select(-1) %>%
+  names(.)
+
+
+#extract clade letter  
+tax0 <- tibble(
+  DIV = taxnames,
+  clade = str_extract(DIV, "[A-Z]")
+)
+
+tax1 <- as.matrix(tax0)
+rownames(tax1) <- tax0$DIV
+tax <- tax_table(tax1)
+
+otu0 <- readr::read_tsv(
+  file  = "../data/ITS2/20251021T032609_martyma1/post_med_seqs/638_20251021T051401_DBV_20251021T231108.seqs.absolute.abund_and_meta.txt"
+) %>%
+  dplyr::select(-1) %>%
+  filter(sample_name %in% keep)
+
+otu1 <- as.matrix(otu0[, 39:289])
+rownames(otu1) <- otu0$sample_name
+otu <- otu_table(otu1, taxa_are_rows = FALSE)
+
+coralDIV <- phyloseq(otu, tax, metadata)
+coralDIV
+```
+
+Build DIV Data
+
+First, view the number of sequence counts in our dataset.   
+```{r}
+samps <- readr::read_tsv(
+  "../data/ITS2/20251021T032609_martyma1/post_med_seqs/638_20251021T051401_DBV_20251021T231108.seqs.absolute.abund_and_meta.txt"
+) %>%
+  dplyr::select(post_taxa_id_absolute_symbiodiniaceae_seqs, sample_name) %>%
+  filter(sample_name %in% keep)
+
+hist(samps$post_taxa_id_absolute_symbiodiniaceae_seqs, breaks = 20)
+min(samps$post_taxa_id_absolute_symbiodiniaceae_seqs)
+max(samps$post_taxa_id_absolute_symbiodiniaceae_seqs)
+mean(samps$post_taxa_id_absolute_symbiodiniaceae_seqs)
+```
+
+We have >100,000 sequences for all samples. 
+
+Plot tree.  
+```{r}
+random_tree = rtree(ntaxa(coralDIV), rooted=TRUE, tip.label=taxa_names(coralDIV))
+plot(random_tree)
+```
+
+Merge phyloseq data. 
+```{r}
+phylo_coral_DIV = merge_phyloseq(coralDIV, metadata, random_tree)
+phylo_coral_DIV
+```
+
+Filter out samples with low numbers in groups (n=1 per group) from phyloseq object.  
+```{r}
+phylo_coral_DIV<-ps_filter(phylo_coral_DIV)
+phylo_coral_DIV<-ps_arrange(phylo_coral_DIV, Phenotype)
+```
+
+Now build a tree with the combined data.  
+```{r}
+plot_tree(phylo_coral_DIV, color="Phenotype", label.tips="taxa_names", ladderize="left", plot.margin=0.3)
+```
+
+Plot a heatmap.  
+
+```{r}
+plot_heatmap(phylo_coral_DIV, "NMDS", "bray", "Phenotype", low="#66CCFF", high="#000033", na.value="white")
+```
+
+Assign object to a shorter name. 
+```{r}
+GP1 = phylo_coral_DIV
+GP1
+```
+
+Display smaple sequencing depth. 
+```{r}
+min(sample_sums(GP1))
+```
+
+Transform to relative abundance and subsample to even sampling depth to minimum count in dataset (89462).  
+```{r}
+GP1_rare<-rarefy_even_depth(GP1, sample.size = min(sample_sums(GP1)),
+  rngseed = TRUE, replace = TRUE, trimOTUs = TRUE, verbose = TRUE)
+```
+
+View sample sequencing depth again after subsampling. 
+```{r}
+sample_sums(GP1_rare)
+GP1_rare
+```
+
+Samples are now all at 89,462 sequences. No OTUs were removed. 
+
+Now transform counts to relative abundance expressed as a proportion.    
+```{r}
+GP1_rare = transform_sample_counts(GP1_rare, function(x) x/sum(x))
+```
+
+View tree and heatmap after subsampling.   
+```{r}
+plot_tree(GP1_rare, color="Phenotype", label.tips="taxa_names", ladderize="left", plot.margin=0.3) 
+plot_heatmap(GP1_rare, "NMDS", "bray", "Phenotype", low="#66CCFF", high="#000033", na.value="white")
+```
+
+View NMDS ordination by OTU
+```{r}
+GP.ord <- ordinate(GP1_rare, "NMDS", "bray")
+ordinate(GP1_rare, "NMDS", "bray")
+p1 = plot_ordination(GP1_rare, GP.ord, type="taxa", title="taxa")
+p1
+```
+
+Plot with samples now.  
+```{r}
+p2 = plot_ordination(GP1_rare, GP.ord, type="samples", color="Phenotype") 
+p2_geom<- p2 + geom_polygon(aes(fill=Phenotype)) + geom_point(size=4) + ggtitle("samples")
+p2_geom
+```
+
+View PCoA by OTU.  
+```{r}
+GP.ordb.pcoa <- ordinate(GP1_rare, "PCoA", "bray")
+p1b = plot_ordination(GP1_rare, GP.ordb.pcoa, type="taxa", title="taxa")
+p1b
+```
+Plot with samples now.  
+```{r}
+p2b = plot_ordination(GP1_rare, GP.ord, type="samples", color="parent"); p2b 
+```
+Output NMDS plot for visualization.  
+```{r}
+phen_names <- c("Resistant" = "Resistant", "Susceptible" = "Susceptible")
+stress_label <- paste("Stress =", round(GP.ord$stress, 3))
+
+p2b_viz<-p2  + 
+  geom_point(aes(colour=Phenotype), size=4) + 
+  #ggtitle("NMDS")+
+  scale_colour_manual(name="Phenotype", values=c("#3b244d", "#f2916b"), labels=phen_names) +
+  theme_classic() + 
+  theme(
+    panel.background=element_blank()
+  ); p2b_viz
+
+ggsave(plot=p2b_viz, "../output/ITS2/nmds_its2_div.png", h=5, w=6, dpi = 300)
+```
+
+Conduct a permanova in the vegan package.  
+
+```{r}
+metadata <- as(sample_data(GP1_rare), "data.frame")
+
+perm1<-adonis2(phyloseq::distance(GP1_rare, method="bray") ~ Phenotype,
+       data = metadata)
+
+perm1
+```
+
+Permanova suggests there is NO significant difference by phenotype in ITS2 profiles (p=0.455).  
+
+adonis2(formula = phyloseq::distance(GP1_rare, method = "bray") ~ Phenotype, data = metadata)
+         Df SumOfSqs      R2     F Pr(>F)
+Model     1 0.017195 0.05958 0.887  0.455
+Residual 14 0.271413 0.94042             
+Total    15 0.288608 1.00000 
+
+Plot heatmap of ITS2 DIVs 
+
+Filter out taxa that comprise <1% mean relative abundance across samples. 
+```{r}
+GP1_rare
+
+GP1_prune = filter_taxa(GP1_rare, function(x) mean(x) > 0.01, TRUE)
+GP1_prune 
+
+sample_order<-c("26", "44", "234", "236", "238", "240", "244", "248", "27", "43", "233", "235", "237", "239", "243", "247")
+
+p<-plot_heatmap(GP1_prune, sample.label="parent", low="#66CCFF", high="#000033", na.value="white", taxa.label="DIV", sample.order = sample_order)
+p$scales$scales[[1]]$name <- "Phenotype"
+
+print(p)
+
+#ggplot2::ggsave("Mcap2020/Figures/ITS2/div_heatmap.jpg", p, width = 6, height = 6)
+```
+
+There were 73 OTUs before filtering and 14 after filtering. This indicates there were many rare taxa.   
+
+Run the NMDS visualization again with the dataset with rare samples removed. 
+```{r}
+GP.ordb.filt <- ordinate(GP1_prune, "NMDS", "bray")
+
+p3b = plot_ordination(GP1_prune, GP.ordb.filt, type="samples", color="parent"); p3b 
+
+p3b_viz_filt<-p3b  + 
+  geom_point(aes(colour=Phenotype), size=4) + 
+  ggtitle("NMDS")+
+  scale_colour_manual(name="Phenotype", values=c("#3b244d", "#f2916b"), labels=phen_names) +
+  theme_classic() + 
+  theme(
+    panel.background=element_blank()
+  ); p3b_viz_filt
+
+ggsave(plot=p3b_viz_filt, "../output/ITS2/nmds_its2_div_filtered.png", h=5, w=6, dpi = 300)
+
+# Get stress value
+GP.ordb.filt$stress
+```
+
+Run PERMANOVA on filtered data set. 
+```{r}
+metadata_filt <- as(sample_data(GP1_prune), "data.frame")
+
+perm2_filt<-adonis2(phyloseq::distance(GP1_prune, method="bray") ~ Phenotype,
+       data = metadata_filt)
+perm2_filt
+```
+
+There is no significant variation of dominant taxa by phenotype (p=0.587).
+
+adonis2(formula = phyloseq::distance(GP1_prune, method = "bray") ~ Phenotype, data = metadata_filt)
+         Df SumOfSqs      R2      F Pr(>F)
+Model     1 0.006446 0.05016 0.7394  0.587
+Residual 14 0.122042 0.94984              
+Total    15 0.128487 1.00000
+
+Draw by parent with Complex Heatmap.  
+```{r}
+library(dendsort)
+library(WGCNA)
+library(circlize)
+
+table<-as.matrix(t(otu_table(GP1_prune)))
+                 
+row_dend = dendsort(hclust(dist(table)))
+col_dend = dendsort(hclust(dist(t(table))))
+
+#col_fun = colorRamp2(c(0, 50, 100), c("white", "darkgray", "black"))
+col_fun = colorRamp2(c(0, .1, .25, .5), hcl_palette = "Blue-Red 3")
+
+pdf(file = "../output/ITS2/DIV-ComplexHeatmap.pdf", height = 7, width = 7)
+ComplexHeatmap::Heatmap(table, name = "Relative \nAbundance", row_title = "DIV", column_title = "ITS2 DIV Relative Abundance (>1%)", 
+        col = col_fun, 
+        row_names_side = "left", 
+        row_dend_side = "left",
+        width = unit(4, "in"), 
+        height = unit(4, "in"), 
+        column_dend_height = unit(.5, "in"),
+        row_dend_width = unit(.5, "in"),
+        column_dend_reorder = FALSE,
+        row_dend_reorder = TRUE,
+        row_gap = unit(2.5, "mm"),
+        clustering_distance_rows = "euclidean",
+        clustering_method_rows = "complete",
+        border = TRUE, 
+        column_names_gp =  gpar(fontsize = 12, border=FALSE),
+        column_names_rot = 35,
+        cluster_rows = row_dend, 
+        cluster_columns = col_dend,
+        column_order = sample_order, 
+        row_names_gp = gpar(fontsize = 12, alpha = 0.75, border = FALSE))
+dev.off()
+```
+
+Calculate alpha diversity of those that have >1 sequence
+```{r}
+GP1_rare_untransformed<-rarefy_even_depth(GP1, sample.size = min(sample_sums(GP1)),
+  rngseed = TRUE, replace = TRUE, trimOTUs = TRUE, verbose = TRUE)
+
+GP2 <- prune_taxa(taxa_sums(GP1_rare_untransformed) > 1, GP1_rare_untransformed)
+```
+
+Plot all richness metrics.  
+```{r}
+plot_richness(GP2)
+```
+
+Plot the two most commonly used - Shannon and Inverse Simpson.  
+```{r}
+alpha1<-plot_richness(GP2, measures=c("InvSimpson", "Shannon"), x="Phenotype", color="Phenotype", nrow=1)
+
+alpha1_plot <- alpha1 + geom_boxplot() + geom_point(size=3) + theme_classic() +   scale_colour_manual(name="Phenotype", values=c("#3b244d", "#f2916b"), labels=phen_names) +
+  theme(axis.text.x=element_text(angle=45, hjust=1, color="black")) + 
+  theme(axis.title.x=element_blank())+
+  theme(legend.position="none");alpha1_plot
+
+ggsave(plot=alpha1_plot, file="../output/ITS2/alpha_rare.png", width=7, height=5)
+```
+
+Test for differences in alpha diversity.  
+```{r}
+metadata <- as(sample_data(GP2), "data.frame")
+metadata$sample<-rownames(metadata)
+
+alpha_rare<-estimate_richness(GP2, measures=c("InvSimpson", "Shannon", "Chao1"))
+alpha_rare$sample<-rownames(alpha_rare)
+
+alpha_rare<-full_join(metadata, alpha_rare, by="sample")
+
+summary(aov(Shannon~Phenotype, data=alpha_rare))
+summary(aov(InvSimpson~Phenotype, data=alpha_rare))
+summary(aov(Chao1~Phenotype, data=alpha_rare))
+```
+
+No differences in alpha diversity 
+
+Load profile level data 
+```{r}
+#create metadata and load
+metadata <- read.csv("../data/ITS2/SymPortal_datasheet_Martynek.csv", header = TRUE, sep = ",")%>%dplyr::select(sample_name , Phenotype)
+
+keep<-c("26", "27", "43", "44", "233", "234", "235", "236", "237", "238", "239", "240", "243", "244", "247", "248")
+
+metadata <- metadata %>%
+  filter(sample_name %in% keep)
+
+rownames(metadata) <- metadata$sample_name
+
+metadata <- as.matrix(metadata)
+metadata <- sample_data(data.frame(metadata))
+
+# load data for taxonomy
+tax0 <- read_tsv(
+  file  = "../data/ITS2/20251021T032609_martyma1/its2_type_profiles/638_20251021T051401_DBV_20251021T231108.profiles.absolute.abund_and_meta.txt", n_max = 6) %>%
+  dplyr::select(-2) %>% 
+  gather(uid, value, -1) %>% 
+  spread(1, value) %>%
+  clean_names()
+
+tax1 <- as.matrix(tax0[, -1], dimnames = list(tax0$uid, colnames(tax0[-1])))
+rownames(tax1) <- tax0$uid
+tax <- tax_table(tax1)
+
+#load data for count matrix 
+otu0 <- read_tsv(
+  file  = "../data/ITS2/20251021T032609_martyma1/its2_type_profiles/638_20251021T051401_DBV_20251021T231108.profiles.absolute.abund_and_meta.txt", col_names = TRUE) 
+
+#list<-c("UID", "sample", "797700", "799603", "798782", "798780", "798578", "798776")
+#colnames(otu0)<-list
+
+otu0<-otu0%>%
+  filter(...2 %in% keep) %>%
+  #rename("sample" = "...2") %>%
+  dplyr::select(-1) %>%
+  mutate(across(-...2, as.numeric))
+
+otu1 <- as.matrix(otu0[, -1])
+rownames(otu1) <- otu0$...2
+otu <- otu_table(otu1, taxa_are_rows = FALSE)
+
+taxa_names(otu)
+taxa_names(tax)
+
+#combine to phyloseq object
+coral <- phyloseq(otu, tax, metadata)
+coral
+```
+
+Create tree.  
+```{r}
+random_tree_profile = rtree(ntaxa(coral), rooted=TRUE, tip.label=taxa_names(coral))
+```
+
+Merge phyloseq data. 
+```{r}
+phylo_coral = merge_phyloseq(coral, metadata, random_tree_profile)
+phylo_coral
+```
+
+Filter out samples with low numbers in groups from phyloseq object.  
+```{r}
+phylo_coral<-ps_filter(phylo_coral)
+
+phylo_coral<-ps_arrange(phylo_coral, Phenotype)
+```
+
+Now build a tree with the combined data.  
+```{r}
+plot_tree(phylo_coral, color="Phenotype", label.tips="taxa_names", ladderize="left", plot.margin=0.3)
+```
+
+Plot a heatmap.  
+```{r}
+plot_heatmap(phylo_coral, "NMDS", "bray", "Phenotype", low="#66CCFF", high="#000033", na.value="white")
+```
+
+Plot ordinations.  
+```{r}
+GP1_profile = phylo_coral
+GP1_profile
+```
+
+Subsample to minimum sampling depth  
+```{r}
+min(sample_sums(GP1_profile))
+
+GP1_rare_profile<-rarefy_even_depth(GP1_profile, sample.size = min(sample_sums(GP1_profile)),
+  rngseed = TRUE, replace = TRUE, trimOTUs = TRUE, verbose = TRUE)
+
+sample_sums(GP1_rare_profile)
+```
+
+All samples now have 65353 sequences
+
+Transform to relative abundance as a proportion. 
+```{r}
+GP1_rare_profile = transform_sample_counts(GP1_rare_profile, function(x) x/sum(x))
+```
+
+View tree and heatmap after subsampling  
+```{r}
+plot_tree(GP1_rare_profile, color="Phenotype", label.tips="taxa_names", ladderize="left", plot.margin=0.3)
+plot_heatmap(GP1_rare_profile, "NMDS", "bray", "Phenotype", low="#66CCFF", high="#000033", na.value="white")
+```
+
+Plot abundance of each profile across lifestages.  
+```{r}
+t<-plot_bar(GP1_rare_profile, fill="its2_type_profile")
+t$data$Sample <- factor(t$data$Sample, levels = sample_order)
+
+# Define custom colors
+# C1: Oranges/Yellows | C15: Deep Reds/Maroons
+# my_colors <- c(
+#   "#FFB347", "#FB8C00",
+#   "#E31A1C", "#CC1517", "#B51012", "#9E0B0D", "#870608", "#700103")
+my_colors <- c(
+  "#41AB5D", "#74C476", # C1 (Warm Copper)
+  "#9DBAD5", "#7393B3", "#5D7B93", "#465F73", "#2F4353", "#182733" # C15 (Slate Gradient)
+)
+
+# Plot
+t_plot <- t + 
+  scale_fill_manual(name = "ITS2 Profile", values = my_colors) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "black", linewidth = 1) + 
+  # facet_grid remains the same
+  facet_grid(~Phenotype, scales = "free", space = "free") + 
+  # Force bars to sit flush on the x-axis
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)), labels = scales::percent_format(accuracy = 1)) +
+  ylab("Relative Abundance (%)") +
+  theme_classic() +
+  theme(
+    # Angle x-axis text
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    # Color the facet headers
+    strip.text = element_text(face = "bold", size = 12),
+    # Note: strip.text colors are usually uniform; 
+    # to color them individually, we target the strip background or use ggh4x
+    strip.background = element_blank() 
+  ); t_plot
+
+rel_abund_data<-t$data
+
+ggsave("../output/ITS2/profile_plot.png", t_plot, width=11, height=6, dpi = 300)
+```
+
+Calculate the average percent abundance for each taxa in each phenotype  
+```{r}
+means <- rel_abund_data %>%
+  group_by(its2_type_profile, Phenotype) %>%
+  # Add abundances within each profile and lifestage
+  summarize_at("Abundance", mean)%>%
+  spread(its2_type_profile, Abundance);means
+```
+
+Plot relative abundance mean values  
+```{r}
+rel_abund_plot<-rel_abund_data%>%
+  dplyr::select(its2_type_profile, Abundance, Phenotype, Sample)%>%
+  group_by(its2_type_profile, Phenotype)%>%
+  dplyr::summarise(mean=mean(Abundance, na.rm=TRUE), se=sd(Abundance, na.rm=TRUE)/sqrt(length(Abundance)))%>%
+  
+  ggplot(aes(x=Phenotype, y=mean, color=its2_type_profile))+
+  facet_wrap(~its2_type_profile, nrow=2)+
+  geom_point(position=position_dodge(0.2), size=6)+
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), width=0.1, position=position_dodge(0.2), linewidth=2)+
+  ylab("Mean Relative Abundance")+
+  ylim(-0.1,1.1)+
+  xlab("Phenotype")+
+  scale_fill_manual(name = "ITS2 Profile", values = my_colors) +
+  #scale_x_discrete(labels = parent_names) + 
+  #ggtitle("C")+
+  theme_classic()+
+  theme(
+    legend.position="none",
+    text=element_text(color="black", size=12), 
+    axis.text=element_text(color="black", size=11), 
+    axis.text.x=element_text(angle=45, hjust=1, vjust=1)
+  );rel_abund_plot
+
+ggsave("../output/ITS2/profile_plot_means.png", plot=rel_abund_plot, width=10, height=6)
+```
+
+Make plots publication ready 
+```{r}
+## NMDS
+p2b_viz<-p2  + 
+  geom_point(aes(colour=Phenotype), size=8) + 
+  #ggtitle("NMDS")+
+  scale_colour_manual(name="Phenotype", values=c("#3b244d", "#f2916b"), labels=phen_names) +
+  theme_classic() + 
+  theme(
+    panel.background=element_blank(),
+    axis.text.y   = element_text(size = 24, color = "black"), 
+    axis.text.x   = element_text(size = 24, color = "black", face = "plain"),
+    axis.title  = element_text(size = 27, face = "bold"),
+    legend.position = "right", # or "bottom" depending on your preference
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text = element_text(size = 18), 
+    legend.key.size = unit(1.5, "cm"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10)); p2b_viz
+
+## Relative abundances 
+t_plot <- t + 
+  scale_fill_manual(name = "ITS2 Profile", values = my_colors) +
+  #geom_hline(yintercept = 0.5, linetype = "dashed", color = "black", linewidth = 1) + 
+  # facet_grid remains the same
+  facet_grid(~Phenotype, scales = "free", space = "free") + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)), labels = scales::percent_format(accuracy = 1)) +
+  ylab("Relative Abundance (%)") +
+  xlab("Colony ID") +
+  theme_classic() +
+    theme(
+    panel.background=element_blank(),
+    axis.text.y   = element_text(size = 24, color = "black"), 
+    axis.text.x   = element_text(size = 14, color = "black", face = "plain", angle = 45, vjust = 1, hjust = 1),
+    axis.title  = element_text(size = 27, face = "bold"),
+    legend.position = "right", # or "bottom" depending on your preference
+    legend.title = element_text(size = 20, face = "bold"),
+    legend.text = element_text(size = 18), 
+    legend.key.size = unit(1.5, "cm"),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),
+    strip.text = element_text(face = "bold", size = 22),
+    strip.background = element_blank() 
+  ); t_plot
+
+# Combine the plots
+combined_plot <- (p2b_viz | t_plot) + 
+  plot_annotation(tag_levels = 'A') +
+  plot_layout(widths = c(1.15, 2)) & # Give the bar plot more horizontal room
+  theme(plot.tag = element_text(size = 30, face = "bold"))
+
+# Save 
+ggsave("../output/ITS2/NMDS_RelativeAbundance.pdf", combined_plot, width = 25, height = 8, units = "in", dpi = 300)
+ggsave("../output/ITS2/NMDS_RelativeAbundance.png", combined_plot, width = 25, height = 8, units = "in", dpi = 300)
+```
+
+
+
+
