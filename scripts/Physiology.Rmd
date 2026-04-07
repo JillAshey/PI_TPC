@@ -252,7 +252,7 @@ Remove samples marked "Do not use" and only keep Sept 2023 and Oct 2025 time poi
 ```{r}
 sym_counts <- sym_counts %>%
   filter(is.na(Use) | Use == "") %>%
-  filter(Timepoint == "September_2023")
+  filter(Timepoint == c("September_2023", "October_2025"))
 ```
 
 Calculate mean counts per sample and number of cells per sample 
@@ -264,6 +264,19 @@ sym_counts_avg <- sym_counts %>%
          ColonyID = as.character(ColonyID)) %>%
   ungroup()
 ```
+
+Give dummy values for SA oct 2025 
+```{r}
+sym_counts_avg_blah <- sym_counts_avg %>%
+  filter(Timepoint == "October_2025") %>%
+  mutate(cells_cm2 = cells/15,
+         cells_cm2_M = cells_cm2 / 1e6)
+```
+
+
+
+
+
 
 Read in surface area df, merge with sym counts, and calculate cells/cm2
 ```{r}
