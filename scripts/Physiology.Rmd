@@ -43,8 +43,6 @@ data_2019 <- data_2019 %>%
                              .default = Phenotype))
 ```
 
-I STILL NEED TO DO SURFACE AREA FOR OCT 2025 
-
 ## Pmax 
 
 Read in Pmax data 
@@ -64,7 +62,7 @@ pi_2025 <- pi_2025 %>%
 
 ### Bind data w/ historical data 
 
-Select Pmax and R from 2019 and 2021
+Select Pmax from 2019 and 2021
 ```{r}
 pi_data_2019 <- data_2019 %>%
   dplyr::select(Colony_ID, Pmax, Date, Species, Phenotype)
@@ -116,7 +114,7 @@ Data is normal.
 
 Run linear mixed effects model 
 ```{r}
-pmax.model <- lmer(Pmax ~ Year * Phenotype + (1|Colony_ID), data = pi_data_mcap)
+pmax.model <- lme4::lmer(Pmax ~ Year * Phenotype + (1|Colony_ID), data = pi_data_mcap)
 car::Anova(pmax.model, type = 3)
 
 # Model normality 
@@ -163,7 +161,7 @@ Data is normal.
 
 Run linear mixed effects model 
 ```{r}
-pmax.model <- lmer(Pmax ~ Year * Phenotype + (1|Colony_ID), data = pi_data_pcomp)
+pmax.model <- lme4::lmer(Pmax ~ Year * Phenotype + (1|Colony_ID), data = pi_data_pcomp)
 car::Anova(pmax.model, type = 3)
 
 # Model normality 
@@ -173,7 +171,6 @@ lattice::qqmath(pmax.model)
 
 # Post hoc tests 
 emmeans(pmax.model, pairwise ~ Year)
-emmeans(pmax.model, pairwise ~ Phenotype)
 emmeans(pmax.model, pairwise ~ Year | Phenotype)
 emmeans(pmax.model, pairwise ~ Phenotype | Year)
 
@@ -188,15 +185,187 @@ ggplot(pi_data_pcomp, aes(x = Year, y = Pmax, color = Phenotype, group = Phenoty
 
 Year, Phenotype, and Year x Phenotype are significant. 
 
-## Symbiont density 
+## AFDW
 
-STILL NEED TO DO OCT 2025 
+### Process 2023 and 2025 data 
+
+Read in AFDW data
+```{r}
+afdw <- read.csv("../data/Physiology/AFDW.csv")
+afdw$ColonyID <- as.character(afdw$ColonyID)
+```
+
+Merge with surface area data (read in above) and caculate biomass in mg/ml
+```{r}
+homogenate_volume <- 50
+
+afdw <- afdw %>%
+  left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
+  mutate(dry_mass_g_mL = Dry_mass_g * homogenate_volume, # Standardize dry mass to homogenate volume
+         burnt_mass_g_mL = Burnt_mass_g * homogenate_volume, # Standardize burnt mass to homogenate volume
+          dry_biomass_g = dry_mass_g_mL - Initial_mass_g, # Calculate dry biomass
+          dw_mg_cm2 = (dry_biomass_g*1000)/surface.area.cm2,
+          ash_biomass_g = dry_mass_g_mL - burnt_mass_g_mL,
+          afdw_mg_cm2 = (ash_biomass_g*1000)/surface.area.cm2) %>%
+    mutate(Year = case_match(Timepoint,
+                           "September_2023" ~ "2023", "October_2025" ~ "2025", .default = Timepoint)) %>%
+  select(ColonyID, afdw_mg_cm2, Species, Phenotype, Year)
+```
+
+### Bind data w/ historical data 
+
+Select afdw from 2019 and 2021 and format 
+```{r}
+afdw_data_2019 <- data_2019 %>%
+  dplyr::select(Colony_ID, AFDW, Date, Species, Phenotype) %>%
+  dplyr::rename(
+    ColonyID = Colony_ID,
+    afdw_mg_cm2 = AFDW) %>%
+  mutate(ColonyID = as.character(ColonyID)) %>%
+  mutate(Year = case_match(Date,
+    as.Date("2019-10-02") ~ "2019",
+    as.Date("2021-10-08") ~ "2021",
+    .default = as.character(Date))) %>%
+  select(ColonyID, afdw_mg_cm2, Species, Phenotype, Year)
+```
+
+Bind with 2019 and 2021 data 
+```{r}
+afdw_data <- bind_rows(afdw_data_2019, afdw)
+```
+
+Save as csv
+```{r}
+write.csv(afdw_data, "../output/Physiology/AFDW_all_years.csv")
+```
+
+### MCAP statistics comparing afdw over time and by phenotype 
+
+Subset by Mcap only 
+```{r}
+afdw_data_mcap <- afdw_data %>%
+  filter(Species == "Montipora capitata")
+```
+
+Check for normality
+```{r}
+hist(afdw_data_mcap$afdw_mg_cm2)
+
+# Q-Q Plot
+qqnorm(afdw_data_mcap$afdw_mg_cm2)
+qqline(afdw_data_mcap$afdw_mg_cm2, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(afdw_data_mcap$afdw_mg_cm2)
+```
+
+Data is not normal. Transform data to achieve normality 
+```{r}
+afdw_data_mcap$log <- log(afdw_data_mcap$afdw_mg_cm2)
+hist(afdw_data_mcap$log)
+qqnorm(afdw_data_mcap$log)
+qqline(afdw_data_mcap$log, col = "red")
+shapiro.test(afdw_data_mcap$log)
+
+afdw_data_mcap$sqrt <- sqrt(afdw_data_mcap$afdw_mg_cm2)
+hist(afdw_data_mcap$sqrt)
+qqnorm(afdw_data_mcap$sqrt)
+qqline(afdw_data_mcap$sqrt, col = "red")
+shapiro.test(afdw_data_mcap$sqrt)
+```
+
+Log and sqrt produced normality. Proceed with log. 
+
+Run linear mixed effects model 
+```{r}
+afdw.model <- lme4::lmer(log ~ Year * Phenotype + (1|ColonyID), data = afdw_data_mcap)
+car::Anova(afdw.model, type = 3)
+
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(afdw.model, which = 1) 
+lattice::qqmath(afdw.model)
+
+# Post hoc tests 
+emmeans(afdw.model, pairwise ~ Year)
+
+# Check plot to make sure results make sense
+ggplot(afdw_data_mcap, aes(x = Year, y = afdw_mg_cm2, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
+
+Year is significant.
+
+### PCOMP statistics comparing afdw over time and by phenotype 
+
+Subset by Pcomp only 
+```{r}
+afdw_data_pcomp <- afdw_data %>%
+  filter(Species == "Porites compressa")
+```
+
+Check for normality
+```{r}
+hist(afdw_data_pcomp$afdw_mg_cm2)
+
+# Q-Q Plot
+qqnorm(afdw_data_pcomp$afdw_mg_cm2)
+qqline(afdw_data_pcomp$afdw_mg_cm2, col = "red")
+
+# Shapiro-Wilk Test
+shapiro.test(afdw_data_pcomp$afdw_mg_cm2)
+```
+
+Data is not normal. Transform data to achieve normality 
+```{r}
+afdw_data_pcomp$log <- log(afdw_data_pcomp$afdw_mg_cm2)
+hist(afdw_data_pcomp$log)
+qqnorm(afdw_data_pcomp$log)
+qqline(afdw_data_pcomp$log, col = "red")
+shapiro.test(afdw_data_pcomp$log)
+
+afdw_data_pcomp$sqrt <- sqrt(afdw_data_pcomp$afdw_mg_cm2)
+hist(afdw_data_pcomp$sqrt)
+qqnorm(afdw_data_pcomp$sqrt)
+qqline(afdw_data_pcomp$sqrt, col = "red")
+shapiro.test(afdw_data_pcomp$sqrt)
+```
+
+Log and sqrt produced normality. Proceed with sqrt 
+
+Run linear mixed effects model 
+```{r}
+afdw.model <- lme4::lmer(log ~ Year * Phenotype + (1|ColonyID), data = afdw_data_pcomp)
+car::Anova(afdw.model, type = 3)
+
+# Model normality 
+par(mfrow = c(1, 2)) 
+plot(afdw.model, which = 1) 
+lattice::qqmath(afdw.model)
+
+# Post hoc tests 
+emmeans(afdw.model, pairwise ~ Year)
+
+# Check plot to make sure results make sense
+ggplot(afdw_data_pcomp, aes(x = Year, y = afdw_mg_cm2, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
+
+## Symbiont density 
 
 ### Process 2023 and 2025 data 
 
 Read in metadata 
 ```{r}
-meta_sym <- read.csv("../data/Physiology/sym_counts/sym_count_metadata.csv")
+meta_sym <- read.csv("../data/Physiology/sym_counts/guava_sym_count_metadata.csv")
 
 # Remove extra spaces 
 meta_sym <- meta_sym %>%
@@ -260,23 +429,11 @@ Calculate mean counts per sample and number of cells per sample
 sym_counts_avg <- sym_counts %>%
   dplyr::group_by(Date, Run, Dilution, Timepoint, Pellet_Resuspend_Vol_mL, ColonyID) %>%
   dplyr::summarise(mean_cells_mL = mean(CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL., na.rm = T))%>%
+#percent_pos = mean(CHLOROPHYLL.POS.Percent.Percent.for.CHLOROPHYLL.POS....., na.rm = TRUE)%>%
   mutate(cells = Dilution * Pellet_Resuspend_Vol_mL * mean_cells_mL,
          ColonyID = as.character(ColonyID)) %>%
   ungroup()
 ```
-
-Give dummy values for SA oct 2025 
-```{r}
-sym_counts_avg_blah <- sym_counts_avg %>%
-  filter(Timepoint == "October_2025") %>%
-  mutate(cells_cm2 = cells/15,
-         cells_cm2_M = cells_cm2 / 1e6)
-```
-
-
-
-
-
 
 Read in surface area df, merge with sym counts, and calculate cells/cm2
 ```{r}
@@ -288,13 +445,65 @@ sym_counts_avg <- sym_counts_avg %>%
   mutate(cells_cm2 = cells/surface.area.cm2,
           cells_cm2_M = cells_cm2 / 1e6) %>%
   mutate(Year = case_match(Timepoint,
-                           "September_2023" ~ "2023", .default = Timepoint)) %>%
+                           "September_2023" ~ "2023",
+                           "October_2025" ~ "2025",
+                           .default = Timepoint)) %>%
   select(ColonyID, cells_cm2_M, Species, Phenotype, Year)
+```
+
+Some samples were manually counted when the guava was down. Read in and process manual data 
+```{r}
+# Read in data 
+sym_manual <- read.csv("../data/Physiology/sym_counts/manual_sym_counts.csv", header = T)
+sym_manual$ColonyID <- as.character(sym_manual$ColonyID)
+
+sym_manual_calc <- sym_manual %>%
+  # Make dilution numeric and treat NA as 1 (undiluted)
+  mutate(Dilution = ifelse(is.na(Dilution), 1, Dilution)) %>%
+  dplyr::select(ColonyID, Timepoint, Squares.Counted, Dilution, matches("Count[0-9]")) %>%
+  # Pivot counts to calculate the mean across replicates
+  pivot_longer(cols = starts_with("Count"), names_to = "rep", values_to = "val") %>%
+  group_by(ColonyID, Timepoint, Squares.Counted, Dilution) %>%
+  dplyr::summarise(mean_val = mean(val, na.rm = TRUE), .groups = "drop") %>%
+  left_join(surface_area, by = c("ColonyID", "Timepoint"))%>%
+  mutate(
+    # (Cells / Squares) * 10,000 * Dilution
+    cells.mL = (mean_val / Squares.Counted) * 10000 * Dilution,
+    # Total cells in the 10mL resuspension
+    cells = cells.mL * 10, 
+    cells.cm2 = cells / surface.area.cm2,
+    cells_cm2_M = cells.cm2 / 1e6,
+    Year = "2025") %>%
+  dplyr::select(ColonyID, cells_cm2_M, Species, Phenotype, Year)
+```
+
+The following October 2025 samples need to be removed from the `sym_counts_avg` guava counts, as we will be using the hemocytometer counts for them: 202, 244, 2, 41, 240, 248, 239, 28, 225, 209, 236, 20, 243, 235, 205, 3, 237, 206, 204, 1, 247.
+
+Filter the above samples from the guava df 
+```{r}
+to_remove <- c("202", "244", "2", "41", "240", "248", "239", "28", "225", 
+               "209", "236", "20", "243", "235", "205", "3", "237", 
+               "206", "204", "1", "247")
+
+sym_counts_avg_filt <- sym_counts_avg %>%
+  filter(!(Year == "2025" & ColonyID %in% to_remove))
+```
+
+Bind dfs together 
+```{r}
+sym_data <- rbind(sym_counts_avg_filt, sym_manual_calc)
+
+ggplot(sym_data, aes(x = Year, y = cells_cm2_M, color = Phenotype, group = Species)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
 ```
 
 ### Bind data w/ historical data 
 
-Select sym densities from 2019 and 2021 and format appro
+Select sym densities from 2019 and 2021 and format
 ```{r}
 sym_data_2019 <- data_2019 %>%
   dplyr::select(Colony_ID, Sym_density, Date, Species, Phenotype) %>%
@@ -311,7 +520,7 @@ sym_data_2019 <- data_2019 %>%
 
 Bind with 2019 and 2021 data 
 ```{r}
-sym_data <- bind_rows(sym_data_2019, sym_counts_avg)
+sym_data <- bind_rows(sym_data_2019, sym_data)
 ```
 
 Save as csv
@@ -354,11 +563,11 @@ qqline(sym_data_mcap$sqrt, col = "red")
 shapiro.test(sym_data_mcap$sqrt)
 ```
 
-Log and sqrt produced normality. Proceed with log. 
+Log produced normality. 
 
 Run linear mixed effects model 
 ```{r}
-sym.model <- lmer(log ~ Year * Phenotype + (1|ColonyID), data = sym_data_mcap)
+sym.model <- lme4::lmer(log ~ Year * Phenotype + (1|ColonyID), data = sym_data_mcap)
 car::Anova(sym.model, type = 3)
 
 # Model normality 
@@ -416,11 +625,11 @@ qqline(sym_data_pcomp$sqrt, col = "red")
 shapiro.test(sym_data_pcomp$sqrt)
 ```
 
-Sqrt produced normality.
+Log produced normality.
 
 Run linear mixed effects model 
 ```{r}
-sym.model <- lmer(sqrt ~ Year * Phenotype + (1|ColonyID), data = sym_data_pcomp)
+sym.model <- lme4::lmer(log ~ Year * Phenotype + (1|ColonyID), data = sym_data_pcomp)
 car::Anova(sym.model, type = 3)
 
 # Model normality 
@@ -441,181 +650,6 @@ ggplot(sym_data_pcomp, aes(x = Year, y = cells_cm2_M, color = Phenotype, group =
 ```
 
 Year is significant. 
-
-## AFDW
-
-STILL NEED TO DO OCT 2025 
-
-### Process 2023 and 2025 data 
-
-Read in AFDW data
-```{r}
-afdw <- read.csv("../data/Physiology/AFDW.csv")
-afdw$ColonyID <- as.character(afdw$ColonyID)
-```
-
-Merge with surface area data (read in above) and caculate biomass in mg/ml
-```{r}
-homogenate_volume <- 50
-
-afdw <- afdw %>%
-  left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
-  mutate(dry_mass_g_mL = Dry_mass_g * homogenate_volume, # Standardize dry mass to homogenate volume
-         burnt_mass_g_mL = Burnt_mass_g * homogenate_volume, # Standardize burnt mass to homogenate volume
-          dry_biomass_g = dry_mass_g_mL - Initial_mass_g, # Calculate dry biomass
-          dw_mg_cm2 = (dry_biomass_g*1000)/surface.area.cm2,
-          ash_biomass_g = dry_mass_g_mL - burnt_mass_g_mL,
-          afdw_mg_cm2 = (ash_biomass_g*1000)/surface.area.cm2) %>%
-    mutate(Year = case_match(Timepoint,
-                           "September_2023" ~ "2023", .default = Timepoint)) %>%
-  select(ColonyID, afdw_mg_cm2, Species, Phenotype, Year)
-```
-
-### Bind data w/ historical data 
-
-Select afdw from 2019 and 2021 and format 
-```{r}
-afdw_data_2019 <- data_2019 %>%
-  dplyr::select(Colony_ID, AFDW, Date, Species, Phenotype) %>%
-  dplyr::rename(
-    ColonyID = Colony_ID,
-    afdw_mg_cm2 = AFDW) %>%
-  mutate(ColonyID = as.character(ColonyID)) %>%
-  mutate(Year = case_match(Date,
-    as.Date("2019-10-02") ~ "2019",
-    as.Date("2021-10-08") ~ "2021",
-    .default = as.character(Date))) %>%
-  select(ColonyID, afdw_mg_cm2, Species, Phenotype, Year)
-```
-
-Bind with 2019 and 2021 data 
-```{r}
-afdw_data <- bind_rows(afdw_data_2019, afdw)
-```
-Save as csv
-```{r}
-write.csv(afdw_data, "../output/Physiology/AFDW_all_years.csv")
-```
-
-### MCAP statistics comparing afdw over time and by phenotype 
-
-Subset by Mcap only 
-```{r}
-afdw_data_mcap <- afdw_data %>%
-  filter(Species == "Montipora capitata")
-```
-
-Check for normality
-```{r}
-hist(afdw_data_mcap$afdw_mg_cm2)
-
-# Q-Q Plot
-qqnorm(afdw_data_mcap$afdw_mg_cm2)
-qqline(afdw_data_mcap$afdw_mg_cm2, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(afdw_data_mcap$afdw_mg_cm2)
-```
-
-Data is not normal. Transform data to achieve normality 
-```{r}
-afdw_data_mcap$log <- log(afdw_data_mcap$afdw_mg_cm2)
-hist(afdw_data_mcap$log)
-qqnorm(afdw_data_mcap$log)
-qqline(afdw_data_mcap$log, col = "red")
-shapiro.test(afdw_data_mcap$log)
-
-afdw_data_mcap$sqrt <- sqrt(afdw_data_mcap$afdw_mg_cm2)
-hist(afdw_data_mcap$sqrt)
-qqnorm(afdw_data_mcap$sqrt)
-qqline(afdw_data_mcap$sqrt, col = "red")
-shapiro.test(afdw_data_mcap$sqrt)
-```
-
-Log and sqrt produced normality. Proceed with log. 
-
-Run linear mixed effects model 
-```{r}
-afdw.model <- lmer(log ~ Year * Phenotype + (1|ColonyID), data = afdw_data_mcap)
-car::Anova(afdw.model, type = 3)
-
-# Model normality 
-par(mfrow = c(1, 2)) 
-plot(afdw.model, which = 1) 
-lattice::qqmath(afdw.model)
-
-# Post hoc tests 
-emmeans(afdw.model, pairwise ~ Year)
-
-# Check plot to make sure results make sense
-ggplot(afdw_data_mcap, aes(x = Year, y = afdw_mg_cm2, color = Phenotype, group = Phenotype)) +
-  stat_summary(fun = mean, geom = "point") +
-  stat_summary(fun = mean, geom = "line") +
-  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
-  facet_wrap(~Species) +
-  theme_classic()
-```
-
-Year is significant.
-
-### PCOMP statistics comparing afdw over time and by phenotype 
-
-Subset by Pcomp only 
-```{r}
-afdw_data_pcomp <- afdw_data %>%
-  filter(Species == "Porites compressa")
-```
-
-Check for normality
-```{r}
-hist(afdw_data_pcomp$afdw_mg_cm2)
-
-# Q-Q Plot
-qqnorm(afdw_data_pcomp$afdw_mg_cm2)
-qqline(afdw_data_pcomp$afdw_mg_cm2, col = "red")
-
-# Shapiro-Wilk Test
-shapiro.test(afdw_data_pcomp$afdw_mg_cm2)
-```
-
-Data is not normal. Transform data to achieve normality 
-```{r}
-afdw_data_pcomp$log <- log(afdw_data_pcomp$afdw_mg_cm2)
-hist(afdw_data_pcomp$log)
-qqnorm(afdw_data_pcomp$log)
-qqline(afdw_data_pcomp$log, col = "red")
-shapiro.test(afdw_data_pcomp$log)
-
-afdw_data_pcomp$sqrt <- sqrt(afdw_data_pcomp$afdw_mg_cm2)
-hist(afdw_data_pcomp$sqrt)
-qqnorm(afdw_data_pcomp$sqrt)
-qqline(afdw_data_pcomp$sqrt, col = "red")
-shapiro.test(afdw_data_pcomp$sqrt)
-```
-
-Log and sqrt produced normality. Proceed with sqrt 
-
-Run linear mixed effects model 
-```{r}
-afdw.model <- lmer(sqrt ~ Year * Phenotype + (1|ColonyID), data = afdw_data_pcomp)
-car::Anova(afdw.model, type = 3)
-
-# Model normality 
-par(mfrow = c(1, 2)) 
-plot(afdw.model, which = 1) 
-lattice::qqmath(afdw.model)
-
-# Post hoc tests 
-emmeans(afdw.model, pairwise ~ Year)
-
-# Check plot to make sure results make sense
-ggplot(afdw_data_pcomp, aes(x = Year, y = afdw_mg_cm2, color = Phenotype, group = Phenotype)) +
-  stat_summary(fun = mean, geom = "point") +
-  stat_summary(fun = mean, geom = "line") +
-  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
-  facet_wrap(~Species) +
-  theme_classic()
-```
 
 ## Color score 
 
@@ -657,6 +691,16 @@ color_quant <- color_quant %>%
   #dplyr::select(Colony.ID, inverted_color, Species, Phenotype, Year)
 ```
 
+```{r}
+ggplot(color_quant, aes(x = Year, y = inverted_color, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
+
+
 Save as csv
 ```{r}
 write.csv(color_quant, "../output/Physiology/color_score_all_years.csv")
@@ -686,7 +730,7 @@ Data is normal.
 
 Run linear mixed effects model 
 ```{r}
-color.model <- lmer(inverted_color ~ Year * Phenotype + (1|Colony.ID), data = color_data_mcap)
+color.model <- lme4::lmer(inverted_color ~ Year * Phenotype + (1|Colony.ID), data = color_data_mcap)
 car::Anova(color.model, type = 3)
 
 # Model normality 
@@ -732,7 +776,7 @@ Data is normal.
 
 Run linear mixed effects model 
 ```{r}
-color.model <- lmer(inverted_color ~ Year * Phenotype + (1|Colony.ID), data = color_data_pcomp)
+color.model <- lme4::lmer(inverted_color ~ Year * Phenotype + (1|Colony.ID), data = color_data_pcomp)
 car::Anova(color.model, type = 3)
 
 # Model normality 
@@ -745,6 +789,82 @@ emmeans(color.model, pairwise ~ Year)
 
 # Check plot to make sure results make sense
 ggplot(color_data_pcomp, aes(x = Year, y = inverted_color, color = Phenotype, group = Phenotype)) +
+  stat_summary(fun = mean, geom = "point") +
+  stat_summary(fun = mean, geom = "line") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
+  facet_wrap(~Species) +
+  theme_classic()
+```
+
+## Colony level bleaching -- will not include in paper 
+
+Read in data 
+```{r}
+# Data from CAREER 
+bleach <- read.csv("../data/Physiology/Colony-level_bleaching_severity.csv")
+
+# Old data (2015-2022)
+bleach_old <- read.csv("../data/Physiology/897415_v1_bleaching_and_mortality.csv")
+```
+
+Subset by dates of interest, remove any rows that have no data, and add year col
+```{r}
+# new data 
+bleach_filtered <- bleach %>%
+  filter(Date %in% c("2023-09-13", "2025-10-01"), !is.na(Color.score)) %>%
+  mutate(Year = case_match(Date,
+      "2023-09-13" ~ "2023",
+      "2025-10-01"  ~ "2025")) %>%
+  dplyr::rename(Score = Color.score)
+
+# old data 
+bleach_old_filtered <- bleach_old %>%
+  filter(Date %in% c("2021-10-08", 
+                     #"2019-10-16", 
+                     #"2019-10-02", 
+                     #"2019-10-30",
+                     "2019-09-16"), !is.na(Score)) %>%
+  mutate(Year = case_match(Date,
+      "2021-10-08" ~ "2021",
+      #"2019-10-16"  ~ "2019",
+      #"2019-10-02" ~ "2019",
+      #"2019-10-30" ~ "2019",
+      "2019-09-16" ~ "2019")) %>%
+  mutate(Phenotype = case_match(Bleach,
+      "Bleach" ~ "Susceptible",
+      "Non-bleach"  ~ "Resistant"))
+```
+
+Select specific cols and bind dfs together 
+```{r}
+bleach_old_filtered <- bleach_old_filtered %>%
+  dplyr::select(ColonyID, Species, Phenotype, Year, Score)
+bleach_filtered <- bleach_filtered %>%
+  dplyr::select(ColonyID, Species, Phenotype, Year, Score)
+
+# bind dfs 
+bleach_all <- rbind(bleach_old_filtered, bleach_filtered)
+
+# Remove blank rows
+bleach_all <- bleach_all %>%
+  filter(!is.na(Score),      # Removes NAs
+         Score != "",         # Removes blanks
+         Score != "dead")     # Removes rows marked "dead"
+```
+
+Plot
+```{r}
+summary_data <- bleach_all %>%
+  group_by(Species, Phenotype, Year) %>%
+  dplyr::summarise(
+    N = n(),
+    mean_score = mean(Score, na.rm = TRUE),
+    sd_score = sd(Score, na.rm = TRUE),
+    se_score = sd_score / sqrt(N)
+  ) %>%
+  ungroup()
+
+ggplot(bleach_all, aes(x = Year, y = Score, color = Phenotype, group = Phenotype)) +
   stat_summary(fun = mean, geom = "point") +
   stat_summary(fun = mean, geom = "line") +
   stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
@@ -782,9 +902,9 @@ sig_data <- data.frame(
   trait = rep(c("Pmax", "Sym density", "AFDW", "Color Score"), each = 2),
   Species = rep(c("Montipora capitata", "Porites compressa"), 4),
   sig_label = c(
-    "n.s.", "n.s.", # Pmax
+    "P***, Y*", "Y*, PxY*", # Pmax
     "n.s.", "n.s.", # Sym density
-    "n.s.", "n.s.", # AFDW
+    "Y***", "Y***", # AFDW
     "Y***", "Y***"  # Color Score
   )
 )
@@ -848,6 +968,7 @@ create_panel_plot <- function(data, tr, spp, ylimits, is_bottom_row = FALSE, pan
 }
 
 # 6. Generate and Assemble
+species_list <- c("Montipora capitata", "Porites compressa")
 traits <- c("Pmax", "Sym density", "AFDW", "Color Score")
 tag_list <- c('A','B','C','D','E','F','G','H')
 all_plots <- list()

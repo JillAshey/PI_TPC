@@ -215,7 +215,6 @@ ggsave(plot=p2b_viz, "../output/ITS2/nmds_its2_div.png", h=5, w=6, dpi = 300)
 ```
 
 Conduct a permanova in the vegan package.  
-
 ```{r}
 metadata <- as(sample_data(GP1_rare), "data.frame")
 
@@ -244,10 +243,10 @@ GP1_prune
 
 sample_order<-c("26", "44", "234", "236", "238", "240", "244", "248", "27", "43", "233", "235", "237", "239", "243", "247")
 
-p<-plot_heatmap(GP1_prune, sample.label="parent", low="#66CCFF", high="#000033", na.value="white", taxa.label="DIV", sample.order = sample_order)
-p$scales$scales[[1]]$name <- "Phenotype"
-
-print(p)
+# p<-plot_heatmap(GP1_prune, sample.label="parent", low="#66CCFF", high="#000033", na.value="white", taxa.label="DIV", sample.order = sample_order)
+# p$scales$scales[[1]]$name <- "Phenotype"
+# 
+# print(p)
 
 #ggplot2::ggsave("Mcap2020/Figures/ITS2/div_heatmap.jpg", p, width = 6, height = 6)
 ```
@@ -263,7 +262,7 @@ p3b = plot_ordination(GP1_prune, GP.ordb.filt, type="samples", color="parent"); 
 p3b_viz_filt<-p3b  + 
   geom_point(aes(colour=Phenotype), size=4) + 
   ggtitle("NMDS")+
-  scale_colour_manual(name="Phenotype", values=c("#3b244d", "#f2916b"), labels=phen_names) +
+  scale_colour_manual(name="Phenotype", values=c("#3b244d", "#f2916b")) +
   theme_classic() + 
   theme(
     panel.background=element_blank()
@@ -410,9 +409,10 @@ otu0<-otu0%>%
   filter(...2 %in% keep) %>%
   #rename("sample" = "...2") %>%
   dplyr::select(-1) %>%
-  mutate(across(-...2, as.numeric))
+  mutate(across(-...2, ~as.numeric(as.character(.)))) # Ensure conversion from factors/chars
 
 otu1 <- as.matrix(otu0[, -1])
+class(otu1) <- "numeric"
 rownames(otu1) <- otu0$...2
 otu <- otu_table(otu1, taxa_are_rows = FALSE)
 
@@ -481,7 +481,7 @@ plot_tree(GP1_rare_profile, color="Phenotype", label.tips="taxa_names", ladderiz
 plot_heatmap(GP1_rare_profile, "NMDS", "bray", "Phenotype", low="#66CCFF", high="#000033", na.value="white")
 ```
 
-Plot abundance of each profile across lifestages.  
+Plot abundance of each profile  
 ```{r}
 t<-plot_bar(GP1_rare_profile, fill="its2_type_profile")
 t$data$Sample <- factor(t$data$Sample, levels = sample_order)
@@ -612,6 +612,85 @@ ggsave("../output/ITS2/NMDS_RelativeAbundance.pdf", combined_plot, width = 25, h
 ggsave("../output/ITS2/NMDS_RelativeAbundance.png", combined_plot, width = 25, height = 8, units = "in", dpi = 300)
 ```
 
+Plot relative abundance of ITS2 sequences and profiles. 
+```{r}
+# Melt the phyloseq object to a long-format dataframe
+df_long <- psmelt(GP1_rare)
 
+# Apply the 5% threshold logic per sample
+df_final <- df_long %>%
+  group_by(Sample) %>%
+  mutate(DIV = ifelse(Abundance < 0.05, "Other", DIV)) %>%
+  group_by(Sample, DIV, Phenotype) %>%
+  dplyr::summarise(Abundance = sum(Abundance), .groups = "drop")
 
+# Re-order samples to match your desired resistant/susceptible layout
+df_final$Sample <- factor(df_final$Sample, levels = sample_order)
+
+unique_divs <- unique(df_final$DIV)
+c15_main <- "C15" # Assuming the main sequence is labeled 'C15'
+other_variants <- setdiff(unique_divs, c(c15_main, "Other"))
+blue_palette <- c("#2171b5", "#4292c6", "#6baed6", "#9ecae1", "#c6dbef")
+my_pal_seq <- c(
+  setNames("#2171b5", c15_main),                          # Darkest Blue for C15
+  setNames(blue_palette[2:(length(other_variants)+1)], other_variants), # Lighter blues for others
+  setNames("#D3D3D3", "Other"))
+
+df_final$DIV <- factor(df_final$DIV, levels = c(other_variants, c15_main, "Other"))
+
+# Standardize text size for plots
+text_size_axis_title <- 20
+text_size_axis_text  <- 14
+text_size_legend     <- 16
+text_size_strip      <- 18
+
+t_seq <- ggplot(df_final, aes(x = Sample, y = Abundance, fill = DIV)) +
+  geom_bar(stat = "identity", width = 0.9, color = "black", linewidth = 0.4) + 
+  scale_fill_manual(name = "ITS2 Sequence", values = my_pal_seq) +
+  facet_grid(~Phenotype, scales = "free", space = "free") +
+  scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.05))) +
+  theme_classic() +
+  theme(
+    # Center axis text: hjust = 0.5 for centered, or 1 for angled alignment
+    axis.text.x  = element_text(angle = 45, hjust = 1, size = text_size_axis_text, color = "black"),
+    axis.text.y  = element_text(size = text_size_axis_text, color = "black"),
+    axis.title   = element_text(face = "bold", size = text_size_axis_title),
+    strip.text   = element_text(face = "bold", size = text_size_strip),
+    strip.background = element_blank(),
+    legend.title = element_text(face = "bold", size = text_size_legend),
+    legend.text  = element_text(size = text_size_legend - 2),
+    plot.margin  = margin(10, 10, 2, 10) # Minimal bottom margin to connect A and B
+  ) +
+  ylab("Relative Abundance (%)") +
+  xlab(NULL); t_seq
+
+my_colors_prof <- c("#41AB5D", "#74C476", "#9DBAD5", "#7393B3", "#5D7B93", "#465F73", "#2F4353", "#182733")
+t_prof <- t + 
+  #geom_bar(stat = "identity", width = bar_width_set, color = bar_outline_color, linewidth = bar_line_width) +
+  scale_fill_manual(name = "ITS2 Profile", values = my_colors_prof) +
+  facet_grid(~Phenotype, scales = "free", space = "free") + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)), labels = scales::percent_format(accuracy = 1)) +
+  theme_classic() +
+  theme(
+    axis.text.y   = element_text(size = text_size_axis_text, color = "black"), 
+    axis.text.x   = element_text(size = text_size_axis_text, color = "black", angle = 45, hjust = 1),
+    axis.title    = element_text(size = text_size_axis_title, face = "bold"),
+    strip.text    = element_text(face = "bold", size = text_size_strip),
+    strip.background = element_blank(),
+    legend.title  = element_text(size = text_size_legend, face = "bold"),
+    legend.text   = element_text(size = text_size_legend - 2),
+    plot.margin   = margin(2, 10, 10, 10) # Minimal top margin
+  ) +
+  ylab("Relative Abundance (%)") +
+  xlab("Colony ID"); t_prof
+
+# This stacks them vertically as shown in your reference image
+combined_its2_plot <- (t_seq / t_prof) + 
+  plot_annotation(tag_levels = 'A') & 
+  theme(plot.tag = element_text(face = "bold", size = 24))
+
+# 4. Save the combined figure
+ggsave("../output/ITS2/combined_seq_profile_plot.png", combined_its2_plot, width=16, height=12, dpi=300)
+ggsave("../output/ITS2/combined_seq_profile_plot.pdf", combined_its2_plot, width=16, height=12, dpi=300)
+```
 
