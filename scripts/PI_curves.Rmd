@@ -552,10 +552,8 @@ Filter sample metadata for October 2025
 ```{r}
 oct_2025 <- sample_meta %>%
   filter(grepl("^2025-10", Date))
-oct_2025$Surface_Area_cm2 <- as.numeric(oct_2025$Surface_Area_cm2)
+oct_2025$surface.area.cm2 <- as.numeric(oct_2025$surface.area.cm2)
 ```
-
-NOTE FOR 10/2/25 - will need to set the SA as dummy values of 20 for now until we can do the fraggameter for SA
 
 Merge sample metadata with interval data 
 ```{r}
@@ -571,7 +569,7 @@ Normalize interval data by chamber volume and surface area and save
 all_int <- all_int %>%
   mutate(
     Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
-    Slope_norm = (Slope * Chamber_Volume_L / Surface_Area_cm2) * 60) # units are umol O2 cm-2 h-1
+    Slope_norm = (Slope * Chamber_Volume_L / surface.area.cm2) * 60) 
 write.csv(all_int, "../output/pi_curves/Oct2025/all_interval_summaries_normalized_Oct2025.csv")
 ```
 
@@ -588,6 +586,12 @@ ggplot(all_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
   labs(x = "Light (µmol photons m-2 s-1)", y = "umol O2 cm-2 h-1", color = "Phenotype")
 ```
 
+Something is off with Colony 1. Remove from further analysis 
+```{r}
+all_int <- all_int %>%
+  filter(!Colony_ID == 1)
+```
+
 ### Fit Platt model to determine PI curve metrics 
 
 - Pmax 
@@ -599,8 +603,8 @@ ggplot(all_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
 Nest by colony 
 ```{r}
 pi_nested <- all_int %>%
-  select(Colony_ID, Light_Value, Slope_norm) %>%  # or whatever your P column is
-  rename(I = Light_Value, P = Slope_norm) %>%
+  dplyr::select(Colony_ID, Light_Value, Slope_norm) %>%  # or whatever your P column is
+  dplyr::rename(I = Light_Value, P = Slope_norm) %>%
   group_by(Colony_ID) %>%
   nest()
 ```
@@ -714,7 +718,8 @@ ggplot(all_time_int, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
 Remove Colony 237 from Sept23 and re-plot
 ```{r}
 all_time_int_filt <- all_time_int %>%
-  filter(!(Colony_ID == "237" & Timepoint == "September 2023"))
+  filter(!(Colony_ID == "237" & Timepoint == "September 2023")) %>%
+  filter(!(Colony_ID == "1" & Timepoint == "October 2025"))
 
 ggplot(all_time_int_filt, aes(x = Light_Value, y = Slope_norm, color = Phenotype)) +
   geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
@@ -822,4 +827,11 @@ ggsave("../output/pi_curves/pi_curves_Sept2023_Oct2025.pdf", width = 10, height 
 ggsave("../output/pi_curves/pi_curves_Sept2023_Oct2025.png", width = 10, height = 8, units = "in", dpi = 300)
 ```
 
-Still need correct SA for October 2025 samples 
+Calculate mean Ik, regardless of spp 
+```{r}
+ik_mean <- all_time_pi_metrics %>%
+  group_by(Timepoint) %>%
+  dplyr::summarise(
+    mean_Ik = mean(Ik, na.rm = TRUE),
+    .groups = "drop")
+```

@@ -9,33 +9,93 @@ Checking manual sym count values vs guava counts
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggpubr)
 ```
 
 Read in manual counts
 ```{r}
 sym_manual <- read.csv("../data/Physiology/sym_counts/manual_sym_counts.csv", header = T)
+sym_manual$ColonyID <- as.character(sym_manual$ColonyID)
+```
+
+Read in surface area df, merge with sym counts, and calculate cells/cm2
+```{r}
+surface_area <- read.csv("../data/Surface_Area/Surface_Area_wax_seasonal.csv")
+surface_area$ColonyID <- as.character(surface_area$ColonyID)
+
+# Select specific cols
+surface_area <- surface_area %>%
+  dplyr::select(ColonyID, Species, Phenotype, Timepoint, surface.area.cm2)
 ```
 
 Calculate cells per square cm, normalize count by homogenate vol and surface area 
 ```{r}
-
-blah_fixed <- sym_manual %>%
+sym_manual <- sym_manual %>%
   # Make dilution numeric and treat NA as 1 (undiluted)
   mutate(Dilution = ifelse(is.na(Dilution), 1, Dilution)) %>%
-  dplyr::select(Colony_ID, Timepoint, Squares.Counted, Dilution, matches("Count[0-9]")) %>%
+  dplyr::select(ColonyID, Timepoint, Squares.Counted, Dilution, matches("Count[0-9]")) %>%
   # Pivot counts to calculate the mean across replicates
   pivot_longer(cols = starts_with("Count"), names_to = "rep", values_to = "val") %>%
-  group_by(Colony_ID, Timepoint, Squares.Counted, Dilution) %>%
+  group_by(ColonyID, Timepoint, Squares.Counted, Dilution) %>%
   dplyr::summarise(mean_val = mean(val, na.rm = TRUE), .groups = "drop") %>%
-  # Apply the hemocytometer formula
+  left_join(surface_area, by = c("ColonyID", "Timepoint"))%>%
   mutate(
     # (Cells / Squares) * 10,000 * Dilution
     cells.mL = (mean_val / Squares.Counted) * 10000 * Dilution,
     # Total cells in the 10mL resuspension
     cells = cells.mL * 10, 
-    cells.cm2 = cells / 15,
-    cells.cm2.M = cells.cm2 / 1e6
-  )
+    cells.cm2 = cells / surface.area.cm2,
+    cells.cm2.M = cells.cm2 / 1e6,
+    method = "Manual") %>%
+  dplyr::select(ColonyID, cells.cm2.M, method) %>%
+  dplyr::rename(cells.cm2.M_manual = cells.cm2.M)
+
+# Remove unneeded rows 
+#sym_manual <- sym_manual[-c(1, 11),]
 ```
 
+Read in guava data
+```{r}
+guava <- read.csv("../output/Physiology/sym_density_all_years.csv")
+guava$ColonyID <- as.character(guava$ColonyID)
+```
+
+Filter by 2025 data, select specific cols and rename 
+```{r}
+guava_2025 <- guava %>%
+  filter(Year == "2025") %>%
+  dplyr::rename(cells.cm2.M_guava = cells_cm2_M) %>%
+  mutate(method = "Guava") %>%
+  dplyr::select(ColonyID, cells.cm2.M_guava, method)
+
+# Remove unneeded rows 
+guava_2025 <- guava_2025[-c(16, 3, 42),]
+```
+
+Merge the two dfs 
+```{r}
+comparison_df <- inner_join(guava_2025, sym_manual, by = "ColonyID")
+```
+
+Plot
+```{r}
+ggplot(comparison_df, aes(x = cells.cm2.M_manual, y = cells.cm2.M_guava)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "blue", se = TRUE) +
+  #geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  #stat_cor(aes(label = ..rr.label..), label.x = 1, label.y = 2.5) + # Adds R2
+  labs(
+    title = "Method Comparison: Guava vs. Manual Counts",
+    x = "Manual Count (cells/cm2 M)",
+    y = "Guava Count (cells/cm2 M)"
+  ) +
+  theme_minimal()
+```
+
+Run a simple correlation
+```{r}
+cor.test(comparison_df$cells.cm2.M_manual, comparison_df$cells.cm2.M_guava)
+```
 
