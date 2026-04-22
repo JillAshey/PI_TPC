@@ -78,7 +78,8 @@ Load wax data and calculate change in weight
 ```{r}
 wax_data <- read.csv("../data/Surface_Area/wax_surface_area.csv")
 wax_data <- wax_data %>%
-  mutate(delta.mass.g = With_wax_weight_g - Without_wax_weight_g)
+  mutate(delta.mass.g = With_wax_weight_g - Without_wax_weight_g) %>%
+  filter(Timepoint %in% c("September_2023", "October_2025"))
 ```
 
 Subset standards and calculate the surface area 
@@ -120,7 +121,15 @@ mean(wax_data_samp$surface.area.cm2, na.rm = T)
 Keep only colony and surface area info
 ```{r}
 wax_data_samp <- wax_data_samp %>%
-  dplyr::select(ColonyID, Species, Phenotype, Timepoint, Without_wax_weight_g, With_wax_weight_g, delta.mass.g, surface.area.cm2)
+  dplyr::select(ColonyID, Species, Phenotype, Timepoint, surface.area.cm2)
+```
+
+Read in 2019 and 2021 surface area data and bind 
+```{r}
+old_sa <- read.csv("../data/Surface_Area/wax_surface_area_2019_2021.csv")
+
+# Bind dfs 
+wax_data_samp <- rbind(wax_data_samp, old_sa)
 ```
 
 Save as csv 

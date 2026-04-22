@@ -429,7 +429,7 @@ Remove samples marked "Do not use" and only keep Sept 2023 and Oct 2025 time poi
 ```{r}
 sym_counts <- sym_counts %>%
   filter(is.na(Use) | Use == "") %>%
-  filter(Timepoint %in% c("September_2023", "October_2025", "October_2019"))
+  filter(Timepoint %in% c("September_2023", "October_2025", "October_2019", "October_2021"))
 ```
 
 Calculate mean counts per sample and number of cells per sample 
@@ -437,11 +437,13 @@ Calculate mean counts per sample and number of cells per sample
 sym_counts_avg <- sym_counts %>%
   dplyr::group_by(Date, Run, Dilution, Timepoint, Pellet_Resuspend_Vol_mL, ColonyID) %>%
   dplyr::summarise(mean_cells_mL = mean(CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL., na.rm = T))%>%
-#percent_pos = mean(CHLOROPHYLL.POS.Percent.Percent.for.CHLOROPHYLL.POS....., na.rm = TRUE)%>%
-  mutate(aliquot_ml = if_else(Timepoint == "October_2019", 0.3, 1.0),
-         cells = (mean_cells_mL * Dilution) * 0.9 * (10 / aliquot_ml),
-         ColonyID = as.character(ColonyID)) %>%
+  mutate(cells = mean_cells_mL * Dilution * Pellet_Resuspend_Vol_mL) %>%
+  # mutate(aliquot_ml = if_else(Timepoint == "October_2019", 0.3, 1.0),
+  #        cells = (mean_cells_mL * Dilution) * 0.9 * (10 / aliquot_ml),
+  #        ColonyID = as.character(ColonyID)) %>%
   ungroup()
+
+sym_counts_avg$ColonyID <- as.character(sym_counts_avg$ColonyID)
 ```
 
 Read in surface area df, merge with sym counts, and calculate cells/cm2
@@ -451,14 +453,14 @@ surface_area$ColonyID <- as.character(surface_area$ColonyID)
 
 sym_counts_avg <- sym_counts_avg %>%
   left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
-  mutate(cells_cm2 = cells/surface.area.cm2,
-          cells_cm2_M = cells_cm2 / 1e6) %>%
+  mutate(cells_cm2_M = (cells/surface.area.cm2) / 1e6) %>%
   mutate(Year = case_match(Timepoint,
                            "October_2019" ~ "2019",
+                           "October_2021" ~ "2021",
                            "September_2023" ~ "2023",
                            "October_2025" ~ "2025",
                            .default = Timepoint)) %>%
-  select(ColonyID, cells_cm2_M, Species, Phenotype, Year)
+  select(ColonyID, cells, cells_cm2_M, Species, Phenotype, Year)
 
 ggplot(sym_counts_avg, aes(x = Year, y = cells_cm2_M, color = Phenotype, group = interaction(Species, Phenotype))) +
   stat_summary(fun = mean, geom = "point") +
@@ -492,7 +494,7 @@ sym_manual_calc <- sym_manual %>%
     cells.cm2 = cells / surface.area.cm2,
     cells_cm2_M = cells.cm2 / 1e6,
     Year = "2025") %>%
-  dplyr::select(ColonyID, cells_cm2_M, Species, Phenotype, Year)
+  dplyr::select(ColonyID, cells, cells_cm2_M, Species, Phenotype, Year)
 ```
 
 The following October 2025 samples need to be removed from the `sym_counts_avg` guava counts, as we will be using the hemocytometer counts for them: 202, 244, 2, 41, 240, 248, 239, 28, 225, 209, 236, 20, 243, 235, 205, 3, 237, 206, 204, 1, 247.
@@ -528,7 +530,7 @@ afdw$Year <- as.character(afdw$Year)
 sym_afdw <- sym_data %>%
   left_join(afdw, by = c("ColonyID", "Year")) %>%
   mutate(
-    sym_per_mg = (cells_cm2_M) / afdw_mg_cm2)
+    sym_per_mg = cells / afdw_mg_cm2)
 
 ggplot(sym_afdw, aes(x = Year, y = sym_per_mg, color = Phenotype.x, group = interaction(Species.x, Phenotype.x))) +
   stat_summary(fun = mean, geom = "point") +
@@ -731,7 +733,10 @@ sym_data_2019 <- data_2019 %>%
 
 Bind with 2019 and 2021 data 
 ```{r}
-sym_data <- bind_rows(sym_data_2019, sym_data)
+sym_data_sub <- sym_data %>%
+  filter()
+
+sym_data_blah <- bind_rows(sym_data_2019, sym_data)
 
 ggplot(sym_data, aes(x = Year, y = cells_cm2_M, color = Phenotype, group = interaction(Species, Phenotype))) +
   stat_summary(fun = mean, geom = "point") +
