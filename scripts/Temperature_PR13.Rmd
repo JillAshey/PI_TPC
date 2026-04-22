@@ -1032,9 +1032,11 @@ temp_2019 <- read.table("../data/environmental/mokh1h2019.txt", sep = "", skip =
 colnames(temp_2019) <- c("year", "month", "day", "hour", "Temperature")
 temp_2021 <- read.table("../data/environmental/mokh1h2021.txt", sep = "", skip = 0, header = F, na.strings = "NA")[,c(1:4, 15)]
 colnames(temp_2021) <- c("year", "month", "day", "hour", "Temperature")
+temp_2025 <- read.table("../data/environmental/mokh1h2025.txt", sep = "", skip = 0, header = F, na.strings = "NA")[,c(1:4, 15)]
+colnames(temp_2025) <- c("year", "month", "day", "hour", "Temperature")
 
 # Bind data together and subset for temps between March - October 
-mokh_temps <- bind_rows(temp_2019, temp_2021) %>%
+mokh_temps <- bind_rows(temp_2019, temp_2021, temp_2025) %>%
   replace_with_na(replace = list(Temperature = c("MM", "9   9.", ".0 999", "999", "0 999."))) %>%
   filter(month >= 3 & month <= 10)
 ```
