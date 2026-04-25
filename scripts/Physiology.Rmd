@@ -361,7 +361,7 @@ ggplot(afdw_data_pcomp, aes(x = Year, y = afdw_mg_cm2, color = Phenotype, group 
 
 ## Symbiont density 
 
-### Process 2023 and 2025 data 
+### Process data (al years) 
 
 Read in metadata 
 ```{r}
@@ -425,7 +425,7 @@ Merge raw data and metadata
 sym_counts <- left_join(meta_sym, combined_df, by = c("Date", "Run", "Well"))
 ```
 
-Remove samples marked "Do not use" and only keep Sept 2023 and Oct 2025 time points
+Remove samples marked "Do not use" and only keep Oct 2019, Oct 2021, Sept 2023 and Oct 2025 time points
 ```{r}
 sym_counts <- sym_counts %>%
   filter(is.na(Use) | Use == "") %>%
@@ -436,12 +436,17 @@ Calculate mean counts per sample and number of cells per sample
 ```{r}
 sym_counts_avg <- sym_counts %>%
   dplyr::group_by(Date, Run, Dilution, Timepoint, Pellet_Resuspend_Vol_mL, ColonyID) %>%
-  dplyr::summarise(mean_cells_mL = mean(CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL., na.rm = T))%>%
-  mutate(cells = mean_cells_mL * Dilution * Pellet_Resuspend_Vol_mL) %>%
-  # mutate(aliquot_ml = if_else(Timepoint == "October_2019", 0.3, 1.0),
-  #        cells = (mean_cells_mL * Dilution) * 0.9 * (10 / aliquot_ml),
-  #        ColonyID = as.character(ColonyID)) %>%
-  ungroup()
+  dplyr::summarise(
+    mean_cells_mL = mean(CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL., na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # Define how much was taken from the 10mL based on the Year/Date
+    subsample_vol = if_else(Timepoint == "October_2019", 0.3, 1.0),
+    sds_resuspend_vol = 0.9) %>%
+  mutate(
+    cells_in_sds_tube = mean_cells_mL * Dilution * sds_resuspend_vol, # cells in tube when resuspended in SDS 
+    cells = (cells_in_sds_tube / subsample_vol) * Pellet_Resuspend_Vol_mL) # cells in total 10mL
 
 sym_counts_avg$ColonyID <- as.character(sym_counts_avg$ColonyID)
 ```
@@ -530,219 +535,14 @@ afdw$Year <- as.character(afdw$Year)
 sym_afdw <- sym_data %>%
   left_join(afdw, by = c("ColonyID", "Year")) %>%
   mutate(
-    sym_per_mg = cells / afdw_mg_cm2)
+    sym_per_mg = cells / afdw_mg_cm2,
+    sym_per_mg_M = sym_per_mg / 1e6)
 
 ggplot(sym_afdw, aes(x = Year, y = sym_per_mg, color = Phenotype.x, group = interaction(Species.x, Phenotype.x))) +
   stat_summary(fun = mean, geom = "point") +
   stat_summary(fun = mean, geom = "line") +
   stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
   facet_wrap(~Species.x) +
-  theme_classic()
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-trying to figure out calculations below
-```{r}
-# Create a cleaning function or mutate step
-sym_counts_clean <- sym_counts %>%
-  mutate(
-    # 1. Total volume of the original homogenate
-    Master_Vol = 10, 
-    
-    # 2. The volume the 1mL aliquot was resuspended in (900uL = 0.9mL)
-    Resus_Vol_SDS = 0.9,
-    
-    # 3. Fix the Dilution column 
-    # If "3" means a 3x dilution and "9" means 9x, keep as is.
-    # If the labels mean something else, adjust here.
-    Final_Dilution_Factor = Dilution 
-  )
-
-sym_counts$ColonyID <- as.character(sym_counts$ColonyID)
-sym_counts_final <- sym_counts_clean %>%
-    left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
-  mutate(
-    # The actual calculation
-    total_cells = CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL. * Final_Dilution_Factor * Resus_Vol_SDS * (Master_Vol / 1),
-    cells_cm2 = total_cells/surface.area.cm2,
-    cells_cm2_M = cells_cm2 / 1e6) %>%
-  mutate(Year = case_match(Timepoint,
-                           "October_2019" ~ "2019",
-                           "September_2023" ~ "2023",
-                           "October_2025" ~ "2025",
-                           .default = Timepoint))
-  
-
-
-
-sym_counts_final_correction <- sym_counts_clean %>%
-
-    mutate(
-    # Create a Year-specific correction factor
-    # Based on your previous ratio check, we suspect a factor of ~5 is missing from 2019
-    Correction_Factor = ifelse(Timepoint == "October_2019", 5, 1),
-    
-    # Updated calculation including the correction
-    total_cells = CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL. * Final_Dilution_Factor * Resus_Vol_SDS * (Master_Vol / 1) * Correction_Factor,
-    
-    cells_cm2 = total_cells / surface.area.cm2,
-    cells_cm2_M = cells_cm2 / 1e6
-  )%>%
-  mutate(Year = case_match(Timepoint,
-                           "October_2019" ~ "2019",
-                           "September_2023" ~ "2023",
-                           "October_2025" ~ "2025",
-                           .default = Timepoint))
-
-
-sym_counts_final <- sym_counts %>%
-    left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
-  mutate(
-    # Step 1: Convert Lab Labels to Math Multipliers
-    Actual_Dilution = case_when(
-      Dilution == 3 ~ 1, # Tube labeled '3' has a multiplier of 1
-      Dilution == 9 ~ 3, # Tube labeled '9' has a multiplier of 3
-      TRUE ~ Dilution    # Fallback for any other values
-    ),
-    
-    # Step 2: The Full Volume Calculation
-    # We use 0.9 because that's the SDS volume (900uL)
-    # We use 10 because that's the total PBS volume (10mL)
-    # We divide by 1 because that was the aliquot size (1mL)
-    total_cells = CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL. * Actual_Dilution * 0.9 * (10 / 1),
-    
-    # Step 3: Normalize to Surface Area and Million Cells
-    cells_cm2_M = (total_cells / surface.area.cm2) / 1e6
-  )%>%
-  mutate(Year = case_match(Timepoint,
-                           "October_2019" ~ "2019",
-                           "September_2023" ~ "2023",
-                           "October_2025" ~ "2025",
-                           .default = Timepoint))
-
-
-
-sym_counts_avg <- sym_counts %>%
-  mutate(
-    # Use the 'Dilution' column exactly as it is written in the DF. 
-    # It represents the cumulative dilution factor (3x or 9x).
-    cells = Dilution * Pellet_Resuspend_Vol_mL * CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL.
-  ) %>%
-  left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
-  mutate(
-    cells_cm2_M = (cells / surface.area.cm2) / 1e6
-  )%>%
-  mutate(Year = case_match(Timepoint,
-                           "October_2019" ~ "2019",
-                           "September_2023" ~ "2023",
-                           "October_2025" ~ "2025",
-                           .default = Timepoint))
-
-
-
-sym_counts_final <- sym_counts %>%
-    left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
-  mutate(
-    # Use the Dilution as is (3 or 9)
-    # Use 0.9 for the SDS resuspension volume
-    # Use 10 for the total PBS volume
-    
-    # ADD THIS: A conditional multiplier to align 2019 with published means
-    Scaling_Factor = ifelse(Timepoint == "October_2019" | Timepoint == "October_2021", 5, 1)
-  ) %>%
-  mutate(
-    total_cells = CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL. * Dilution * 0.9 * 10 * Scaling_Factor,
-    
-    cells_cm2_M = (total_cells / surface.area.cm2) / 1e6
-  )
-
-
-
-sym_counts_avg <- sym_counts %>%
-  mutate(Year = case_match(Timepoint,
-                           "October_2019" ~ "2019",
-                           "September_2023" ~ "2023",
-                           "October_2025" ~ "2025",
-                           .default = Timepoint)) %>%
-  left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
-mutate(
-    # Step 1: Define the aliquot volume used for that year's protocol
-    aliquot_ml = case_match(Year,
-                            "2019" ~ 0.3,
-                            "2021" ~ 1.0,
-                            "2023" ~ 1.0,
-                            "2025" ~ 1.0,
-                            .default = 1.0),
-    
-    # Step 2: Calculate total cells for the whole fragment
-    # We multiply by 0.9 because the aliquot was resuspended in 900uL SDS
-    total_cells = (CHLOROPHYLL.POS.Concentration.Concentration.for.CHLOROPHYLL.POS...cells.mL. * Dilution) * (10 / aliquot_ml),
-    
-    # Step 3: Standardize by surface area
-    cells_cm2_M = (total_cells / surface.area.cm2) / 1e6
-  )
-
-
-
-
-ggplot(sym_counts_avg, aes(x = Year, y = cells_cm2_M, color = Phenotype, group = interaction(Species, Phenotype))) +
-  stat_summary(fun = mean, geom = "point") +
-  stat_summary(fun = mean, geom = "line") +
-  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
-  facet_wrap(~Species) +
-  theme_classic()
-```
-
-I DONT KNOW WHAT TO DO WITH THIS DATA 
-
-
-
-
-
-### Bind data w/ historical data 
-
-Select sym densities from 2019 and 2021 and format
-```{r}
-sym_data_2019 <- data_2019 %>%
-  dplyr::select(Colony_ID, Sym_density, Date, Species, Phenotype) %>%
-  dplyr::rename(
-    ColonyID = Colony_ID,
-    cells_cm2_M = Sym_density) %>%
-  mutate(ColonyID = as.character(ColonyID)) %>%
-  mutate(Year = case_match(Date,
-    as.Date("2019-10-02") ~ "2019",
-    as.Date("2021-10-08") ~ "2021",
-    .default = as.character(Date))) %>%
-  select(ColonyID, cells_cm2_M, Species, Phenotype, Year)
-```
-
-Bind with 2019 and 2021 data 
-```{r}
-sym_data_sub <- sym_data %>%
-  filter()
-
-sym_data_blah <- bind_rows(sym_data_2019, sym_data)
-
-ggplot(sym_data, aes(x = Year, y = cells_cm2_M, color = Phenotype, group = interaction(Species, Phenotype))) +
-  stat_summary(fun = mean, geom = "point") +
-  stat_summary(fun = mean, geom = "line") +
-  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.1) +
-  facet_wrap(~Species) +
   theme_classic()
 ```
 
@@ -848,11 +648,11 @@ qqline(sym_data_pcomp$sqrt, col = "red")
 shapiro.test(sym_data_pcomp$sqrt)
 ```
 
-Log produced normality.
+Sqrt produced normality.
 
 Run linear mixed effects model 
 ```{r}
-sym.model <- lme4::lmer(log ~ Year * Phenotype + (1|ColonyID), data = sym_data_pcomp)
+sym.model <- lme4::lmer(sqrt ~ Year * Phenotype + (1|ColonyID), data = sym_data_pcomp)
 car::Anova(sym.model, type = 3)
 
 # Model normality 
@@ -1126,7 +926,7 @@ sig_data <- data.frame(
   Species = rep(c("Montipora capitata", "Porites compressa"), 4),
   sig_label = c(
     "P***, Y*", "Y*, PxY*", # Pmax
-    "n.s.", "n.s.", # Sym density
+    "P***, Y***", "Y***", # Sym density
     "Y***", "Y***", # AFDW
     "Y***", "Y***"  # Color Score
   )
