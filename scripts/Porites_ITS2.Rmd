@@ -364,9 +364,9 @@ alpha_rare$sample<-rownames(alpha_rare)
 
 alpha_rare<-full_join(metadata, alpha_rare, by="sample")
 
-summary(aov(Shannon~Phenotype, data=alpha_rare))
-summary(aov(InvSimpson~Phenotype, data=alpha_rare))
-summary(aov(Chao1~Phenotype, data=alpha_rare))
+# summary(aov(Shannon~Phenotype, data=alpha_rare))
+# summary(aov(InvSimpson~Phenotype, data=alpha_rare))
+# summary(aov(Chao1~Phenotype, data=alpha_rare))
 ```
 
 No differences in alpha diversity 
@@ -485,6 +485,12 @@ Plot abundance of each profile
 ```{r}
 t<-plot_bar(GP1_rare_profile, fill="its2_type_profile")
 t$data$Sample <- factor(t$data$Sample, levels = sample_order)
+t$data <- t$data %>%
+  mutate(Phenotype = case_when(
+    Phenotype == "Resistant" ~ "Resistant *Porites compressa*",
+    Phenotype == "Susceptible" ~ "Susceptible *Porites compressa*",
+    TRUE ~ Phenotype
+  ))
 
 # Define custom colors
 # C1: Oranges/Yellows | C15: Deep Reds/Maroons
@@ -510,7 +516,8 @@ t_plot <- t +
     # Angle x-axis text
     axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
     # Color the facet headers
-    strip.text = element_text(face = "bold", size = 12),
+    #strip.text = element_text(face = "bold", size = 12),
+    strip.text = element_markdown(face = "bold", size = text_size_strip),
     # Note: strip.text colors are usually uniform; 
     # to color them individually, we target the strip background or use ggh4x
     strip.background = element_blank() 
@@ -622,7 +629,12 @@ df_final <- df_long %>%
   group_by(Sample) %>%
   mutate(DIV = ifelse(Abundance < 0.05, "Other", DIV)) %>%
   group_by(Sample, DIV, Phenotype) %>%
-  dplyr::summarise(Abundance = sum(Abundance), .groups = "drop")
+  dplyr::summarise(Abundance = sum(Abundance), .groups = "drop") %>%
+  mutate(Phenotype = case_when(
+    Phenotype == "Resistant" ~ "Resistant *Porites compressa*",
+    Phenotype == "Susceptible" ~ "Susceptible *Porites compressa*",
+    TRUE ~ Phenotype
+  ))
 
 # Re-order samples to match your desired resistant/susceptible layout
 df_final$Sample <- factor(df_final$Sample, levels = sample_order)
@@ -655,7 +667,8 @@ t_seq <- ggplot(df_final, aes(x = Sample, y = Abundance, fill = DIV)) +
     axis.text.x  = element_text(angle = 45, hjust = 1, size = text_size_axis_text, color = "black"),
     axis.text.y  = element_text(size = text_size_axis_text, color = "black"),
     axis.title   = element_text(face = "bold", size = text_size_axis_title),
-    strip.text   = element_text(face = "bold", size = text_size_strip),
+    #strip.text   = element_text(face = "bold", size = text_size_strip),
+    strip.text = element_markdown(face = "bold", size = text_size_strip),
     strip.background = element_blank(),
     legend.title = element_text(face = "bold", size = text_size_legend),
     legend.text  = element_text(size = text_size_legend - 2),
@@ -675,7 +688,8 @@ t_prof <- t +
     axis.text.y   = element_text(size = text_size_axis_text, color = "black"), 
     axis.text.x   = element_text(size = text_size_axis_text, color = "black", angle = 45, hjust = 1),
     axis.title    = element_text(size = text_size_axis_title, face = "bold"),
-    strip.text    = element_text(face = "bold", size = text_size_strip),
+    #strip.text    = element_text(face = "bold", size = text_size_strip),
+    strip.text = element_markdown(face = "bold", size = text_size_strip),
     strip.background = element_blank(),
     legend.title  = element_text(size = text_size_legend, face = "bold"),
     legend.text   = element_text(size = text_size_legend - 2),
@@ -684,10 +698,14 @@ t_prof <- t +
   ylab("Relative Abundance (%)") +
   xlab("Colony ID"); t_prof
 
-# This stacks them vertically as shown in your reference image
+# This stacks them vertically 
 combined_its2_plot <- (t_seq / t_prof) + 
+  plot_layout(heights = c(3, 1)) + # Panel A is 3 parts, Panel B is 1 part
   plot_annotation(tag_levels = 'A') & 
-  theme(plot.tag = element_text(face = "bold", size = 24))
+  theme(
+    plot.tag = element_text(face = "bold", size = 24),
+    # Ensure all strip text is rendered as markdown across the whole combined plot
+    strip.text = element_markdown(face = "bold", size = text_size_strip))
 
 # 4. Save the combined figure
 ggsave("../output/ITS2/combined_seq_profile_plot.png", combined_its2_plot, width=16, height=12, dpi=300)
