@@ -1181,7 +1181,7 @@ ridge_freq <- ggplot(subset_cleaned, aes(x = Temperature, y = as.factor(year),
             aes(x = 21.5, y = year, label = dhw_text, color = year), 
             inherit.aes = FALSE,
             hjust = 0, 
-            vjust = -1.6, # Adjust this to move text up/down relative to the ridge
+            vjust = -3, # Adjust this to move text up/down relative to the ridge
             size = 7, 
             fontface = "bold") +
   # Manual colors: Gray for normal, Light Red for warning, Dark Red for stress

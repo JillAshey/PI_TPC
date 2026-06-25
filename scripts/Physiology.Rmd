@@ -26,6 +26,21 @@ Run this before running any ANOVAs
 options(contrasts = c("contr.sum", "contr.poly"))
 ```
 
+Read in surface area data for 2023 and 2025 data 
+```{r}
+surface_area <- read.csv("../data/Surface_Area/Surface_Area_wax_seasonal.csv")
+surface_area$ColonyID <- as.character(surface_area$ColonyID)
+```
+
+Make sure that 26 and 28 are RESISTANT and 27 and 29 are SUSCEPTIBLE.
+```{r}
+surface_area <- surface_area %>%
+  mutate(Phenotype = case_when(
+    ColonyID %in% c(26, 28) ~ "Resistant",
+    ColonyID %in% c(27, 29) ~ "Susceptible",
+    TRUE ~ Phenotype))
+```
+
 ## Read in 2019 and 2021 data 
 ```{r}
 data_2019 <- read_csv("../data/Physiology/904962_v1_coral_physiology.csv")
@@ -41,6 +56,15 @@ data_2019 <- data_2019 %>%
                              "Bleach" ~ "Susceptible", 
                              "Non-bleach" ~ "Resistant",
                              .default = Phenotype))
+```
+
+Make sure that 26 and 28 are RESISTANT and 27 and 29 are SUSCEPTIBLE.
+```{r}
+data_2019 <- data_2019 %>%
+  mutate(Phenotype = case_when(
+    Colony_ID %in% c(26, 28) ~ "Resistant",
+    Colony_ID %in% c(27, 29) ~ "Susceptible",
+    TRUE ~ Phenotype))
 ```
 
 ## Pmax 
@@ -183,7 +207,7 @@ ggplot(pi_data_pcomp, aes(x = Year, y = Pmax, color = Phenotype, group = Phenoty
   theme_classic()
 ```
 
-Year, Phenotype, and Year x Phenotype are significant. 
+Year and Year x Phenotype are significant. 
 
 ## AFDW
 
@@ -335,7 +359,7 @@ qqline(afdw_data_pcomp$sqrt, col = "red")
 shapiro.test(afdw_data_pcomp$sqrt)
 ```
 
-Log and sqrt produced normality. Proceed with sqrt 
+Log and sqrt produced normality. Proceed with log 
 
 Run linear mixed effects model 
 ```{r}
@@ -451,11 +475,8 @@ sym_counts_avg <- sym_counts %>%
 sym_counts_avg$ColonyID <- as.character(sym_counts_avg$ColonyID)
 ```
 
-Read in surface area df, merge with sym counts, and calculate cells/cm2
+Merge surface area with sym counts, and calculate cells/cm2
 ```{r}
-surface_area <- read.csv("../data/Surface_Area/Surface_Area_wax_seasonal.csv")
-surface_area$ColonyID <- as.character(surface_area$ColonyID)
-
 sym_counts_avg <- sym_counts_avg %>%
   left_join(surface_area, by = c("ColonyID", "Timepoint")) %>%
   mutate(cells_cm2_M = (cells/surface.area.cm2) / 1e6) %>%
@@ -681,6 +702,15 @@ Read in data
 color <- read.csv("../data/Physiology/color_score.csv")
 ```
 
+Make sure that 26 and 28 are RESISTANT and 27 and 29 are SUSCEPTIBLE.
+```{r}
+color <- color %>%
+  mutate(Phenotype = case_when(
+    Colony.ID %in% c(26, 28) ~ "Resistant",
+    Colony.ID %in% c(27, 29) ~ "Susceptible",
+    TRUE ~ Phenotype))
+```
+
 Subset by dates of interest, remove any rows that have no data, and add year column
 ```{r}
 color_filtered <- color %>%
@@ -809,6 +839,7 @@ lattice::qqmath(color.model)
 
 # Post hoc tests 
 emmeans(color.model, pairwise ~ Year)
+emmeans(color.model, pairwise ~ Phenotype)
 
 # Check plot to make sure results make sense
 ggplot(color_data_pcomp, aes(x = Year, y = inverted_color, color = Phenotype, group = Phenotype)) +
@@ -928,7 +959,7 @@ sig_data <- data.frame(
     "P***, Y*", "Y*, PxY*", # Pmax
     "P***, Y***", "Y***", # Sym density
     "Y***", "Y***", # AFDW
-    "Y***", "Y***"  # Color Score
+    "Y***", "P*, Y***"  # Color Score
   )
 )
 
