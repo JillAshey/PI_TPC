@@ -63,14 +63,6 @@ Run this before running any ANOVAs
 options(contrasts = c("contr.sum", "contr.poly"))
 ```
 
-Load colony metadata 
-```{r}
-colony <- read.csv("../data/Pairs_metadata.csv")[,1:3]
-
-# Make ColonyID chr
-colony$ColonyID <- as.character(colony$ColonyID)
-```
-
 # Photosynthesis
 ## Sept 2023
 
@@ -87,16 +79,10 @@ run_meta <- read_csv("../data/TPC/TPC_metadata_run.csv") %>%
 Load sample metadata 
 ```{r}
 sample_meta <- read_csv("../data/TPC/TPC_metadata_sample.csv")
-# sample_meta <- sample_meta %>%
-#   rename(ColonyID = Colony_ID)
 
 # Make sure Chamber well # is numeric
 sample_meta <- sample_meta %>%
   mutate(`Chamber` = as.numeric(`Chamber`))
-
-# Join with colony metadata
-sample_meta <- sample_meta %>% 
-  left_join(colony, by = "ColonyID")
 ```
 
 List all raw files for Sept 2023 
@@ -143,6 +129,9 @@ all_data <- map_dfr(files, function(f) {
 
 Look at joined data and save
 ```{r}
+all_data %>% count(is.na(`Colony_ID`))
+all_data %>% count(is.na(Run))
+
 write_csv(all_data, "../output/TPC_Photosynthesis/Sept2023/TPC_all_joined_data_Sept2023.csv")
 ```
 
@@ -150,11 +139,11 @@ write_csv(all_data, "../output/TPC_Photosynthesis/Sept2023/TPC_all_joined_data_S
 
 The interval fitting code will take about an hour to run and is computationally intense. If needed, run as a background job or on a remote server.
 
-Make list of all ColonyID / Run combinations (including blanks)
+Make list of all Colony_ID / Run combinations (including blanks)
 ```{r}
 colony_runs <- all_data %>%
-  filter(!is.na(ColonyID)) %>%
-  distinct(ColonyID, Run)
+  filter(!is.na(Colony_ID)) %>%
+  distinct(Colony_ID, Run)
 ```
 
 For this timepoint, only two out of the five runs had blanks. Therefore, I am going to calculate the blank intervals, average them, and then apply them to the regression for each colony. 
@@ -162,11 +151,11 @@ For this timepoint, only two out of the five runs had blanks. Therefore, I am go
 Calculate interval slopes for the blanks
 ```{r}
 blank_data <- all_data %>%
-  filter(ColonyID == "blank")
+  filter(Colony_ID == "blank")
 
 blank_intervals <- blank_data %>%
   group_by(Run, Temperature.y) %>%
-  filter(!is.na(ColonyID)) %>%
+  filter(!is.na(Colony_ID)) %>%
   group_split()
 ```
 
@@ -207,7 +196,7 @@ Fit regressions for each interval
 fit_colony_intervals_avgblank <- function(colony_id, run_num) {
   # Subset sample data
   sample_data <- thinned_data %>%
-    filter(ColonyID == colony_id, Run == run_num)
+    filter(Colony_ID == colony_id, Run == run_num)
   if (nrow(sample_data) == 0) return(NULL)
   
   # Split data by light step
@@ -224,7 +213,7 @@ fit_colony_intervals_avgblank <- function(colony_id, run_num) {
     intervals,
     seq_along(intervals),
     ~ tibble(
-      ColonyID   = colony_id,
+      Colony_ID   = colony_id,
       Run         = run_num,
       Interval    = .y,
       Temperature = unique(.x$Temperature.y),
@@ -254,7 +243,7 @@ fit_colony_intervals_avgblank <- function(colony_id, run_num) {
 plan(multisession)
 
 all_interval_summaries <- future_pmap_dfr(
-  list(colony_runs$ColonyID, colony_runs$Run),
+  list(colony_runs$Colony_ID, colony_runs$Run),
   fit_colony_intervals_avgblank
 )
 
@@ -264,41 +253,32 @@ write_csv(all_interval_summaries, "../output/TPC_Photosynthesis/Sept2023/all_int
 Read in interval data (so I don't have to run again)
 ```{r}
 all_int_tpc <- read_csv("../output/TPC_Photosynthesis/Sept2023/all_interval_summaries_Sept2023_TPC.csv")
-all_int_tpc$ColonyID <- as.character(all_int_tpc$ColonyID)
-```
-
-Read in surface area info for TPC fragments and join with tpc data 
-```{r}
-wax <- read.csv("../data/Surface_Area/Surface_Area_wax_TPC2025.csv")
-wax$Colony_ID <- as.character(wax$Colony_ID)
-
-all_int_tpc_sa <- all_int_tpc %>%
-  left_join(wax, by = "Colony_ID") %>%
-  dplyr::rename(ColonyID = Colony_ID)
+all_int_tpc$Colony_ID <- as.character(all_int_tpc$Colony_ID)
 ```
 
 Filter sample metadata for Sept 2023
 ```{r}
 sept_2023 <- sample_meta %>%
   filter(grepl("^2023-09", Date))
+sept_2023$Surface_Area_cm2 <- as.numeric(sept_2023$Surface_Area_cm2)
 ```
 
 Merge sample metadata with interval data 
 ```{r}
-all_int_tpc_sa <- all_int_tpc_sa %>%
-  inner_join(sept_2023, by = c("ColonyID", "Temperature" = "Target_Temperature")) %>%
+all_int_tpc <- all_int_tpc %>%
+  inner_join(sept_2023, by = c("Colony_ID" = "Colony_ID", "Temperature" = "Target_Temperature")) %>%
   filter(!is.na(Phenotype))
-length(unique(all_int_tpc_sa$ColonyID))
+length(unique(all_int_tpc$Colony_ID))
 ```
 
 Normalize interval data by chamber volume and surface area and save
 ```{r}
 # normalize 
-all_int_tpc_sa <- all_int_tpc_sa %>%
+all_int_tpc <- all_int_tpc %>%
   mutate(
     Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
-    Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / surface.area.cm2) * 60) # units are umol O2 cm-2 h-1
-write.csv(all_int_tpc_sa, "../output/TPC_Photosynthesis/Sept2023/all_interval_summaries_normalized_Sept2023_TPC.csv")
+    Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / Surface_Area_cm2) * 60) # units are umol O2 cm-2 h-1
+write.csv(all_int_tpc, "../output/TPC_Photosynthesis/Sept2023/all_interval_summaries_normalized_Sept2023_TPC.csv")
 ```
 
 Read data back in so I don't have to run above code again
@@ -311,7 +291,7 @@ Plot curves across temperatures
 ggplot(all_int_tpc, aes(x = Temperature, y = Slope_norm, color = Phenotype)) +
   geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
   geom_point() +
-  geom_line(aes(group = ColonyID)) + 
+  geom_line(aes(group = Colony_ID)) + 
   scale_color_manual(
     values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
   facet_wrap(~Species, scales = "fixed") +
@@ -338,7 +318,7 @@ all_int_tpc$log.rate <- log(all_int_tpc$Slope_norm + 1)  #logging and adding 0.1
 ggplot(all_int_tpc, aes(x = Temperature, y = log.rate, color = Phenotype)) +
   geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
   geom_point() +
-  geom_line(aes(group = ColonyID)) + 
+  geom_line(aes(group = Colony_ID)) + 
   scale_color_manual(
     values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
   facet_wrap(~Species, scales = "fixed") +
@@ -370,7 +350,7 @@ photo_2023 <- all_int_tpc %>%
 Fit curves for all colonies using `sharpe_schoolfield` function defined above
 ```{r}
 fits_2023 <- photo_2023 %>%
-  group_by(Phenotype,Species,ColonyID) %>%
+  group_by(Phenotype,Species,Colony_ID) %>%
   nest() %>%
   mutate(fit = purrr::map(data, ~ nls_multstart(log.rate ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = Temperature.K, Tc = 27),
                                                 data = .x,
@@ -385,13 +365,14 @@ fits_2023 <- photo_2023 %>%
 Get TPC parameters for each colony 
 ```{r}
 params_2023 <- fits_2023 %>%
-  unnest_legacy(fit %>% purrr::map(tidy))
+  unnest_legacy(fit %>% purrr::map(tidy)) %>%
+  filter(!Colony_ID == "233")
 ```
 
 Calculate Topt and Rmax for each colony 
 ```{r}
 Topt_Rmax_2023 <- params_2023 %>%
-  dplyr::select(ColonyID, Phenotype, Species, term, estimate) %>%
+  dplyr::select(Colony_ID, Phenotype, Species, term, estimate) %>%
   tidyr::pivot_wider(names_from = term, values_from = estimate) %>%
   mutate(
     Topt_K = get_topt(E, Th, Eh),
@@ -403,7 +384,7 @@ Topt_Rmax_2023 <- params_2023 %>%
 Pivot data so that each trait is a row 
 ```{r}
 traits_long_2023 <- Topt_Rmax_2023 %>%
-  dplyr::select(ColonyID, Phenotype, Species, lnc, E, Eh, Topt_C, Rmax_log) %>%
+  dplyr::select(Colony_ID, Phenotype, Species, lnc, E, Eh, Topt_C, Rmax_log) %>%
   pivot_longer(cols = c(lnc, E, Eh, Topt_C, Rmax_log), 
                names_to = "trait", 
                values_to = "estimate")
@@ -456,15 +437,6 @@ ggplot(traits_long_2023, aes(x = Phenotype, y = estimate, fill = Phenotype)) +
     x = "Phenotype"
   )
 ```
-
-Remove certain colonies that are clear outliers 
-```{r}
-traits_long_2023 <- traits_long_2023 %>%
-  filter(!ColonyID == "233") %>%
-  filter(!ColonyID == "3") %>%
-
-```
-
 
 ### Plot with confidence intervals 
 
@@ -604,7 +576,7 @@ ggplot() +
 
 Load run metadata 
 ```{r}
-run_meta <- read_csv("../data/TPC_Photosynthesis/TPC_metadata_run.csv") %>%
+run_meta <- read_csv("../data/TPC/TPC_metadata_run.csv") %>%
   mutate(
     Start = as_datetime(Date) + hours(hour(Start.time)) + minutes(minute(Start.time)),
     Stop  = as_datetime(Date) + hours(hour(Stop.time)) + minutes(minute(Stop.time)))
@@ -612,22 +584,16 @@ run_meta <- read_csv("../data/TPC_Photosynthesis/TPC_metadata_run.csv") %>%
 
 Load sample metadata 
 ```{r}
-sample_meta <- read_csv("../data/TPC_Photosynthesis/TPC_metadata_sample.csv")
-# sample_meta <- sample_meta %>%
-#   rename(ColonyID = Colony_ID)
+sample_meta <- read_csv("../data/TPC/TPC_metadata_sample.csv")
 
 # Make sure Chamber well # is numeric
 sample_meta <- sample_meta %>%
   mutate(`Chamber` = as.numeric(`Chamber`))
-
-# Join with colony metadata
-sample_meta <- sample_meta %>% 
-  left_join(colony, by = "ColonyID")
 ```
 
 List all raw files for Oct 2025 
 ```{r}
-files <- list.files(path = "../data/TPC_Photosynthesis/raw_data/Oct2025/", pattern = "*.csv", full.names = TRUE)
+files <- list.files(path = "../data/TPC/raw_data/Oct2025/", pattern = "*.csv", full.names = TRUE)
 ```
 
 Join O2 data with metadata files based on start and stop times 
@@ -666,7 +632,7 @@ all_data <- map_dfr(files, function(f) {
 
 Look at joined data and save
 ```{r}
-all_data %>% dplyr::count(is.na(ColonyID))
+all_data %>% dplyr::count(is.na(Colony_ID))
 all_data %>% dplyr::count(is.na(Run))
 
 write_csv(all_data, "../output/TPC_Photosynthesis/Oct2025/TPC_all_joined_data_Oct2025.csv")
@@ -677,21 +643,21 @@ all_data <- read.csv("../output/TPC_Photosynthesis/Oct2025/TPC_all_joined_data_O
 
 The interval fitting code will take about an hour to run and is computationally intense. If needed, run as a background job or on a remote server.
 
-Make list of all ColonyID / Run combinations (including blanks)
+Make list of all Colony_ID / Run combinations (including blanks)
 ```{r}
 colony_runs <- all_data %>%
-  filter(!is.na(ColonyID)) %>%
-  distinct(ColonyID, Run)
+  filter(!is.na(Colony_ID)) %>%
+  distinct(Colony_ID, Run)
 ```
 
 Calculate interval slopes for blanks
 ```{r}
 blank_data <- all_data %>%
-  filter(ColonyID == "blank")
+  filter(Colony_ID == "blank")
 
 blank_intervals <- blank_data %>%
   dplyr::group_by(Run, Temperature.y) %>%
-  dplyr::filter(!is.na(ColonyID)) %>%
+  dplyr::filter(!is.na(Colony_ID)) %>%
   dplyr::group_split()
 ```
 
@@ -749,7 +715,7 @@ fit_colony_intervals_avgblank <- function(colony_id, run_num) {
     intervals,
     seq_along(intervals),
     ~ tibble(
-      ColonyID   = colony_id,
+      Colony_ID   = colony_id,
       Run         = run_num,
       Interval    = .y,
       Temperature = unique(.x$Temperature.y),
@@ -795,38 +761,29 @@ all_int_tpc <- read_csv("../output/TPC_Photosynthesis/Oct2025/all_interval_summa
 all_int_tpc$Colony_ID <- as.character(all_int_tpc$Colony_ID)
 ```
 
-Read in surface area info for TPC fragments and join with tpc data 
-```{r}
-wax <- read.csv("../data/Surface_Area/Surface_Area_wax_TPC2025.csv")
-wax$Colony_ID <- as.character(wax$Colony_ID)
-
-all_int_tpc_sa <- all_int_tpc %>%
-  left_join(wax, by = "Colony_ID") %>%
-  dplyr::rename(ColonyID = Colony_ID)
-```
-
 Filter sample metadata for Oct 2025
 ```{r}
-sept_2023 <- sample_meta %>%
+oct_2025 <- sample_meta %>%
   filter(grepl("^2025-10", Date))
+oct_2025$Surface_Area_cm2 <- as.numeric(oct_2025$Surface_Area_cm2)
 ```
 
 Merge sample metadata with interval data 
 ```{r}
-all_int_tpc_sa <- all_int_tpc_sa %>%
-  inner_join(sept_2023, by = c("ColonyID", "Temperature" = "Target_Temperature")) %>%
+all_int_tpc <- all_int_tpc %>%
+  inner_join(oct_2025, by = c("Colony_ID" = "Colony_ID", "Temperature" = "Target_Temperature")) %>%
   filter(!is.na(Phenotype))
-length(unique(all_int_tpc_sa$ColonyID))
+length(unique(all_int_tpc$Colony_ID))
 ```
 
 Normalize interval data by chamber volume and surface area and save
 ```{r}
 # normalize 
-all_int_tpc_sa <- all_int_tpc_sa %>%
+all_int_tpc <- all_int_tpc %>%
   mutate(
     Chamber_Volume_L = Chamber_Volume_mL / 1000,  # mL → L
-    Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / surface.area.cm2) * 60) # units are umol O2 cm-2 h-1
-write.csv(all_int_tpc_sa, "../output/TPC_Photosynthesis/Oct2025/all_interval_summaries_normalized_Oct2025_TPC.csv")
+    Slope_norm = (Blank_Corrected_Slope * Chamber_Volume_L / Surface_Area_cm2) * 60) # units are umol O2 cm-2 h-1
+write.csv(all_int_tpc, "../output/TPC_Photosynthesis/Oct2025/all_interval_summaries_normalized_Oct2025_TPC_last20min_38.csv")
 ```
 
 Read data back in so I don't have to run above code again
@@ -839,7 +796,7 @@ Plot curves across temperatures
 ggplot(all_int_tpc, aes(x = Temperature, y = Slope_norm, color = Phenotype)) +
   geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
   geom_point() +
-  geom_line(aes(group = ColonyID)) + 
+  geom_line(aes(group = Colony_ID)) + 
   scale_color_manual(
     values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
   facet_wrap(~Species, scales = "fixed") +
@@ -866,7 +823,7 @@ all_int_tpc$log.rate <- log(all_int_tpc$Slope_norm + 1)  #logging and adding 0.1
 ggplot(all_int_tpc, aes(x = Temperature, y = log.rate, color = Phenotype)) +
   geom_hline(yintercept = 0, alpha = 0.5, linetype = "dashed") +
   geom_point() +
-  geom_line(aes(group = ColonyID)) + 
+  geom_line(aes(group = Colony_ID)) + 
   scale_color_manual(
     values = c("Resistant" = "#4b294fff", "Susceptible" = "#f3a17dff")) +
   facet_wrap(~Species, scales = "fixed") +
@@ -886,7 +843,7 @@ ggplot(all_int_tpc, aes(x = Temperature, y = log.rate, color = Phenotype)) +
   labs(x = "Temperature (C)", y = "log(umol O2 cm-2 h-1)", color = "Phenotype")
 ```
 
-### Fit TPC curve
+## Fit TPC curve
 
 Set target temperature to numeric and convert temperature to Kelvin
 ```{r}
@@ -898,7 +855,7 @@ photo_2025 <- all_int_tpc %>%
 Fit curves for all colonies using `sharpe_schoolfield` function defined above
 ```{r}
 fits_2025 <- photo_2025 %>%
-  group_by(Phenotype,Species,ColonyID) %>%
+  group_by(Phenotype,Species,Colony_ID) %>%
   nest() %>%
   mutate(fit = purrr::map(data, ~ nls_multstart(log.rate ~ sharpe_schoolfield(lnc, E, Eh, Th, temp = Temperature.K, Tc = 27),
                                                 data = .x,
@@ -913,19 +870,17 @@ fits_2025 <- photo_2025 %>%
 Get TPC parameters for each colony 
 ```{r}
 params_2025 <- fits_2025 %>%
-  unnest_legacy(fit %>% purrr::map(tidy)) 
-
-# %>%
-#   filter(!Colony_ID == "206") %>%
-#   filter(!Colony_ID == "205") %>%
-#   filter(!Colony_ID == "240") %>%
-#   filter(!Colony_ID == "44")
+  unnest_legacy(fit %>% purrr::map(tidy)) %>%
+  filter(!Colony_ID == "206") %>%
+  filter(!Colony_ID == "205") %>%
+  filter(!Colony_ID == "240") %>%
+  filter(!Colony_ID == "44")
 ```
 
 Calculate Topt and Rmax for each colony 
 ```{r}
 Topt_Rmax_2025 <- params_2025 %>%
-  dplyr::select(ColonyID, Phenotype, Species, term, estimate) %>%
+  dplyr::select(Colony_ID, Phenotype, Species, term, estimate) %>%
   tidyr::pivot_wider(names_from = term, values_from = estimate) %>%
   mutate(
     Topt_K = get_topt(E, Th, Eh),
@@ -937,7 +892,7 @@ Topt_Rmax_2025 <- params_2025 %>%
 Pivot data so that each trait is a row 
 ```{r}
 traits_long_2025 <- Topt_Rmax_2025 %>%
-  dplyr::select(ColonyID, Phenotype, Species, lnc, E, Eh, Topt_C, Rmax_log) %>%
+  dplyr::select(Colony_ID, Phenotype, Species, lnc, E, Eh, Topt_C, Rmax_log) %>%
   pivot_longer(cols = c(lnc, E, Eh, Topt_C, Rmax_log), 
                names_to = "trait", 
                values_to = "estimate")
@@ -1130,11 +1085,11 @@ Rename Colony id column from 2023 so it matches 2025 and add year as a column to
 traits_long_2023 <- traits_long_2023 %>%
   mutate(Year = "2023") %>%
   #dplyr::rename("ColonyID" = "Colony.ID") %>%
-  mutate(ColonyID = as.character(ColonyID))
+  mutate(Colony_ID = as.character(Colony_ID))
 
 traits_long_2025 <- traits_long_2025 %>%
   mutate(Year = "2025") %>%
-  mutate(ColonyID = as.character(ColonyID))
+  mutate(Colony_ID = as.character(Colony_ID))
 ```
 
 Bind dfs together 
@@ -1179,26 +1134,11 @@ qqline(lnc_long$estimate, col = "red")
 shapiro.test(lnc_long$estimate)
 ```
 
-Data is not normal. Transform data to achieve normality 
-```{r}
-lnc_long$log <- log(lnc_long$estimate)
-hist(lnc_long$log)
-qqnorm(lnc_long$log)
-qqline(lnc_long$log, col = "red")
-shapiro.test(lnc_long$log)
-
-lnc_long$sqrt <- sqrt(lnc_long$estimate)
-hist(lnc_long$sqrt)
-qqnorm(lnc_long$sqrt)
-qqline(lnc_long$sqrt, col = "red")
-shapiro.test(lnc_long$sqrt)
-```
-
-Both log and square root produce normality 
+Data is normal.
 
 Run linear-mixed effects model
 ```{r}
-lnc.model <- lmer(log ~ Year * Phenotype + (1|ColonyID), data = lnc_long)
+lnc.model <- lmer(estimate ~ Year * Phenotype + (1|Colony_ID), data = lnc_long)
 car::Anova(lnc.model, type = 3)
 
 # Model normality 
@@ -1246,7 +1186,7 @@ Data is normal.
 
 Run linear mixed effects model 
 ```{r}
-e.model <- lmer(estimate ~ Year * Phenotype + (1|ColonyID), data = e_long)
+e.model <- lmer(estimate ~ Year * Phenotype + (1|Colony_ID), data = e_long)
 car::Anova(e.model, type = 3)
 
 # Model normality 
