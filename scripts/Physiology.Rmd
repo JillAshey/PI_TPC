@@ -19,11 +19,18 @@ library(boot)
 library(nlme)
 library(patchwork)
 library(lmerTest)
+library(grid)
 ```
 
 Run this before running any ANOVAs
 ```{r}
 options(contrasts = c("contr.sum", "contr.poly"))
+```
+
+Read in surface area data
+```{r}
+surface_area <- read.csv("../data/Surface_Area/Surface_Area_wax_seasonal.csv")
+surface_area$ColonyID <- as.character(surface_area$ColonyID)
 ```
 
 ## Read in 2019 and 2021 data 
@@ -1046,6 +1053,161 @@ theme(
 ggsave("../output/Physiology/Physiology_panels.png", plot = final_phys_figure, 
        width = 28, height = 15, units = "in", dpi = 300)
 ggsave("../output/Physiology/Physiology_panels.pdf", plot = final_phys_figure, 
+       width = 28, height = 15, units = "in", dpi = 300)
+```
+
+Plot without shared y limits
+```{r}
+# 1. Update the prep function to use "trait" instead of "Metric"
+prep_df <- function(df, trait_name, value_col) {
+  df %>%
+    dplyr::rename(Value = !!sym(value_col)) %>%
+    dplyr::mutate(trait = trait_name) %>%
+    dplyr::select(Species, Phenotype, Year, Value, trait) %>%
+    dplyr::mutate(Year = as.factor(Year))
+}
+
+# 2. Combine your 6 dataframes
+traits_long_all <- bind_rows(
+  prep_df(pi_data_mcap, "Pmax", "Pmax"),
+  prep_df(sym_data_mcap, "Sym density", "cells_cm2_M"),
+  prep_df(afdw_data_mcap, "AFDW", "afdw_mg_cm2"),
+  prep_df(color_data_mcap, "Color Score", "inverted_color"), # Added
+  prep_df(pi_data_pcomp, "Pmax", "Pmax"),
+  prep_df(sym_data_pcomp, "Sym density", "cells_cm2_M"),
+  prep_df(afdw_data_pcomp, "AFDW", "afdw_mg_cm2"),
+  prep_df(color_data_pcomp, "Color Score", "inverted_color") # Added
+) %>% dplyr::rename(estimate = Value)
+
+# 3. Define Labels and Significance (Use exact same "trait" names as above)
+# Update significance data for 4 traits per species
+sig_data <- data.frame(
+  trait = rep(c("Pmax", "Sym density", "AFDW", "Color Score"), each = 2),
+  Species = rep(c("Montipora capitata", "Porites compressa"), 4),
+  sig_label = c(
+    "P***, Y*", "Y*, PxY*", # Pmax
+    "P***, Y***", "Y***", # Sym density
+    "Y***", "Y***", # AFDW
+    "Y***", "Y***"  # Color Score
+  )
+)
+
+# Add the Color Score label (using bold formatting to match the others)
+trait_labels <- c(
+  "Pmax" = "atop(bold(Maximum~photosynthesis), bold((mu*mol~hr^-1~cm^-2)))",
+  "Sym density" = "atop(bold(Symbiont~density), bold((10^6~cells~cm^-2)))",
+  "AFDW" = "atop(bold(Biomass), bold((mg~cm^-2)))",
+  "Color Score" = "bold(Color~Score)"
+)
+
+# 4. Calculate Individual Y-Limits (Grouped by trait AND Species)
+trait_limits_df <- traits_long_all %>%
+  dplyr::group_by(trait, Species, Year, Phenotype) %>%
+  dplyr::summarise(
+    m = mean(estimate, na.rm = TRUE),
+    se = sd(estimate, na.rm = TRUE) / sqrt(n()),
+    .groups = 'drop'
+  ) %>%
+  dplyr::group_by(trait, Species) %>% # Added Species here
+  dplyr::summarise(
+    ymin = min(m - se, na.rm = TRUE),
+    ymax = max(m + se, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  dplyr::mutate(ymax = ymax + (ymax - ymin) * 0.25, 
+                ymin = ymin - (ymax - ymin) * 0.1)
+
+# 5. Panel Function
+create_panel_plot <- function(data, tr, spp, ylimits, is_bottom_row = FALSE, panel_tag = NULL) {
+  
+  plot_data <- data %>% dplyr::filter(trait == tr, Species == spp)
+  sig_text <- sig_data %>% dplyr::filter(trait == tr, Species == spp) %>% dplyr::pull(sig_label)
+  y_label <- parse(text = trait_labels[[tr]])
+
+  p <- ggplot(plot_data, aes(x = factor(Year), y = estimate, color = Phenotype, group = Phenotype)) +
+    stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.15, linewidth = 1.2) +
+    stat_summary(fun = mean, geom = "line", linewidth = 1.5) +
+    stat_summary(fun = mean, geom = "point", size = 5) +
+    annotate("text", x = Inf, y = -Inf, label = sig_text, 
+             hjust = 1.1, vjust = -1.2, size = 8, color = "black") +
+    scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+    theme_classic() + 
+    theme(
+      axis.text.y   = element_text(size = 22, color = "black"), 
+      axis.text.x   = element_text(size = 22, color = "black", face = "bold"),
+      axis.title.y  = element_text(size = 24),
+      plot.margin   = margin(t = 20, r = 10, b = 10, l = 10),
+      plot.tag      = element_text(size = 28, face = "bold"),
+      plot.tag.position = c(0.05, 0.95)
+    ) +
+    labs(x = NULL, y = y_label, tag = panel_tag) +
+    coord_cartesian(ylim = ylimits)
+
+  if (!is_bottom_row) {
+    p <- p + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  }
+  
+  return(p)
+}
+
+# 6. Generate and Assemble
+# 6. Generate and Assemble
+species_list <- c("Montipora capitata", "Porites compressa")
+traits <- c("Pmax", "Sym density", "AFDW", "Color Score")
+tag_list <- c('A','B','C','D','E','F','G','H')
+all_plots <- list()
+counter <- 1
+
+for (j in 1:length(species_list)) { 
+  for (i in 1:length(traits)) {    
+    # Filter by both trait AND species now
+    current_limits <- trait_limits_df %>% 
+      dplyr::filter(trait == traits[i], Species == species_list[j]) %>% 
+      dplyr::select(ymin, ymax) %>% 
+      as.numeric()
+      
+    all_plots[[counter]] <- create_panel_plot(
+      data = traits_long_all, 
+      tr = traits[i], 
+      spp = species_list[j],
+      ylimits = current_limits, 
+      is_bottom_row = (j == 2),
+      panel_tag = tag_list[counter]
+    )
+    counter <- counter + 1
+  }
+}
+
+mcap_header <- wrap_elements(full = grid::textGrob("Montipora capitata", 
+                             x = unit(0.01, "npc"), 
+                             hjust = 0,
+                             gp = gpar(fontsize = 30, fontface = "bold.italic")))
+                             
+pcomp_header <- wrap_elements(full = grid::textGrob("Porites compressa", 
+                              x = unit(0.01, "npc"), 
+                              hjust = 0,
+                              gp = gpar(fontsize = 30, fontface = "bold.italic")))
+
+# 7. Final Assembly
+final_phys_figure <- (
+  mcap_header / 
+  (all_plots[[1]] | all_plots[[2]] | all_plots[[3]] | all_plots[[4]]) /
+  pcomp_header /
+  (all_plots[[5]] | all_plots[[6]] | all_plots[[7]] | all_plots[[8]])
+) + 
+plot_layout(heights = c(0.12, 1, 0.12, 1), guides = "collect") & 
+theme(
+  legend.position = "right", 
+  legend.title = element_text(size = 20, face = "bold"),
+  legend.text = element_text(size = 18), 
+  legend.key.size = unit(1.5, "cm"),
+  plot.margin = margin(t = 10, r = 10, b = 10, l = 10) 
+)
+
+# 8. Save
+ggsave("../output/Physiology/Physiology_panels_unique_y.png", plot = final_phys_figure, 
+       width = 28, height = 15, units = "in", dpi = 300)
+ggsave("../output/Physiology/Physiology_panels_unique_y.pdf", plot = final_phys_figure, 
        width = 28, height = 15, units = "in", dpi = 300)
 ```
 
