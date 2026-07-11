@@ -1107,8 +1107,8 @@ p_time <- ggplot(plot_summary, aes(x = dummy_date, color = as.factor(year), fill
                limits = c(as.Date("2024-03-01"), as.Date("2024-11-01")),
                expand = c(0,0)) +
   scale_y_continuous(breaks = seq(20, 32, by = 1)) +
-  scale_color_brewer(palette = "Set1") +
-  scale_fill_brewer(palette = "Set1") +
+  #scale_color_brewer(palette = "Set1") +
+  #scale_fill_brewer(palette = "Set1") +
   # annotate(
   #   "richtext",
   #   x = as.Date("2024-09-30"), # Positions box at the far right
@@ -1222,6 +1222,123 @@ ggsave("../output/environmental/Temperatures_Mar-Oct_2019_2021_2023_2025.png",
        units = "in", 
        dpi = 300)
 ```
+
+Changing colors to viridis
+```{r}
+subset_filled$datetime <- as.POSIXct(subset_filled$datetime)
+
+# Keep only one unique row per timestamp
+subset_cleaned <- subset_filled %>%
+  distinct(datetime, .keep_all = TRUE)
+
+#### PANEL A: Time Series
+plot_summary <- subset_cleaned %>%
+  filter(year %in% c(2019, 2021, 2023, 2025),
+         month >= 3 & month <= 10) %>%
+  mutate(dummy_date = as.Date(paste0("2024-", month, "-", day))) %>%
+  group_by(year, dummy_date) %>%
+  dplyr::summarise(
+    mean_temp = if(all(is.na(Temperature))) NA else mean(Temperature, na.rm = TRUE),
+    min_temp  = if(all(is.na(Temperature))) NA else min(Temperature, na.rm = TRUE),
+    max_temp  = if(all(is.na(Temperature))) NA else max(Temperature, na.rm = TRUE),
+    .groups = "drop")
+
+# -------------------------------------------------------------
+# VIRIDIS IMPLEMENTATION: Define 4 exact extraction steps
+# -------------------------------------------------------------
+year_colors <- c(
+  "2019" = "#4A2040", # Deep Grape / Plum
+  "2021" = "#2C6793", # Rich Steel Blue
+  "2023" = "#1F784D", # Emerald / Forest Green
+  "2025" = "#C85A32"  # Deep Terracotta / Copper Orange (highly visible!)
+)
+
+# Updated HTML labels to match the high-contrast hex assignments
+label_text <- paste0(
+  "<span style='color:#4A2040;'>**2019:** 5.3 DHWs</span><br>",
+  "<span style='color:#2C6793;'>**2021:** 0 DHWs</span><br>",
+  "<span style='color:#1F784D;'>**2023:** 0 DHWs</span><br>",
+  "<span style='color:#C85A32;'>**2025:** 0.19 DHWs</span>"
+)
+
+p_time <- ggplot(plot_summary, aes(x = dummy_date, color = as.factor(year), fill = as.factor(year))) +
+  geom_ribbon(aes(ymin = min_temp, ymax = max_temp), alpha = 0.2, color = NA) +
+  geom_line(aes(y = mean_temp), linewidth = 1.5, linetype = "solid") +
+  geom_hline(yintercept = 27.3, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = 28.3, linetype = "dotted", color = "black") +
+  scale_x_date(date_labels = "%b", 
+               date_breaks = "1 month", 
+               limits = c(as.Date("2024-03-01"), as.Date("2024-11-01")),
+               expand = c(0,0)) +
+  scale_y_continuous(breaks = seq(20, 32, by = 1)) +
+  # Explicitly map the viridis palette for Panel A lines/ribbons
+  scale_color_manual(values = year_colors) +
+  scale_fill_manual(values = year_colors) +
+  theme_classic(base_size = 26) + 
+  theme(
+    axis.text = element_text(color = "black", size = 22),
+    axis.title = element_text(face = "bold", size = 28),
+    legend.title = element_text(face = "bold", size = 24),
+    legend.text = element_text(size = 22),
+    legend.position = "right",
+    plot.margin = margin(10, 10, 10, 10)
+  ) +
+  labs(x = "", y = "Temperature (°C)", color = "Year", fill = "Year")
+
+#### PANEL B: Frequency (Ridge plots)
+subset_cleaned$year <- factor(subset_cleaned$year, levels = c("2025", "2023", "2021", "2019"))
+
+dhw_labels <- data.frame(
+  year = factor(c("2019", "2021", "2023", "2025"), 
+                levels = c("2025", "2023", "2021", "2019")),
+  dhw_text = c("5.3 DHWs", "0 DHWs", "0 DHWs", "0.19 DHWs")
+)
+
+ridge_freq <- ggplot(subset_cleaned, aes(x = Temperature, y = as.factor(year), 
+                          fill = after_stat(cut(x, 
+                                                breaks = c(-Inf, 27.3, 28.3, Inf), 
+                                                labels = c("Normal", "Warning", "Stress"))), 
+                          color = as.factor(year))) + 
+  geom_density_ridges_gradient(
+    scale = 0.9, 
+    rel_min_height = 0.01,
+    linewidth = 1.5) +
+  geom_text(data = dhw_labels, 
+            aes(x = 21.5, y = year, label = dhw_text, color = year), 
+            inherit.aes = FALSE,
+            hjust = 0, 
+            vjust = -1.6, 
+            size = 7, 
+            fontface = "bold") +
+  # Keep background thermal status fills separate, but map the ridge borders to your viridis colors
+  scale_fill_manual(
+    values = c("Normal" = "gray80", "Warning" = "#fbb4ae", "Stress" = "#e41a1c"), 
+    guide = "none"
+  ) +
+  scale_color_manual(values = year_colors, guide = "none") +
+  scale_x_continuous(breaks = seq(22, 32, 1), expand = c(0.01, 0)) +
+  scale_y_discrete(expand = expansion(mult = c(0.01, 0.4))) +
+  theme_classic(base_size = 26) + 
+  theme(
+    axis.text = element_text(color = "black", size = 22),
+    axis.title = element_text(face = "bold", size = 28), 
+    legend.position = "none",
+    plot.margin = margin(10, 10, 10, 10)) +
+  labs(x = "Temperature (°C)", y = "Year")
+
+## Combine and Save
+final_plot <- (p_time + ridge_freq) + 
+  plot_layout(widths = c(1.8, 1), guides = "collect") + 
+  plot_annotation(tag_levels = 'A') & 
+  theme(plot.tag = element_text(size = 32, face = "bold"))
+
+# Save 
+ggsave("../output/environmental/Temperatures_Mar-Oct_2019_2021_2023_2025.pdf", 
+       plot = final_plot, width = 20, height = 8, units = "in", device = "pdf", dpi = 300)
+ggsave("../output/environmental/Temperatures_Mar-Oct_2019_2021_2023_2025.png", 
+       plot = final_plot, width = 20, height = 8, units = "in", dpi = 300)
+```
+
 
 Calculate percentage of time "in the red" (ie above 28.3C) and above MMM (27.3)
 ```{r}

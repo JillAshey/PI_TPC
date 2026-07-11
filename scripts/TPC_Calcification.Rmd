@@ -32,6 +32,7 @@ library(lmerTest)
 library(performance)
 library(insight)
 library(ggtext)
+library(grid)
 
 #n_cores <- detectCores() - 1
 ```
@@ -1792,3 +1793,151 @@ ggsave("../output/TPC_Calcification/Calcification_TPC_curve_2023_2025.png",
        dpi = 300)
 ```
 
+Plot curves and metrics 
+```{r}
+# ==========================================
+# 1. GENERATE CLEAN BASE TPC PLOTS WITH LARGE TEXT
+# ==========================================
+all_calc <- all_calc %>% mutate(Group_ID = paste(Species, Year))
+all_preds <- all_preds %>% mutate(Group_ID = paste(Species, Year))
+
+group_list <- c("Montipora capitata 2023", "Montipora capitata 2025", 
+                "Porites compressa 2023", "Porites compressa 2025")
+
+year_vals <- c(
+  "Montipora capitata 2023" = "2023",
+  "Montipora capitata 2025" = "2025",
+  "Porites compressa 2023" = "2023",
+  "Porites compressa 2025" = "2025"
+)
+
+p_min <- -0.5; p_max <- 0.75
+tpc_plots <- list()
+
+for (i in 1:length(group_list)) {
+  sub_calc <- all_calc %>% filter(Group_ID == group_list[i])
+  sub_preds <- all_preds %>% filter(Group_ID == group_list[i])
+  
+  p <- ggplot() +
+    geom_point(data = sub_calc, 
+               aes(x = Target.Temperature.K - 273.15, y = log.rate, color = Phenotype), 
+               alpha = 0.4, size = 4, position = position_jitter(width = 0.1)) +
+    geom_ribbon(data = sub_preds, 
+                aes(x = Target.Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
+                alpha = 0.3, color = NA) +
+    geom_line(data = sub_preds, 
+              aes(x = Target.Temperature.K - 273.15, y = mean_val, color = Phenotype), 
+              linewidth = 1.5) + 
+    geom_hline(yintercept = 0, color = "grey", linewidth = 0.8, linetype = "dashed") +
+    # FIX: Paste the year directly onto the plot canvas area instead of using a title
+    annotate("text", x = 29, y = 0.71, label = year_vals[group_list[i]], 
+             size = 13, fontface = "bold", color = "black") +
+    scale_y_continuous(limits = c(p_min, p_max), expand = c(0, 0)) +
+    scale_x_continuous(breaks = seq(18, 40, by = 2), limits = c(17.5, 40.5), expand = c(0,0)) +
+    scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+    scale_fill_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+    theme_classic() +
+    labs(x = "Temperature (°C)", y = NULL) +
+    theme(
+      axis.text       = element_text(size = 28, color = "black"), 
+      axis.title      = element_text(size = 30, face = "bold"),   
+      plot.title      = element_blank(), 
+      legend.position = "none", 
+      plot.margin     = margin(t = 35, r = 10, b = 15, l = 10) 
+    )
+  
+  if (i %in% c(1, 3)) {
+    p <- p + labs(y = expression(bold("Net calcification (log(" *mu*"mol " *cm^-2 *hr^-1*"))"))) +
+             theme(axis.title.y = element_text(size = 30, face = "bold")) 
+  }
+  
+  tpc_plots[[i]] <- p
+}
+
+# ==========================================
+# 2. CONFIGURING UNIFORM LARGE TEXT LABELS FOR METRICS
+# ==========================================
+for(i in 1:10) { 
+  metric_plots[[i]] <- metric_plots[[i]] + 
+    theme_classic() +
+    theme(
+      plot.tag        = element_blank(),
+      axis.text       = element_text(size = 28, color = "black"),
+      axis.text.x     = element_text(size = 28, color = "black", face = "bold"), # Forces 2023/2025 to be bold!
+      axis.title      = element_text(size = 30, face = "bold"),
+      axis.title.x    = element_text(size = 30, face = "bold"),
+      plot.title      = element_blank()
+    ) 
+}
+
+mcap_metrics_row  <- (metric_plots[[1]] | metric_plots[[2]] | metric_plots[[3]] | metric_plots[[4]] | metric_plots[[5]])
+pcomp_metrics_row <- (metric_plots[[6]] | metric_plots[[7]] | metric_plots[[8]] | metric_plots[[9]] | metric_plots[[10]])
+
+# ==========================================
+# 3. CONSTRUCT SPECIES SUB-ROWS
+# ==========================================
+mcap_row  <- (tpc_plots[[1]] | tpc_plots[[2]] | mcap_metrics_row) + plot_layout(widths = c(0.7, 0.7, 2.5))
+pcomp_row <- (tpc_plots[[3]] | tpc_plots[[4]] | pcomp_metrics_row) + plot_layout(widths = c(0.7, 0.7, 2.5))
+
+# ==========================================
+# 4. FINAL GRID ASSEMBLY & GLOBAL BREAKS
+# ==========================================
+final_master_figure <- (
+  mcap_row /
+  plot_spacer() / 
+  pcomp_row
+) + 
+  plot_layout(
+    ncol = 1, 
+    heights = c(1, 0.05, 1), 
+    guides = "collect"
+  ) +
+  plot_annotation(tag_levels = 'A')
+
+# HARD OVERRIDE GLOBAL THEME (Guarantees sizes cascade through patchwork layout blocks)
+final_master_figure <- final_master_figure & 
+  theme(
+    axis.text       = element_text(size = 28, color = "black"),
+    axis.title      = element_text(size = 30, face = "bold"),
+    legend.position = "right",
+    legend.title    = element_text(size = 30, face = "bold"), 
+    legend.text     = element_text(size = 28),                
+    legend.key.size = unit(1.8, "cm"),
+    plot.tag        = element_text(face = "bold", size = 34), 
+    plot.margin     = margin(t = 20, r = 20, b = 20, l = 20)
+  )
+
+# -------------------------------------------------------------
+# FIX: Inject Clean Floating Species Labels via Top Left Element
+# -------------------------------------------------------------
+
+# Row 1: Montipora capitata
+final_master_figure[[1]][[1]] <- final_master_figure[[1]][[1]] + 
+  ggtitle("Montipora capitata") +
+  theme(
+    plot.title = element_text(size = 36, face = "bold.italic", hjust = -0.22, vjust = 7, color = "black"),
+    legend.position = "none"
+  ) +
+  coord_cartesian(clip = "off")
+
+# Row 2: Porites compressa
+final_master_figure[[3]][[1]] <- final_master_figure[[3]][[1]] + 
+  ggtitle("Porites compressa") +
+  theme(
+    plot.title = element_text(size = 36, face = "bold.italic", hjust = -0.20, vjust = 7, color = "black"),
+    legend.position = "none"
+  ) +
+  coord_cartesian(clip = "off")
+
+# Drop internal legends cleanly
+final_master_figure[[1]][[2]] <- final_master_figure[[1]][[2]] + theme(legend.position = "none")
+final_master_figure[[3]][[2]] <- final_master_figure[[3]][[2]] + theme(legend.position = "none")
+
+# ==========================================
+# 5. EXPORT MASTER REFINED COPIES
+# ==========================================
+ggsave("../output/TPC_Calcification/Calcification_TPC_and_Metrics.pdf", 
+       plot = final_master_figure, width = 45, height = 16, units = "in", device = "pdf", dpi = 300)
+ggsave("../output/TPC_Calcification/Calcification_TPC_and_Metrics.png", 
+       plot = final_master_figure, width = 45, height = 16, units = "in", dpi = 300)
+```
