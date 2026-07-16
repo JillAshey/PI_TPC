@@ -2029,7 +2029,7 @@ for (i in 1:length(group_list)) {
              hjust = -0.4, vjust = 1.3, size = 11, fontface = "bold", color = "black") +
               
     # Year Label inside the plotting area
-    annotate("text", x = 29, y = 0.71, label = year_vals[group_list[i]], 
+    annotate("text", x = 34, y = 0.65, label = year_vals[group_list[i]], 
              size = 13, fontface = "bold", color = "black") +
              
     scale_y_continuous(limits = c(p_min, p_max), expand = c(0, 0)) +
