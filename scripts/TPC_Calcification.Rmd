@@ -1492,6 +1492,7 @@ trait_limits_df <- traits_long_all %>%
 tag_list <- c('A','B','C','D','E','F','G','H','I','J')
 
 # 4. Panel function
+# 4. Panel function
 create_panel_plot <- function(data, tr, spp, ylimits, is_bottom_row = FALSE, panel_tag = NULL) {
   
   plot_data <- data %>% as.data.frame() %>% 
@@ -1507,19 +1508,26 @@ create_panel_plot <- function(data, tr, spp, ylimits, is_bottom_row = FALSE, pan
     stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.15, linewidth = 1.2) +
     stat_summary(fun = mean, geom = "line", linewidth = 1.5) +
     stat_summary(fun = mean, geom = "point", size = 5) +
+    
+    # 1. Significance text annotation
     annotate("text", x = Inf, y = -Inf, label = sig_text, 
-             hjust = 1.1, vjust = -1.2, size = 7, color = "black", fontface = "plain") +
+             hjust = 1.1, vjust = -1.2, size = 10, color = "black", fontface = "plain") +
+             
+    # 2. FIXED: Use 'panel_tag' instead of 'tag_list' so only one letter is drawn per plot
+    annotate("text", x = -Inf, y = Inf, label = panel_tag, 
+             hjust = -0.4, vjust = 1.3, size = 11, fontface = "bold", color = "black") +
+             
     scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
     theme_classic() + 
     theme(
-      axis.text.y   = element_text(size = 24, color = "black"), 
-      axis.text.x   = element_text(size = 24, color = "black", face = "bold"),
-      axis.title.y  = element_text(size = 27, face = "bold"),
-      plot.margin   = margin(t = 30, r = 15, b = 15, l = 15),
-      plot.tag      = element_text(size = 30, face = "bold"),
-      plot.tag.position = "topleft"
+      axis.text.y   = element_text(size = 28, color = "black"), 
+      axis.text.x   = element_text(size = 28, color = "black", face = "bold"),
+      axis.title.y  = element_text(size = 30, face = "bold"),
+      plot.margin   = margin(t = 30, r = 15, b = 15, l = 15)
+      # Removed plot.tag themes since we are drawing it inside the plot area now
     ) +
-    labs(x = NULL, y = y_label, tag = panel_tag) +
+    # Removed tag = panel_tag from labs() to prevent double letters
+    labs(x = NULL, y = y_label) + 
     coord_cartesian(ylim = ylimits)
 
   if (!is_bottom_row) {
@@ -1585,9 +1593,9 @@ theme(
 
 # Save
 ggsave("../output/TPC_Calcification/Calcification_TPC_metrics_stats_separate_spp_2023_2025.pdf", 
-       plot = final_trait_figure, width = 30, height = 14, units = "in", device = "pdf", dpi = 300)
+       plot = final_trait_figure, width = 28, height = 15, units = "in", device = "pdf", dpi = 300)
 ggsave("../output/TPC_Calcification/Calcification_TPC_metrics_stats_separate_spp_2023_2025.png", 
-       plot = final_trait_figure, width = 30, height = 14, units = "in", dpi = 300)
+       plot = final_trait_figure, width = 28, height = 15, units = "in", dpi = 300)
 ```
 
 Plot TPC calcification curves with temp bars 
@@ -1941,3 +1949,169 @@ ggsave("../output/TPC_Calcification/Calcification_TPC_and_Metrics.pdf",
 ggsave("../output/TPC_Calcification/Calcification_TPC_and_Metrics.png", 
        plot = final_master_figure, width = 45, height = 16, units = "in", dpi = 300)
 ```
+
+Summarize Rmax and Topt for plotting by spp and year 
+```{r}
+# ==============================================================================
+# 1. PRE-PLOT SETUP & CONFIGURATIONS
+# ==============================================================================
+group_list <- c("Montipora capitata 2023", "Montipora capitata 2025", 
+               "Porites compressa 2023", "Porites compressa 2025")
+
+year_vals <- c(
+  "Montipora capitata 2023" = "2023",
+  "Montipora capitata 2025" = "2025",
+  "Porites compressa 2023" = "2023",
+  "Porites compressa 2025" = "2025"
+)
+
+plot_tags <- c("A", "B", "C", "D")
+
+# Ensure keys are present in your datasets
+all_calc  <- all_calc  %>% mutate(Group_ID = paste(Species, Year))
+all_preds <- all_preds %>% mutate(Group_ID = paste(Species, Year))
+
+# ==============================================================================
+# 2. DYNAMICALLY DERIVE ALIGNED METRICS FROM THE PREDICTED CURVES
+# ==============================================================================
+# Extracting coordinates directly from the peaks of the solid curve lines
+tpc_metrics <- all_preds %>%
+  as.data.frame() %>%
+  dplyr::group_by(Group_ID, Phenotype) %>%
+  # Pinpoint the exact x and y coordinates at the maximum point of each curve
+  dplyr::filter(mean_val == max(mean_val, na.rm = TRUE)) %>%
+  dplyr::summarise(
+    Topt = (Target.Temperature.K - 273.15),
+    Rmax = mean_val,
+    .groups = "drop"
+  )
+
+# ==============================================================================
+# 3. LOOP TO GENERATE INDIVIDUAL PLOT PANELS
+# ==============================================================================
+p_min <- -0.5; p_max <- 0.75
+tpc_plots <- list()
+
+for (i in 1:length(group_list)) {
+  sub_calc    <- all_calc %>% filter(Group_ID == group_list[i])
+  sub_preds   <- all_preds %>% filter(Group_ID == group_list[i])
+  sub_metrics <- tpc_metrics %>% filter(Group_ID == group_list[i])
+  
+  p <- ggplot() +
+    # Reference grey zero-line
+    geom_hline(yintercept = 0, color = "grey", linewidth = 0.8, linetype = "dashed") +
+    
+    # Vertical Topt dotted lines (perfectly aligned with the peak)
+    geom_vline(data = sub_metrics, 
+               aes(xintercept = Topt, color = Phenotype), 
+               linetype = "dotted", linewidth = 1.3, alpha = 0.8) +
+               
+    # Horizontal Rmax dashed lines (perfectly aligned with the peak)
+    geom_hline(data = sub_metrics, 
+               aes(yintercept = Rmax, color = Phenotype), 
+               linetype = "dashed", linewidth = 1.3, alpha = 0.8) +
+               
+    # Raw points
+    geom_point(data = sub_calc, 
+               aes(x = Target.Temperature.K - 273.15, y = log.rate, color = Phenotype), 
+               alpha = 0.4, size = 4, position = position_jitter(width = 0.1)) +
+               
+    # TPC predictions (Ribbon + Line)
+    geom_ribbon(data = sub_preds, 
+                aes(x = Target.Temperature.K - 273.15, ymin = lower, ymax = upper, fill = Phenotype), 
+                alpha = 0.3, color = NA) +
+    geom_line(data = sub_preds, 
+              aes(x = Target.Temperature.K - 273.15, y = mean_val, color = Phenotype), 
+              linewidth = 1.5) + 
+              
+    # Corner annotation for panel tags (A, B, C, D)
+    annotate("text", x = -Inf, y = Inf, label = plot_tags[i], 
+             hjust = -0.4, vjust = 1.3, size = 11, fontface = "bold", color = "black") +
+              
+    # Year Label inside the plotting area
+    annotate("text", x = 29, y = 0.71, label = year_vals[group_list[i]], 
+             size = 13, fontface = "bold", color = "black") +
+             
+    scale_y_continuous(limits = c(p_min, p_max), expand = c(0, 0)) +
+    scale_x_continuous(breaks = seq(18, 40, by = 2), limits = c(17.5, 40.5), expand = c(0,0)) +
+    scale_color_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+    scale_fill_manual(values = c("Resistant" = "#3b244d", "Susceptible" = "#f2916b")) +
+    theme_classic() +
+    labs(x = "Temperature (°C)", y = NULL) +
+    theme(
+      axis.text       = element_text(size = 28, color = "black"), 
+      axis.title      = element_text(size = 30, face = "bold"),   
+      plot.title      = element_blank(), 
+      legend.position = "none", 
+      plot.margin     = margin(t = 35, r = 10, b = 15, l = 10) 
+    )
+  
+  # Apply y-axis labels to the left column only (Plots A and C)
+  if (i %in% c(1, 3)) {
+    p <- p + labs(y = expression(bold("Net calcification (log(" *mu*"mol " *cm^-2 *hr^-1*"))"))) +
+             theme(axis.title.y = element_text(size = 30, face = "bold", margin = margin(r = 15))) 
+  }
+  
+  # Hide y-axis text and ticks for the right column (Plots B and D)
+  if (i %in% c(2, 4)) {
+    p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+  }
+  
+  tpc_plots[[i]] <- p
+}
+
+# ==============================================================================
+# 4. ROW HEADERS SETUP
+# ==============================================================================
+mcap_header <- wrap_elements(full = grid::textGrob("Montipora capitata", 
+                             x = unit(0.01, "npc"), 
+                             hjust = 0,
+                             gp = gpar(fontsize = 30, fontface = "bold.italic")))
+                             
+pcomp_header <- wrap_elements(full = grid::textGrob("Porites compressa", 
+                              x = unit(0.01, "npc"), 
+                              hjust = 0,
+                              gp = gpar(fontsize = 30, fontface = "bold.italic")))
+
+# ==============================================================================
+# 5. FINAL GRID ASSEMBLY & PLOT RENDERING
+# ==============================================================================
+final_tpc_figure <- (
+  mcap_header / 
+  (tpc_plots[[1]] | tpc_plots[[2]]) /  # Row 1: M. capitata 2023 (A) & 2025 (B)
+  pcomp_header /
+  (tpc_plots[[3]] | tpc_plots[[4]])    # Row 2: P. compressa 2023 (C) & 2025 (D)
+) + 
+plot_layout(heights = c(0.12, 1, 0.12, 1), guides = "collect") & 
+theme(
+  legend.position = "right", 
+  legend.title = element_text(size = 20, face = "bold"),
+  legend.text = element_text(size = 18), 
+  legend.key.size = unit(1.5, "cm"),
+  plot.margin = margin(t = 10, r = 10, b = 10, l = 10) 
+)
+
+# Render the compiled plot in your R session
+final_tpc_figure
+
+# ==============================================================================
+# 6. SAVE IMAGES
+# ==============================================================================
+ggsave("../output/TPC_Calcification/Calcification_TPC_curves_metric_lines_2023_2025.pdf", 
+       plot = final_tpc_figure, 
+       width = 25, 
+       height = 20, 
+       units = "in", 
+       device = "pdf",
+       dpi = 300)
+
+ggsave("../output/TPC_Calcification/Calcification_TPC_curves_metric_lines_2023_2025.png", 
+       plot = final_tpc_figure, 
+       width = 25, 
+       height = 20, 
+       units = "in", 
+       dpi = 300)
+```
+
+
+
